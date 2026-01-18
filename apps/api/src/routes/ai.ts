@@ -1,3 +1,6 @@
+import { FastifyInstance } from 'fastify';
+import { successResponse, errorResponse, ApiError } from '../utils/response';
+
 /**
  * AI Generation routes
  */

@@ -56,7 +56,7 @@ export async function exportRoutes(fastify: FastifyInstance) {
         where: { id: draftId },
         data: {
           status: 'EXPORTED',
-        exportedAt: new Date(),
+          exportedAt: new Date(),
         },
       })
 
@@ -132,15 +132,15 @@ export async function exportRoutes(fastify: FastifyInstance) {
 
       const { id } = request.params as any
 
-      const export = await prisma.exportHistory.findUnique({
+      const exportRecord = await prisma.exportHistory.findUnique({
         where: { id },
       })
 
-      if (!export) {
+      if (!exportRecord) {
         throw new ApiError('Export record not found', 404)
       }
 
-      return reply.code(200).send(successResponse({ export }))
+      return reply.code(200).send(successResponse({ export: exportRecord }))
     } catch (error: any) {
       console.error('Get export error:', error)
       return reply.code(500).send(errorResponse('Failed to get export'))
@@ -162,11 +162,11 @@ export async function exportRoutes(fastify: FastifyInstance) {
       const { id } = request.params as any
 
       // Check if export exists
-      const existingExport = await prisma.exportHistory.findUnique({
+      const exportRecord = await prisma.exportHistory.findUnique({
         where: { id },
       })
 
-      if (!existingExport) {
+      if (!exportRecord) {
         throw new ApiError('Export record not found', 404)
       }
 

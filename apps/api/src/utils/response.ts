@@ -3,7 +3,7 @@ import { ZodError, z } from 'z';
 /**
  * Standardized API response format
  */
-export interface ApiResponse<T = {
+export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
@@ -88,7 +88,7 @@ export function validateRequest<T extends z.ZodType>(
   data: unknown
 ): { success: boolean; errors: ZodError[]; data?: T } {
   const result = schema.safeParse(data);
-  
+
   if (!result.success) {
     const errors = result.error.errors || [];
     return {
@@ -96,7 +96,7 @@ export function validateRequest<T extends z.ZodType>(
       errors,
     };
   }
-  
+
   return {
     success: true,
     data: result.data,
