@@ -1,0 +1,3 @@
+{
+  "extends": ["@lexigov/eslint-config/library.js"]
+}

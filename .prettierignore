@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+.next
+out
+dist
+build
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Prisma
+prisma/migrations
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Terraform
+*.tfstate
+*.tfvars
+.terraform.lock.hcl
+
+# Generated files
+*.tsbuildinfo
+next-env.d.ts
+
+# Specific files
+turbo.json
+pnpm-workspace.yaml

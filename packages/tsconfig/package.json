@@ -1,0 +1,13 @@
+{
+    "name": "@lexigov/tsconfig",
+    "version": "0.0.0",
+    "private": true,
+    "exports": {
+        "./base.json": "./base.json",
+        "./next.json": "./next.json",
+        "./react-library.json": "./react-library.json"
+    },
+    "peerDependencies": {
+        "typescript": "^5.0.0"
+    }
+}

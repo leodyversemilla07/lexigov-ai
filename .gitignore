@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.next/
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Firebase
+firebase-credentials.json
+firebase-debug.log
+
+# OS
+.DS_Store
+.DS_Store/
+*.swp
+*.swo
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.cache/
+
+# Build
+dist/
+build/
+out/
+.turbo/
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+
+# Lock files (keep pnpm-lock.yaml)
+package-lock.json
+yarn.lock

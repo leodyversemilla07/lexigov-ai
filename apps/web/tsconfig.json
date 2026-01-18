@@ -1,0 +1,34 @@
+{
+  "extends": "@lexigov/tsconfig/next.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@lexigov/types": [
+        "../../packages/types/src"
+      ],
+      "@lexigov/ui": [
+        "../../packages/ui/src"
+      ],
+      "@/*": [
+        "./src/*"
+      ],
+      "@lexigov/ui/src/*": [
+        "../../packages/ui/src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

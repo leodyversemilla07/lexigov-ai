@@ -1,0 +1,36 @@
+{
+  "name": "lexigov-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered ordinance and policy drafting platform for Philippine LGUs",
+  "keywords": ["ai", "legislative", "ordinance", "philippines", "lgu", "policy"],
+  "author": "LexiGov Team",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "turbo run clean",
+    "db:push": "pnpm --filter @lexigov/db db:push",
+    "db:migrate": "pnpm --filter @lexigov/db db:migrate",
+    "db:studio": "pnpm --filter @lexigov/db db:studio",
+    "db:seed": "pnpm --filter @lexigov/db db:seed"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "prettier": "^3.4.2",
+    "turbo": "^2.2.3",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
