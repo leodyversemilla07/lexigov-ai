@@ -1,42 +1,84 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 
 /**
- * Health check endpoint
+ * Health check routes plugin
  */
-export async function healthCheck(
-  request: FastifyRequest,
-  reply: FastifyReply
-) {
-  return {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: '0.1.0',
-  };
+export const healthRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
+  // Health check endpoint
+  fastify.get(
+    '/',
+    {
+      schema: {
+        description: 'Health check endpoint',
+        tags: ['Health'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              status: { type: 'string' },
+              timestamp: { type: 'string' },
+              uptime: { type: 'number' },
+              environment: { type: 'string' },
+              version: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    async () => {
+      return {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development',
+        version: '0.1.0',
+      }
+    }
+  )
+
+  // Readiness check endpoint
+  fastify.get(
+    '/ready',
+    {
+      schema: {
+        description: 'Readiness check endpoint',
+        tags: ['Health'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              ready: { type: 'boolean' },
+            },
+          },
+        },
+      },
+    },
+    async () => {
+      // Add any readiness checks here (database connections, etc.)
+      return { ready: true }
+    }
+  )
+
+  // Liveness check endpoint
+  fastify.get(
+    '/live',
+    {
+      schema: {
+        description: 'Liveness check endpoint',
+        tags: ['Health'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              alive: { type: 'boolean' },
+            },
+          },
+        },
+      },
+    },
+    async () => {
+      return { alive: true }
+    }
+  )
 }
 
-/**
- * API information endpoint
- */
-export async function apiInfo(
-  request: FastifyRequest,
-  reply: FastifyReply
-) {
-  return {
-    name: 'LexiGov AI API',
-    version: '0.1.0',
-    description: 'AI-powered ordinance drafting platform for Philippine LGUs',
-    environment: process.env.NODE_ENV || 'development',
-    endpoints: [
-      'GET /health',
-      'GET /api/info',
-      'GET /api/drafts',
-      'POST /api/drafts',
-      'PUT /api/drafts/:id',
-      'DELETE /api/drafts/:id',
-      'GET /api/templates',
-      'POST /api/templates',
-    ],
-  };
-}

@@ -1,6 +1,6 @@
-import { FastifyInstance } from 'fastify'
-import { successResponse, errorResponse, ApiError } from '../utils/response'
-import { prisma } from '@lexigov/db'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { successResponse, errorResponse, ApiError } from '../utils/response.js'
+import { prisma } from '@repo/db'
 
 /**
  * Required clauses for Philippine ordinances based on RA 7160
@@ -194,7 +194,7 @@ function generateSuggestions(issues: any[], jurisdiction: string): string[] {
 /**
  * Compliance Checker routes
  */
-export async function complianceRoutes(fastify: FastifyInstance) {
+export const complianceRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   /**
    * POST /api/compliance/check
    * Check a draft for compliance
@@ -224,6 +224,7 @@ export async function complianceRoutes(fastify: FastifyInstance) {
 
       // Analyze compliance
       const { issues, warnings, score } = analyzeCompliance(draft, content || draft.content)
+      const suggestions = generateSuggestions(issues, draft.jurisdiction || 'MUNICIPAL')
 
       // Save or update compliance report
       const existingReport = await prisma.complianceReport.findFirst({
@@ -235,11 +236,12 @@ export async function complianceRoutes(fastify: FastifyInstance) {
         report = await prisma.complianceReport.update({
           where: { id: existingReport.id },
           data: {
-            issues: JSON.stringify(issues),
-            warnings: JSON.stringify(warnings),
-            score,
-            checkedById: user.id,
-            suggestions: JSON.stringify(generateSuggestions(issues, draft.jurisdiction || 'MUNICIPAL')),
+            overallScore: score,
+            isValid: score >= 80,
+            issuesCount: issues.length,
+            warningsCount: warnings.length,
+            suggestionsCount: suggestions.length,
+            issues: { issues, warnings, suggestions },
             checkedAt: new Date(),
           },
         })
@@ -247,12 +249,12 @@ export async function complianceRoutes(fastify: FastifyInstance) {
         report = await prisma.complianceReport.create({
           data: {
             draftId,
-            issues: JSON.stringify(issues),
-            warnings: JSON.stringify(warnings),
-            score,
-            status: score >= 80 ? 'COMPLIANT' : 'NON_COMPLIANT',
-            checkedById: user.id,
-            suggestions: JSON.stringify(generateSuggestions(issues, draft.jurisdiction || 'MUNICIPAL')),
+            overallScore: score,
+            isValid: score >= 80,
+            issuesCount: issues.length,
+            warningsCount: warnings.length,
+            suggestionsCount: suggestions.length,
+            issues: { issues, warnings, suggestions },
             checkedAt: new Date(),
           },
         })
@@ -262,11 +264,14 @@ export async function complianceRoutes(fastify: FastifyInstance) {
         report: {
           id: report.id,
           draftId: report.draftId,
-          score: report.score,
-          status: report.status,
+          overallScore: report.overallScore,
+          isValid: report.isValid,
+          issuesCount: report.issuesCount,
+          warningsCount: report.warningsCount,
+          suggestionsCount: report.suggestionsCount,
           issues,
           warnings,
-          suggestions: report.suggestions ? JSON.parse(report.suggestions) : [],
+          suggestions,
         },
       }))
     } catch (error: any) {
@@ -347,22 +352,30 @@ export async function complianceRoutes(fastify: FastifyInstance) {
         throw new ApiError('Unauthorized', 401)
       }
 
-      // Get all compliance reports
+      // Get drafts owned by user, then get their compliance reports
+      const userDrafts = await prisma.draft.findMany({
+        where: { userId: user.id },
+        select: { id: true },
+      })
+
+      const draftIds = userDrafts.map((d: { id: string }) => d.id)
+
+      // Get all compliance reports for user's drafts
       const reports = await prisma.complianceReport.findMany({
-        where: { checkedById: user.id },
+        where: { draftId: { in: draftIds } },
         select: {
           id: true,
-          score: true,
-          status: true,
+          overallScore: true,
+          isValid: true,
           checkedAt: true,
         },
       })
 
       // Calculate summary
       const total = reports.length
-      const compliant = reports.filter((r: any) => r.status === 'COMPLIANT').length
-      const nonCompliant = reports.filter((r: any) => r.status === 'NON_COMPLIANT').length
-      const avgScore = total > 0 ? reports.reduce((sum: number, r: any) => sum + r.score, 0) / total : 0
+      const compliant = reports.filter((r: { isValid: boolean }) => r.isValid).length
+      const nonCompliant = reports.filter((r: { isValid: boolean }) => !r.isValid).length
+      const avgScore = total > 0 ? reports.reduce((sum: number, r: { overallScore: number }) => sum + r.overallScore, 0) / total : 0
 
       return reply.code(200).send(successResponse({
         summary: {

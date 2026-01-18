@@ -1,5 +1,3 @@
-import { ZodError, z } from 'z';
-
 /**
  * Standardized API response format
  */
@@ -22,7 +20,8 @@ export interface PaginationParams {
 /**
  * Paginated response
  */
-export interface PaginatedResponse<T> extends ApiResponse<T> {
+export interface PaginatedResponse<T = any> {
+  success: boolean;
   data: T[];
   pagination: {
     page: number;
@@ -30,12 +29,13 @@ export interface PaginatedResponse<T> extends ApiResponse<T> {
     total: number;
     totalPages: number;
   };
+  timestamp: string;
 }
 
 /**
  * Create success response
  */
-export function successResponse<T>(data: T): ApiResponse {
+export function successResponse<T>(data: T): ApiResponse<T> {
   return {
     success: true,
     data,
@@ -66,7 +66,7 @@ export function paginatedResponse<T>(
   page: number,
   limit: number,
   total: number
-): PaginatedResponse {
+): PaginatedResponse<T> {
   return {
     success: true,
     data,
@@ -77,29 +77,6 @@ export function paginatedResponse<T>(
       totalPages: Math.ceil(total / limit),
     },
     timestamp: new Date().toISOString(),
-  };
-}
-
-/**
- * Validate request with Zod
- */
-export function validateRequest<T extends z.ZodType>(
-  schema: z.ZodType<T>,
-  data: unknown
-): { success: boolean; errors: ZodError[]; data?: T } {
-  const result = schema.safeParse(data);
-
-  if (!result.success) {
-    const errors = result.error.errors || [];
-    return {
-      success: false,
-      errors,
-    };
-  }
-
-  return {
-    success: true,
-    data: result.data,
   };
 }
 

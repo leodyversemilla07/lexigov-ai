@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { ApiError, ErrorCodes } from './response';
+import { ApiError, ErrorCodes } from './response.js';
 
 /**
  * JWT payload interface
@@ -9,6 +9,13 @@ export interface JwtPayload {
   email: string;
   role: string;
   organization?: string;
+}
+
+/**
+ * Authenticated request with user info
+ */
+export interface AuthenticatedRequest extends FastifyRequest {
+  user: JwtPayload;
 }
 
 /**
@@ -23,17 +30,18 @@ export async function authenticateToken(
     const token = extractToken(request);
     
     if (!token) {
-      throw new ApiError('No authentication token provided', 401, ErrorCodes.UNAUTHORIZED);
+      throw new ApiError('No authentication token provided', 401);
     }
 
     const decoded = await verifyToken(token);
     
     // Attach user to request object
     (request as any).user = decoded;
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Authentication failed';
     reply.code(401).send({
       success: false,
-      error: error.message,
+      error: message,
       timestamp: new Date().toISOString(),
     });
   }
@@ -56,7 +64,7 @@ export function extractToken(request: FastifyRequest): string | null {
     return null;
   }
   
-  return parts[1];
+  return parts[1] ?? null;
 }
 
 /**

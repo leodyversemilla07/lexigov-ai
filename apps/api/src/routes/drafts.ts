@@ -1,11 +1,11 @@
-import { FastifyInstance } from 'fastify'
-import { successResponse, errorResponse, ApiError } from '../utils/response'
-import { prisma } from '@lexigov/db'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { successResponse, errorResponse, ApiError } from '../utils/response.js'
+import { prisma } from '@repo/db'
 
 /**
  * Draft CRUD routes
  */
-export async function draftRoutes(fastify: FastifyInstance) {
+export const draftRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   /**
    * GET /api/drafts
    * Get all drafts for current user
@@ -185,7 +185,7 @@ export async function draftRoutes(fastify: FastifyInstance) {
             documentType: existingDraft.documentType,
             jurisdiction: existingDraft.jurisdiction,
             jurisdictionName: existingDraft.jurisdictionName,
-            content: existingDraft.content,
+            content: existingDraft.content as object,
             status: existingDraft.status,
             userId: user.id,
             templateId: existingDraft.templateId,
@@ -286,7 +286,7 @@ export async function draftRoutes(fastify: FastifyInstance) {
           documentType: versionDraft.documentType,
           jurisdiction: versionDraft.jurisdiction,
           jurisdictionName: versionDraft.jurisdictionName,
-          content: versionDraft.content,
+          content: versionDraft.content as object,
           status: 'DRAFT',
           userId: user.id,
           templateId: versionDraft.templateId,

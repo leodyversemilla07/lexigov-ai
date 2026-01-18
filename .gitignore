@@ -1,51 +1,54 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
 # Dependencies
-node_modules/
-.next/
+node_modules
+.pnp
+.pnp.js
+
+# Local env files
 .env
 .env.local
-.env.production
-.env.development
-.env.test
-*.log
-
-# Database
-*.db
-*.sqlite
-
-# Firebase
-firebase-credentials.json
-firebase-debug.log
-
-# OS
-.DS_Store
-.DS_Store/
-*.swp
-*.swo
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Testing
-coverage/
-.nyc_output/
-*.lcov
-.cache/
+coverage
 
-# Build
-dist/
-build/
+# Turbo
+.turbo
+
+# Vercel
+.vercel
+
+# Build Outputs
+.next/
 out/
-.turbo/
+build
+dist
+
+
+# Debug
+npm-debug.log*
 
 # Misc
-*.pid
-*.seed
-*.pid.lock
+.DS_Store
+*.pem
 
-# Lock files (keep pnpm-lock.yaml)
-package-lock.json
-yarn.lock
+# Secrets
+.secrets/
+
+# Firebase
+firebase-debug.log
+.firebase/
+# IDE
+.idea/
+
+# Lock files (optional - some teams commit these)
+# bun.lock
+
+# Prisma
+packages/database/generated/
+
+# OS files
+Thumbs.db

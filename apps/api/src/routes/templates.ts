@@ -1,11 +1,11 @@
-import { FastifyInstance } from 'fastify'
-import { successResponse, errorResponse, ApiError } from '../utils/response'
-import { prisma } from '@lexigov/db'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { successResponse, errorResponse, ApiError } from '../utils/response.js'
+import { prisma } from '@repo/db'
 
 /**
  * Template CRUD routes
  */
-export async function templateRoutes(fastify: FastifyInstance) {
+export const templateRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   /**
    * GET /api/templates
    * Get all templates for current user
@@ -67,10 +67,9 @@ export async function templateRoutes(fastify: FastifyInstance) {
       const templates = await prisma.template.findMany({
         select: { category: true },
         distinct: ['category'],
-        where: { category: { not: null } },
       })
 
-      const categories = templates.map((t) => t.category)
+      const categories = templates.map((t: { category: string }) => t.category)
 
       return reply.code(200).send(successResponse({ categories }))
     } catch (error: any) {
@@ -90,7 +89,7 @@ export async function templateRoutes(fastify: FastifyInstance) {
       const template = await prisma.template.findUnique({
         where: { id },
         include: {
-          createdBy: {
+          user: {
             select: {
               id: true,
               name: true,
@@ -133,15 +132,15 @@ export async function templateRoutes(fastify: FastifyInstance) {
       const {
         name,
         category,
-        documentType,
-        description,
+        subcategory,
         jurisdiction,
-        placeholderData,
-        requiredClauses,
+        structure,
+        exampleContent,
+        isPublic,
       } = request.body as any
 
       // Validate required fields
-      if (!name || !category || !documentType || !jurisdiction) {
+      if (!name || !category || !structure) {
         throw new ApiError('Missing required fields', 400)
       }
 
@@ -150,13 +149,12 @@ export async function templateRoutes(fastify: FastifyInstance) {
         data: {
           name,
           category,
-          documentType: documentType.toUpperCase(),
-          description: description || '',
-          jurisdiction: jurisdiction.toUpperCase(),
-          placeholderData: placeholderData || {},
-          requiredClauses: requiredClauses || [],
-          status: 'PUBLISHED',
-          createdById: user.id,
+          subcategory,
+          jurisdiction: jurisdiction || [],
+          structure,
+          exampleContent,
+          isPublic: isPublic ?? true,
+          userId: user.id,
         },
       })
 
@@ -203,14 +201,11 @@ export async function templateRoutes(fastify: FastifyInstance) {
         data: {
           ...(updateData.name && { name: updateData.name }),
           ...(updateData.category && { category: updateData.category }),
-          ...(updateData.documentType && { documentType: updateData.documentType.toUpperCase() }),
-          ...(updateData.description !== undefined && { description: updateData.description }),
-          ...(updateData.jurisdiction && { jurisdiction: updateData.jurisdiction.toUpperCase() }),
-          ...(updateData.placeholderData !== undefined && { placeholderData: updateData.placeholderData }),
-          ...(updateData.requiredClauses !== undefined && { requiredClauses: updateData.requiredClauses }),
-          ...(updateData.status && { status: updateData.status }),
-          updatedBy: user.id,
-          updatedAt: new Date(),
+          ...(updateData.subcategory !== undefined && { subcategory: updateData.subcategory }),
+          ...(updateData.jurisdiction !== undefined && { jurisdiction: updateData.jurisdiction }),
+          ...(updateData.structure !== undefined && { structure: updateData.structure }),
+          ...(updateData.exampleContent !== undefined && { exampleContent: updateData.exampleContent }),
+          ...(updateData.isPublic !== undefined && { isPublic: updateData.isPublic }),
         },
       })
 
@@ -270,6 +265,7 @@ export async function templateRoutes(fastify: FastifyInstance) {
     try {
       const user = (request as any).user
       const { id } = request.params as any
+      const { documentType, jurisdiction, jurisdictionName } = request.body as any
 
       if (!user) {
         throw new ApiError('Unauthorized', 401)
@@ -284,14 +280,20 @@ export async function templateRoutes(fastify: FastifyInstance) {
         throw new ApiError('Template not found', 404)
       }
 
+      // Update template usage count
+      await prisma.template.update({
+        where: { id },
+        data: { usageCount: { increment: 1 } },
+      })
+
       // Create draft from template
       const draft = await prisma.draft.create({
         data: {
           title: template.name,
-          documentType: template.documentType,
-          jurisdiction: template.jurisdiction,
-          jurisdictionName: user.organization || 'My LGU',
-          content: template.placeholderData || {},
+          documentType: documentType || 'ORDINANCE',
+          jurisdiction: jurisdiction || template.jurisdiction[0] || 'BARANGAY',
+          jurisdictionName: jurisdictionName || user.organization || 'My LGU',
+          content: template.structure || {},
           status: 'DRAFT',
           userId: user.id,
           templateId: id,

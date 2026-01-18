@@ -1,11 +1,11 @@
-import { FastifyInstance } from 'fastify'
-import { successResponse, errorResponse, ApiError } from '../utils/response'
-import { prisma } from '@lexigov/db'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { successResponse, errorResponse, ApiError } from '../utils/response.js'
+import { prisma } from '@repo/db'
 
 /**
  * Export History routes
  */
-export async function exportRoutes(fastify: FastifyInstance) {
+export const exportRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   /**
    * POST /api/exports
    * Create a new export record
@@ -18,15 +18,15 @@ export async function exportRoutes(fastify: FastifyInstance) {
         throw new ApiError('Unauthorized', 401)
       }
 
-      const { draftId, format = 'PDF', options = {} } = request.body as any
+      const { draftId, exportType = 'PDF', fileUrl, fileSize = 0, pageCount } = request.body as any
 
       if (!draftId) {
         throw new ApiError('Draft ID is required', 400)
       }
 
-      // Validate format
-      if (!['PDF', 'DOCX', 'DOC'].includes(format)) {
-        throw new ApiError('Invalid export format', 400)
+      // Validate export type
+      if (!['PDF', 'DOCX'].includes(exportType)) {
+        throw new ApiError('Invalid export type', 400)
       }
 
       // Get draft
@@ -42,27 +42,17 @@ export async function exportRoutes(fastify: FastifyInstance) {
       const exportHistory = await prisma.exportHistory.create({
         data: {
           draftId,
-          format,
-          options: options || {},
-          status: 'COMPLETED',
-          userId: user.id,
-          fileName: `${draft.title.replace(/[^a-zA-Z0-9]/g, '_')}.${format.toLowerCase()}`,
-          exportedAt: new Date(),
-        },
-      })
-
-      // Update draft export status if needed
-      await prisma.draft.update({
-        where: { id: draftId },
-        data: {
-          status: 'EXPORTED',
-          exportedAt: new Date(),
+          exportType,
+          fileUrl: fileUrl || `exports/${draft.id}/${Date.now()}.${exportType.toLowerCase()}`,
+          fileSize,
+          pageCount,
+          exportedBy: user.id,
         },
       })
 
       return reply.code(201).send(successResponse({
         export: exportHistory,
-        message: `Successfully exported draft to ${format.toUpperCase()}`,
+        message: `Successfully exported draft to ${exportType}`,
       }))
     } catch (error: any) {
       console.error('Create export error:', error)
@@ -94,7 +84,7 @@ export async function exportRoutes(fastify: FastifyInstance) {
       const [exports, total] = await Promise.all([
         prisma.exportHistory.findMany({
           where: { draftId },
-          orderBy: { exportedAt: 'desc' },
+          orderBy: { createdAt: 'desc' },
           skip,
           take: parseInt(limit),
         }),

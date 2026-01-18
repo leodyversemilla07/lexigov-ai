@@ -1,210 +1,329 @@
-import { FastifyInstance } from 'fastify'
-import { ApiError, successResponse, errorResponse } from '../utils/response'
-import { initializeApp, getApps } from 'firebase/app'
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, User as FirebaseUser } from 'firebase/auth'
-import type { JwtPayload } from '../utils/auth'
-import { prisma } from '@lexigov/db'
-
-// Firebase configuration (should come from environment variables)
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "",
-  projectId: process.env.FIREBASE_PROJECT_ID || "",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: process.env.FIREBASE_APP_ID || "",
-}
-
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
-const auth = getAuth(app)
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { ApiError, successResponse, errorResponse } from '../utils/response.js'
+import { prisma, UserRole } from '@repo/db'
+import { verifyIdToken, getUserByUid, setCustomClaims } from '../lib/firebase-admin.js'
+import { firebaseAuthMiddleware, type AuthenticatedRequest, type FirebaseUser } from '../middleware/firebase-auth.js'
 
 /**
- * Register authentication routes
+ * Authentication routes plugin
+ * 
+ * These routes handle Firebase-based authentication:
+ * - /auth/verify-token: Verify Firebase ID token and sync user to database
+ * - /auth/me: Get current authenticated user
+ * - /auth/profile: Update user profile
+ * - /auth/logout: Logout (handled client-side, server just acknowledges)
  */
-export async function authRoutes(fastify: FastifyInstance) {
+export const authRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   /**
-   * POST /api/auth/register
-   * Register a new user
+   * POST /auth/verify-token
+   * Verify Firebase ID token and sync user to database
+   * This is the main authentication endpoint for the frontend
    */
-  fastify.post('/auth/register', async (request, reply) => {
-    try {
-      const { email, password, name, organization } = request.body as any
-
-      // Validate input
-      if (!email || !password || !name) {
-        throw new ApiError('Email, password, and name are required', 400)
-      }
-
-      // Create user in Firebase
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-      const firebaseUser = userCredential.user
-
-      // Create user in database
-      const user = await prisma.user.create({
-        data: {
-          email,
-          name,
-          organization,
-          firebaseUid: firebaseUser.uid,
-          role: 'LEGISLATIVE_STAFF', // Default role
-        },
-      })
-
-      return reply.code(201).send(successResponse({
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          organization: user.organization,
-        },
-      }))
-    } catch (error: any) {
-      console.error('Registration error:', error)
-      if (error.code === 'auth/email-already-in-use') {
-        return reply.code(409).send(errorResponse('Email already registered'))
-      }
-      return reply.code(500).send(errorResponse('Registration failed'))
+  fastify.post<{
+    Body: {
+      idToken: string
     }
-  })
-
-  /**
-   * POST /api/auth/login
-   * Login with email and password
-   */
-  fastify.post('/auth/login', async (request, reply) => {
-    try {
-      const { email, password } = request.body as any
-
-      // Validate input
-      if (!email || !password) {
-        throw new ApiError('Email and password are required', 400)
-      }
-
-      // Sign in with Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      const firebaseUser = userCredential.user
-
-      // Get Firebase ID token (for frontend)
-      const idToken = await firebaseUser.getIdToken()
-
-      // Find user in database
-      let user = await prisma.user.findUnique({
-        where: { firebaseUid: firebaseUser.uid },
-      })
-
-      // Create user in database if doesn't exist
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            email: firebaseUser.email || email,
-            name: firebaseUser.displayName || undefined,
-            firebaseUid: firebaseUser.uid,
-            role: 'LEGISLATIVE_STAFF',
+  }>(
+    '/auth/verify-token',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['idToken'],
+          properties: {
+            idToken: { type: 'string' },
           },
-        })
-      }
-
-      return reply.code(200).send(successResponse({
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          organization: user.organization,
         },
-        token: idToken,
-      }))
-    } catch (error: any) {
-      console.error('Login error:', error)
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        return reply.code(401).send(errorResponse('Invalid email or password'))
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { idToken } = request.body
+
+        // Verify the Firebase ID token
+        const result = await verifyIdToken(idToken)
+
+        if (!result.success || !result.uid) {
+          throw new ApiError(result.error || 'Invalid token', 401)
+        }
+
+        // Find or create user in database
+        let user = await prisma.user.findUnique({
+          where: { firebaseUid: result.uid },
+        })
+
+        if (!user) {
+          // Create new user from Firebase data
+          user = await prisma.user.create({
+            data: {
+              firebaseUid: result.uid,
+              email: result.email || `${result.uid}@unknown.com`,
+              name: result.displayName,
+              role: 'LEGISLATIVE_STAFF', // Default role
+            },
+          })
+
+          // Set custom claims in Firebase for role-based access
+          await setCustomClaims(result.uid, { role: user.role })
+        }
+
+        return reply.code(200).send(
+          successResponse({
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              organization: user.organization,
+              emailVerified: result.emailVerified,
+            },
+            firebaseUid: result.uid,
+          })
+        )
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return reply.code(error.statusCode).send(errorResponse(error.message))
+        }
+        fastify.log.error(error, 'Token verification error')
+        return reply.code(500).send(errorResponse('Token verification failed'))
       }
-      return reply.code(500).send(errorResponse('Login failed'))
     }
-  })
+  )
 
   /**
-   * POST /api/auth/logout
+   * GET /auth/firebase-user/:uid
+   * Get Firebase user details by UID (admin only)
+   */
+  fastify.get<{
+    Params: { uid: string }
+  }>(
+    '/auth/firebase-user/:uid',
+    {
+      preHandler: firebaseAuthMiddleware,
+      schema: {
+        params: {
+          type: 'object',
+          required: ['uid'],
+          properties: {
+            uid: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const authRequest = request as AuthenticatedRequest
+        
+        // Only admins can lookup other users
+        if (authRequest.user.role !== 'ADMIN') {
+          throw new ApiError('Insufficient permissions', 403)
+        }
+
+        const { uid } = request.params
+        const firebaseUser = await getUserByUid(uid)
+
+        return reply.code(200).send(
+          successResponse({
+            user: {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              emailVerified: firebaseUser.emailVerified,
+              disabled: firebaseUser.disabled,
+              createdAt: firebaseUser.metadata.creationTime,
+              lastSignIn: firebaseUser.metadata.lastSignInTime,
+            },
+          })
+        )
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return reply.code(error.statusCode).send(errorResponse(error.message))
+        }
+        fastify.log.error(error, 'Get Firebase user error')
+        return reply.code(500).send(errorResponse('Failed to get Firebase user'))
+      }
+    }
+  )
+
+  /**
+   * POST /auth/logout
    * Logout user (client-side mostly)
    */
-  fastify.post('/auth/logout', async (request, reply) => {
-    // Firebase logout is handled client-side
-    // This endpoint can be used for server-side cleanup if needed
-    return reply.code(200).send(successResponse({ message: 'Logged out successfully' }))
-  })
+  fastify.post(
+    '/auth/logout',
+    async (_request, reply) => {
+      // Firebase logout is handled client-side
+      return reply.code(200).send(successResponse({ message: 'Logged out successfully' }))
+    }
+  )
 
   /**
-   * GET /api/auth/me
+   * GET /auth/me
    * Get current user information (requires authentication)
    */
-  fastify.get('/auth/me', async (request, reply) => {
-    try {
-      const user = (request as any).user as JwtPayload
+  fastify.get(
+    '/auth/me',
+    {
+      preHandler: firebaseAuthMiddleware,
+    },
+    async (request, reply) => {
+      try {
+        const authRequest = request as AuthenticatedRequest
+        const user = authRequest.user
+        const firebaseUser = authRequest.firebaseUser
 
-      if (!user) {
-        throw new ApiError('Unauthorized', 401)
+        return reply.code(200).send(
+          successResponse({
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              organization: user.organization,
+              emailVerified: firebaseUser?.emailVerified,
+            },
+          })
+        )
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return reply.code(error.statusCode).send(errorResponse(error.message))
+        }
+        fastify.log.error(error, 'Get user error')
+        return reply.code(500).send(errorResponse('Failed to get user'))
       }
-
-      // Get full user from database
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.userId },
-      })
-
-      if (!dbUser) {
-        throw new ApiError('User not found', 404)
-      }
-
-      return reply.code(200).send(successResponse({
-        user: {
-          id: dbUser.id,
-          email: dbUser.email,
-          name: dbUser.name,
-          role: dbUser.role,
-          organization: dbUser.organization,
-        },
-      }))
-    } catch (error: any) {
-      console.error('Get user error:', error)
-      return reply.code(500).send(errorResponse('Failed to get user'))
     }
-  })
+  )
 
   /**
-   * PUT /api/auth/profile
+   * PUT /auth/profile
    * Update user profile
    */
-  fastify.put('/auth/profile', async (request, reply) => {
-    try {
-      const user = (request as any).user as JwtPayload
-      const { name, organization } = request.body as any
-
-      if (!user) {
-        throw new ApiError('Unauthorized', 401)
-      }
-
-      // Update user in database
-      const updatedUser = await prisma.user.update({
-        where: { id: user.userId },
-        data: {
-          ...(name && { name }),
-          ...(organization && { organization }),
-        },
-      })
-
-      return reply.code(200).send(successResponse({
-        user: {
-          id: updatedUser.id,
-          email: updatedUser.email,
-          name: updatedUser.name,
-          role: updatedUser.role,
-          organization: updatedUser.organization,
-        },
-      }))
-    } catch (error: any) {
-      console.error('Update profile error:', error)
-      return reply.code(500).send(errorResponse('Failed to update profile'))
+  fastify.put<{
+    Body: {
+      name?: string
+      organization?: string
     }
-  })
+  }>(
+    '/auth/profile',
+    {
+      preHandler: firebaseAuthMiddleware,
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            organization: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const authRequest = request as AuthenticatedRequest
+        const { name, organization } = request.body
+
+        // Update user in database
+        const updatedUser = await prisma.user.update({
+          where: { id: authRequest.user.id },
+          data: {
+            ...(name !== undefined && { name }),
+            ...(organization !== undefined && { organization }),
+          },
+        })
+
+        return reply.code(200).send(
+          successResponse({
+            user: {
+              id: updatedUser.id,
+              email: updatedUser.email,
+              name: updatedUser.name,
+              role: updatedUser.role,
+              organization: updatedUser.organization,
+            },
+          })
+        )
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return reply.code(error.statusCode).send(errorResponse(error.message))
+        }
+        fastify.log.error(error, 'Update profile error')
+        return reply.code(500).send(errorResponse('Failed to update profile'))
+      }
+    }
+  )
+
+  /**
+   * PUT /auth/role/:userId
+   * Update user role (admin only)
+   */
+  fastify.put<{
+    Params: { userId: string }
+    Body: { role: string }
+  }>(
+    '/auth/role/:userId',
+    {
+      preHandler: firebaseAuthMiddleware,
+      schema: {
+        params: {
+          type: 'object',
+          required: ['userId'],
+          properties: {
+            userId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['role'],
+          properties: {
+            role: { 
+              type: 'string',
+              enum: ['ADMIN', 'LEGISLATIVE_STAFF', 'LEGAL_OFFICER', 'VIEWER'],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const authRequest = request as AuthenticatedRequest
+        
+        // Only admins can change roles
+        if (authRequest.user.role !== 'ADMIN') {
+          throw new ApiError('Insufficient permissions', 403)
+        }
+
+        const { userId } = request.params
+        const { role } = request.body
+
+        // Update user in database
+        const updatedUser = await prisma.user.update({
+          where: { id: userId },
+          data: { role: role as UserRole },
+        })
+
+        // Update custom claims in Firebase if user has firebaseUid
+        if (updatedUser.firebaseUid) {
+          await setCustomClaims(updatedUser.firebaseUid, { role })
+        }
+
+        return reply.code(200).send(
+          successResponse({
+            user: {
+              id: updatedUser.id,
+              email: updatedUser.email,
+              name: updatedUser.name,
+              role: updatedUser.role,
+              organization: updatedUser.organization,
+            },
+          })
+        )
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return reply.code(error.statusCode).send(errorResponse(error.message))
+        }
+        fastify.log.error(error, 'Update role error')
+        return reply.code(500).send(errorResponse('Failed to update role'))
+      }
+    }
+  )
 }
