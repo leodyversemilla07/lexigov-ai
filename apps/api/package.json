@@ -14,11 +14,13 @@
     "@fastify/cors": "^10.0.0",
     "@fastify/helmet": "^13.0.0",
     "@fastify/sensible": "^6.0.0",
+    "@google/generative-ai": "^0.24.1",
     "@repo/db": "workspace:*",
     "@repo/types": "workspace:*",
     "fastify": "^5.1.0",
     "fastify-plugin": "^5.0.0",
-    "firebase-admin": "^13.6.0"
+    "firebase-admin": "^13.6.0",
+    "google-auth-library": "^10.5.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.25",
