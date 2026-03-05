@@ -2,19 +2,10 @@ import type { Metadata } from "next";
 import {
   ClerkProvider,
 } from "@clerk/nextjs";
-import { Geist, Geist_Mono } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "LexiGov AI - Philippine Ordinance Generator",
@@ -30,7 +21,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+          className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}
         >
           <ConvexClientProvider>
             {children}
