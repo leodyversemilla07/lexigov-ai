@@ -43,28 +43,36 @@ LexiGov AI streamlines the ordinance creation process by combining Google Gemini
 
 ```
 app/
-├── (auth)/          # Clerk sign-in and sign-up pages
-├── dashboard/       # Protected dashboard routes
-│   ├── compare/     # Document comparison
-│   ├── compliance/  # RA 7160 compliance reports
-│   ├── drafts/      # Draft list, editor, new draft
-│   ├── export/      # Export to PDF/DOCX
-│   ├── settings/    # User settings
-│   └── templates/   # Template library
+├── page.tsx             # Landing page (public) → /
+├── layout.tsx           # Root layout (Clerk, Convex, theme)
+├── (auth)/              # Public auth routes (no layout)
+│   ├── sign-in/         # → /sign-in
+│   └── sign-up/         # → /sign-up
+└── (protected)/         # Route group — shared sidebar layout, Clerk-protected
+    ├── layout.tsx        # Sidebar + header layout (no URL prefix added)
+    ├── dashboard/        # → /dashboard  (overview & stats)
+    ├── drafts/           # → /drafts     (draft list)
+    │   ├── [id]/         # → /drafts/[id] (draft editor)
+    │   └── new/          # → /drafts/new  (create draft)
+    ├── templates/        # → /templates
+    ├── compliance/       # → /compliance
+    ├── compare/          # → /compare
+    ├── export/           # → /export
+    └── settings/         # → /settings
 components/
-├── app-sidebar.tsx  # LexiGov navigation sidebar
-├── header.tsx       # Top header with search and user menu
-├── nav-main.tsx     # Flat nav links with active-route detection
-└── ui/              # shadcn/ui primitives
+├── app-sidebar.tsx       # LexiGov navigation sidebar (shadcn sidebar-07)
+├── header.tsx            # Top header with sidebar trigger, search, user menu
+├── nav-main.tsx          # Flat NavLinks with active-route detection via usePathname
+└── ui/                   # shadcn/ui primitives
 convex/
-├── schema.ts        # Database schema (users, drafts, templates, complianceReports)
-├── drafts.ts        # Draft queries and mutations
-├── templates.ts     # Template queries and mutations
-├── ai.ts            # Gemini AI action
-└── users.ts         # User sync with Clerk
+├── schema.ts             # Database schema (users, drafts, templates, complianceReports)
+├── drafts.ts             # Draft queries and mutations
+├── templates.ts          # Template queries and mutations
+├── ai.ts                 # Gemini AI action (generateOrdinance)
+└── users.ts              # User sync with Clerk
 lib/
-└── schemas/         # Shared Zod schemas (enums, draft, template, auth, ai)
-hooks/               # Custom React hooks
+└── schemas/              # Shared Zod schemas (enums, draft, template, auth, ai)
+proxy.ts                  # Next.js 16 middleware (Clerk auth protection)
 ```
 
 ---
