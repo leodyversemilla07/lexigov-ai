@@ -8,7 +8,7 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 
 export default function Home() {
     return (
-        <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="min-h-screen bg-linear-to-b from-background to-muted/20">
             {/* Navigation */}
             <nav className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
                 <div className="flex items-center gap-3">

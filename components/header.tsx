@@ -6,19 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function Header() {
     return (
         <TooltipProvider>
-            <header className="h-16 bg-background border-b flex items-center justify-between px-6">
-                {/* Search */}
-                <div className="flex items-center flex-1 max-w-md">
-                    <div className="relative w-full">
+            <header className="h-16 bg-background border-b flex items-center justify-between px-4 gap-4 shrink-0">
+                {/* Left: Sidebar toggle + Search */}
+                <div className="flex items-center gap-2">
+                    <SidebarTrigger className="-ml-1" />
+                    <Separator orientation="vertical" className="h-6" />
+                    <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                             type="text"
                             placeholder="Search drafts, templates..."
-                            className="pl-9"
+                            className="pl-9 w-64"
                         />
                     </div>
                 </div>
