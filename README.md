@@ -1,36 +1,150 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LexiGov AI
+
+An AI-powered platform for drafting **RA 7160-compliant** local government ordinances for Philippine Local Government Units (LGUs).
+
+---
+
+## Overview
+
+LexiGov AI streamlines the ordinance creation process by combining Google Gemini AI with a structured document workflow. It supports multiple jurisdiction levels (Barangay, City, Municipal, Provincial) and document types (Ordinance, Resolution, Memorandum, Policy), with built-in RA 7160 compliance checking.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | [Next.js 16](https://nextjs.org) (App Router, Turbopack) |
+| Language | TypeScript |
+| Auth | [Clerk](https://clerk.com) |
+| Database / Backend | [Convex](https://convex.dev) (real-time, serverless) |
+| AI | [Google Gemini 1.5 Flash](https://ai.google.dev) via `@google/generative-ai` |
+| UI Components | [shadcn/ui](https://ui.shadcn.com) + [Radix UI](https://radix-ui.com) |
+| Styling | [Tailwind CSS v4](https://tailwindcss.com) |
+| Forms | React Hook Form + Zod |
+| Fonts | [Geist](https://vercel.com/font) (local, via `geist` npm package) |
+
+---
+
+## Features
+
+- **AI Ordinance Generation** — Generate complete, professionally formatted ordinances from a plain-language prompt using Google Gemini AI
+- **RA 7160 Compliance Checking** — Automated compliance scoring against the Local Government Code of 1991
+- **Draft Management** — Full CRUD with versioning, commit messages, and status workflow (Draft → Review → Final → Archived)
+- **Template Library** — Reusable ordinance templates by category and jurisdiction level, with public sharing
+- **Document Comparison** — Side-by-side diff of draft versions
+- **Export** — Export drafts to PDF and DOCX
+- **Role-Based Access** — Roles: Admin, Legislative Staff, Barangay Secretary, City Council, Researcher
+- **Collapsible Sidebar** — shadcn sidebar-07 with collapse-to-icons navigation
+
+---
+
+## Project Structure
+
+```
+app/
+├── (auth)/          # Clerk sign-in and sign-up pages
+├── dashboard/       # Protected dashboard routes
+│   ├── compare/     # Document comparison
+│   ├── compliance/  # RA 7160 compliance reports
+│   ├── drafts/      # Draft list, editor, new draft
+│   ├── export/      # Export to PDF/DOCX
+│   ├── settings/    # User settings
+│   └── templates/   # Template library
+components/
+├── app-sidebar.tsx  # LexiGov navigation sidebar
+├── header.tsx       # Top header with search and user menu
+├── nav-main.tsx     # Flat nav links with active-route detection
+└── ui/              # shadcn/ui primitives
+convex/
+├── schema.ts        # Database schema (users, drafts, templates, complianceReports)
+├── drafts.ts        # Draft queries and mutations
+├── templates.ts     # Template queries and mutations
+├── ai.ts            # Gemini AI action
+└── users.ts         # User sync with Clerk
+lib/
+└── schemas/         # Shared Zod schemas (enums, draft, template, auth, ai)
+hooks/               # Custom React hooks
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- A [Clerk](https://clerk.com) account
+- A [Convex](https://convex.dev) account
+- A [Google AI Studio](https://aistudio.google.com) API key (Gemini)
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/leodyversemilla07/lexigov-ai.git
+cd lexigov-ai
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env.local` file in the project root:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 
-## Learn More
+# Convex
+NEXT_PUBLIC_CONVEX_URL=https://...convex.cloud
 
-To learn more about Next.js, take a look at the following resources:
+# Google Gemini AI
+GEMINI_API_KEY=AI...
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Run the Development Server
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# Terminal 1 — Next.js
+npm run dev
 
-## Deploy on Vercel
+# Terminal 2 — Convex backend
+npx convex dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Available Scripts
+
+| Script | Description |
+|---|---|
+| `npm run dev` | Start Next.js dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npx convex dev` | Start Convex backend in watch mode |
+| `npx convex deploy` | Deploy Convex functions to production |
+
+---
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push to GitHub and import the repository at [vercel.com/new](https://vercel.com/new)
+2. Add all environment variables from `.env.local` to the Vercel project settings
+3. Deploy — Vercel auto-detects Next.js
+
+### Convex
+
+```bash
+npx convex deploy
+```
+
+Set `CONVEX_DEPLOY_KEY` in your CI/CD environment for automated deployments.
