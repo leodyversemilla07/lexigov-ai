@@ -43,7 +43,7 @@ export default function NewDraftPage() {
 
         try {
             const draftId = await createDraft(formData);
-            router.push(`/dashboard/drafts/${draftId}`);
+            router.push(`/drafts/${draftId}`);
         } catch (error) {
             console.error("Failed to create draft:", error);
             alert("Failed to create draft. Please try again.");
@@ -57,7 +57,7 @@ export default function NewDraftPage() {
             {/* Header */}
             <div className="mb-8">
                 <Button variant="ghost" asChild className="mb-4 pl-0">
-                    <Link href="/dashboard/drafts">
+                    <Link href="/drafts">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back to Drafts
                     </Link>
@@ -160,7 +160,7 @@ export default function NewDraftPage() {
 
                         <div className="flex items-center justify-end gap-4 pt-4">
                             <Button variant="outline" asChild>
-                                <Link href="/dashboard/drafts">Cancel</Link>
+                                <Link href="/drafts">Cancel</Link>
                             </Button>
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? "Creating..." : "Create Draft"}

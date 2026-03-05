@@ -16,7 +16,7 @@ export default function DashboardPage() {
                     <p className="text-muted-foreground mt-1">Welcome back to LexiGov AI</p>
                 </div>
                 <Button asChild>
-                    <Link href="/dashboard/drafts/new">
+                    <Link href="/drafts/new">
                         <Plus className="w-4 h-4 mr-2" />
                         New Draft
                     </Link>
@@ -66,19 +66,19 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent className="space-y-2">
                         <Button asChild className="w-full justify-start" variant="outline">
-                            <Link href="/dashboard/drafts/new">
+                            <Link href="/drafts/new">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Create New Draft
                             </Link>
                         </Button>
                         <Button asChild className="w-full justify-start" variant="outline">
-                            <Link href="/dashboard/drafts/new">
+                            <Link href="/drafts/new">
                                 <Sparkles className="w-4 h-4 mr-2" />
                                 Generate with AI
                             </Link>
                         </Button>
                         <Button asChild className="w-full justify-start" variant="outline">
-                            <Link href="/dashboard/templates">
+                            <Link href="/templates">
                                 <LayoutTemplate className="w-4 h-4 mr-2" />
                                 Browse Templates
                             </Link>

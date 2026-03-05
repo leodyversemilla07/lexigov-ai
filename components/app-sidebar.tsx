@@ -27,13 +27,13 @@ import {
 
 const navigation = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Drafts", url: "/dashboard/drafts", icon: FileText },
-  { title: "Templates", url: "/dashboard/templates", icon: LayoutTemplate },
-  { title: "AI Generator", url: "/dashboard/ai", icon: Sparkles },
-  { title: "Compliance", url: "/dashboard/compliance", icon: Scale },
-  { title: "Compare", url: "/dashboard/compare", icon: FileCheck },
-  { title: "Export", url: "/dashboard/export", icon: Download },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings },
+  { title: "Drafts", url: "/drafts", icon: FileText },
+  { title: "Templates", url: "/templates", icon: LayoutTemplate },
+  { title: "AI Generator", url: "/ai", icon: Sparkles },
+  { title: "Compliance", url: "/compliance", icon: Scale },
+  { title: "Compare", url: "/compare", icon: FileCheck },
+  { title: "Export", url: "/export", icon: Download },
+  { title: "Settings", url: "/settings", icon: Settings },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

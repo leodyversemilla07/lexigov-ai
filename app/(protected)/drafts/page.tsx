@@ -50,7 +50,7 @@ export default function DraftsPage() {
                     </p>
                 </div>
                 <Button asChild>
-                    <Link href="/dashboard/drafts/new">
+                    <Link href="/drafts/new">
                         <Plus className="w-4 h-4 mr-2" />
                         New Draft
                     </Link>
@@ -109,7 +109,7 @@ export default function DraftsPage() {
                             </p>
                             {!searchQuery && statusFilter === "ALL" && (
                                 <Button asChild>
-                                    <Link href="/dashboard/drafts/new">
+                                    <Link href="/drafts/new">
                                         <Plus className="w-4 h-4 mr-2" />
                                         Create Draft
                                     </Link>
@@ -155,7 +155,7 @@ export default function DraftsPage() {
                                                 {draft.status}
                                             </Badge>
                                             <Button variant="ghost" asChild>
-                                                <Link href={`/dashboard/drafts/${draft._id}`}>
+                                                <Link href={`/drafts/${draft._id}`}>
                                                     Edit
                                                 </Link>
                                             </Button>
