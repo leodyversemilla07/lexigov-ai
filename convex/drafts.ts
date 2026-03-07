@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUser, requireCurrentUser } from "./lib/currentUser";
 
 /**
  * List drafts for the current user
@@ -10,14 +11,7 @@ export const list = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return [];
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .first();
-
+        const user = await getCurrentUser(ctx);
         if (!user) return [];
 
         const draftsQuery = ctx.db
@@ -42,17 +36,10 @@ export const list = query({
 export const get = query({
     args: { id: v.id("drafts") },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return null;
-
         const draft = await ctx.db.get(args.id);
         if (!draft) return null;
 
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .first();
-
+        const user = await getCurrentUser(ctx);
         if (!user || draft.userId !== user._id) return null;
 
         return draft;
@@ -72,15 +59,7 @@ export const create = mutation({
         templateId: v.optional(v.id("templates")),
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .first();
-
-        if (!user) throw new Error("User not found");
+        const user = await requireCurrentUser(ctx);
 
         const now = Date.now();
 
@@ -123,15 +102,7 @@ export const update = mutation({
         commitMessage: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .first();
-
-        if (!user) throw new Error("User not found");
+        const user = await requireCurrentUser(ctx);
 
         const draft = await ctx.db.get(args.id);
         if (!draft || draft.userId !== user._id) {
@@ -165,15 +136,7 @@ export const update = mutation({
 export const remove = mutation({
     args: { id: v.id("drafts") },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .first();
-
-        if (!user) throw new Error("User not found");
+        const user = await requireCurrentUser(ctx);
 
         const draft = await ctx.db.get(args.id);
         if (!draft || draft.userId !== user._id) {

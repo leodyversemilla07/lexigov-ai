@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUser, requireCurrentUser } from "./lib/currentUser";
 
 /**
  * List templates (public or user's own)
@@ -10,30 +11,22 @@ export const list = query({
         publicOnly: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-
         let templates = await ctx.db
             .query("templates")
             .withIndex("by_public", (q) => q.eq("isPublic", true))
             .collect();
 
-        if (identity) {
-            const user = await ctx.db
-                .query("users")
-                .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-                .first();
+        const user = await getCurrentUser(ctx);
+        if (user) {
+            const userTemplates = await ctx.db
+                .query("templates")
+                .withIndex("by_user", (q) => q.eq("userId", user._id))
+                .collect();
 
-            if (user) {
-                const userTemplates = await ctx.db
-                    .query("templates")
-                    .withIndex("by_user", (q) => q.eq("userId", user._id))
-                    .collect();
-
-                const publicIds = new Set(templates.map((t) => t._id));
-                for (const t of userTemplates) {
-                    if (!publicIds.has(t._id)) {
-                        templates.push(t);
-                    }
+            const publicIds = new Set(templates.map((t) => t._id));
+            for (const t of userTemplates) {
+                if (!publicIds.has(t._id)) {
+                    templates.push(t);
                 }
             }
         }
@@ -57,14 +50,7 @@ export const get = query({
 
         if (template.isPublic) return template;
 
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return null;
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .first();
-
+        const user = await getCurrentUser(ctx);
         if (!user || template.userId !== user._id) return null;
 
         return template;
@@ -85,15 +71,7 @@ export const create = mutation({
         isPublic: v.boolean(),
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-            .first();
-
-        if (!user) throw new Error("User not found");
+        const user = await requireCurrentUser(ctx);
 
         const now = Date.now();
 

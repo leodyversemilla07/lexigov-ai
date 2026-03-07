@@ -11,6 +11,7 @@
 import type * as ai from "../ai.js";
 import type * as drafts from "../drafts.js";
 import type * as http from "../http.js";
+import type * as lib_currentUser from "../lib/currentUser.js";
 import type * as templates from "../templates.js";
 import type * as users from "../users.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   drafts: typeof drafts;
   http: typeof http;
+  "lib/currentUser": typeof lib_currentUser;
   templates: typeof templates;
   users: typeof users;
 }>;

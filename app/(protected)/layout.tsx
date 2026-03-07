@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Header } from "@/components/header";
+import { UserBootstrap } from "@/components/user-bootstrap";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 export default function DashboardLayout({
@@ -10,6 +11,7 @@ export default function DashboardLayout({
 }) {
     return (
         <SidebarProvider>
+            <UserBootstrap />
             <AppSidebar />
             <SidebarInset>
                 <Header />
