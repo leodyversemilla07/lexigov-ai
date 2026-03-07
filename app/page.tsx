@@ -1,10 +1,8 @@
-import Link from "next/link";
 import React from "react";
-import { ArrowRight, FileText, Sparkles, Shield, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText, Sparkles, Shield, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { HomeCtaActions, HomeHeroActions, HomeNavActions } from "@/components/home-auth-actions";
 
 export default function Home() {
     return (
@@ -18,19 +16,7 @@ export default function Home() {
                     <span className="text-xl font-bold">LexiGov AI</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    <SignedOut>
-                        <Button variant="ghost" asChild>
-                            <Link href="/sign-in">Sign In</Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href="/sign-up">Get Started</Link>
-                        </Button>
-                    </SignedOut>
-                    <SignedIn>
-                        <Button asChild>
-                            <Link href="/dashboard">Dashboard</Link>
-                        </Button>
-                    </SignedIn>
+                    <HomeNavActions />
                 </div>
             </nav>
 
@@ -49,25 +35,7 @@ export default function Home() {
                     AI-powered drafting, compliance checking, and template library for Philippine LGUs.
                 </p>
                 <div className="flex items-center justify-center gap-4">
-                    <SignedOut>
-                        <Button size="lg" asChild>
-                            <Link href="/sign-up">
-                                Start Drafting
-                                <ArrowRight className="w-5 h-5 ml-2" />
-                            </Link>
-                        </Button>
-                        <Button size="lg" variant="outline" asChild>
-                            <Link href="/sign-in">Sign In</Link>
-                        </Button>
-                    </SignedOut>
-                    <SignedIn>
-                        <Button size="lg" asChild>
-                            <Link href="/dashboard">
-                                Go to Dashboard
-                                <ArrowRight className="w-5 h-5 ml-2" />
-                            </Link>
-                        </Button>
-                    </SignedIn>
+                    <HomeHeroActions />
                 </div>
             </section>
 
@@ -103,22 +71,7 @@ export default function Home() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-8">
-                        <SignedOut>
-                            <Button size="lg" variant="secondary" asChild>
-                                <Link href="/sign-up">
-                                    Get Started Free
-                                    <ArrowRight className="w-5 h-5 ml-2" />
-                                </Link>
-                            </Button>
-                        </SignedOut>
-                        <SignedIn>
-                            <Button size="lg" variant="secondary" asChild>
-                                <Link href="/dashboard">
-                                    Go to Dashboard
-                                    <ArrowRight className="w-5 h-5 ml-2" />
-                                </Link>
-                            </Button>
-                        </SignedIn>
+                        <HomeCtaActions />
                     </CardContent>
                 </Card>
             </section>

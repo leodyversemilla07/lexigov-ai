@@ -3,7 +3,7 @@
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,10 @@ export default function SettingsPage() {
     const email = user?.primaryEmailAddress?.emailAddress;
     const imageUrl = user?.imageUrl;
 
+    useEffect(() => {
+        setOrgName(convexUser?.organization ?? "");
+    }, [convexUser?.organization]);
+
     const handleSaveOrg = async () => {
         setIsSaving(true);
         try {
@@ -45,9 +49,9 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6 max-w-2xl">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+                <h1 className="text-3xl font-bold tracking-tight">App Settings</h1>
                 <p className="text-muted-foreground">
-                    Manage your account settings and preferences
+                    Manage application-specific preferences and organization details
                 </p>
             </div>
 
@@ -56,9 +60,9 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <User className="h-5 w-5" />
-                        Profile
+                        Profile Reference
                     </CardTitle>
-                    <CardDescription>Your personal information</CardDescription>
+                    <CardDescription>Read-only identity details from your account profile</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex items-center gap-4">
@@ -86,7 +90,7 @@ export default function SettingsPage() {
                                 placeholder="Your name"
                             />
                             <p className="text-xs text-muted-foreground">
-                                Manage your name via your Clerk account profile.
+                                Manage your name from the dedicated Account page.
                             </p>
                         </div>
                         <div className="space-y-2">
@@ -127,14 +131,14 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Account Security */}
+            {/* Session */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Shield className="h-5 w-5" />
-                        Account Security
+                        Session
                     </CardTitle>
-                    <CardDescription>Manage your account security settings</CardDescription>
+                    <CardDescription>Manage your current session on this device</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">

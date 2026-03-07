@@ -30,6 +30,10 @@ export function NavLinks({
           const isActive =
             item.url === "/dashboard"
               ? pathname === "/dashboard"
+              : item.url === "/drafts"
+                ? pathname === "/drafts" || (pathname?.startsWith("/drafts/") && pathname !== "/drafts/new")
+              : item.url === "/settings"
+                ? pathname === "/settings"
               : pathname === item.url || pathname?.startsWith(item.url + "/")
           return (
             <SidebarMenuItem key={item.title}>

@@ -7,6 +7,7 @@ import {
   LayoutTemplate,
   Home,
   Settings,
+  UserCircle2,
   Sparkles,
   Scale,
   FileCheck,
@@ -33,7 +34,8 @@ const navigation = [
   { title: "Compliance", url: "/compliance", icon: Scale },
   { title: "Compare", url: "/compare", icon: FileCheck },
   { title: "Export", url: "/export", icon: Download },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "App Settings", url: "/settings", icon: Settings },
+  { title: "Account", url: "/account", icon: UserCircle2 },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

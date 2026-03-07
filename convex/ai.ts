@@ -3,6 +3,15 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 
+async function requireIdentity(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+        throw new Error("Not authenticated");
+    }
+
+    return identity;
+}
+
 /**
  * Generate a Philippine ordinance using Google Gemini AI
  */
@@ -14,6 +23,8 @@ export const generateOrdinance = action({
         documentType: v.string(),
     },
     handler: async (ctx, args) => {
+        await requireIdentity(ctx);
+
         const { GoogleGenerativeAI } = await import("@google/generative-ai");
 
         const apiKey = process.env.GEMINI_API_KEY;
@@ -66,6 +77,8 @@ export const checkCompliance = action({
         jurisdiction: v.string(),
     },
     handler: async (ctx, args) => {
+        await requireIdentity(ctx);
+
         const { GoogleGenerativeAI } = await import("@google/generative-ai");
 
         const apiKey = process.env.GEMINI_API_KEY;
@@ -142,6 +155,8 @@ export const generateSummary = action({
         content: v.string(),
     },
     handler: async (ctx, args) => {
+        await requireIdentity(ctx);
+
         const { GoogleGenerativeAI } = await import("@google/generative-ai");
 
         const apiKey = process.env.GEMINI_API_KEY;

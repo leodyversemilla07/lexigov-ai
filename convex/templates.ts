@@ -17,7 +17,7 @@ export const list = query({
             .collect();
 
         const user = await getCurrentUser(ctx);
-        if (user) {
+        if (!args.publicOnly && user) {
             const userTemplates = await ctx.db
                 .query("templates")
                 .withIndex("by_user", (q) => q.eq("userId", user._id))

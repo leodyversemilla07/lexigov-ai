@@ -72,7 +72,7 @@ export default function DashboardPage() {
                             </Link>
                         </Button>
                         <Button asChild className="w-full justify-start" variant="outline">
-                            <Link href="/drafts/new">
+                            <Link href="/ai">
                                 <Sparkles className="w-4 h-4 mr-2" />
                                 Generate with AI
                             </Link>
