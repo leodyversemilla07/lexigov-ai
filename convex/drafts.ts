@@ -157,3 +157,68 @@ export const remove = mutation({
         return { success: true };
     },
 });
+
+/**
+ * Export a draft to various formats
+ */
+export const exportDraft = mutation({
+    args: {
+        id: v.id("drafts"),
+        format: v.union(v.literal("txt"), v.literal("docx"), v.literal("md")),
+    },
+    handler: async (ctx, args) => {
+        const user = await requireCurrentUser(ctx);
+
+        const draft = await ctx.db.get(args.id);
+        if (!draft || draft.userId !== user._id) {
+            throw new Error("Draft not found");
+        }
+
+        const content = typeof draft.content === "string" 
+            ? draft.content 
+            : (draft.content as { body?: string }).body || "";
+
+        const formattedContent = formatForExport(draft, content, args.format);
+        
+        await ctx.db.insert("exportHistory", {
+            draftId: args.id,
+            exportType: args.format.toUpperCase(),
+            exportedBy: user._id,
+            createdAt: Date.now(),
+        });
+
+        await ctx.db.insert("auditLogs", {
+            action: "EXPORT",
+            entityType: "drafts",
+            entityId: args.id,
+            userId: user._id,
+            changes: { format: args.format },
+            createdAt: Date.now(),
+        });
+
+        return {
+            filename: `${draft.title.replace(/[^a-z0-9]/gi, "_")}.${args.format}`,
+            content: formattedContent,
+            mimeType: getMimeType(args.format),
+        };
+    },
+});
+
+function formatForExport(draft: { title: string; documentType: string; jurisdiction: string; jurisdictionName: string }, content: string, format: string): string {
+    const header = `${draft.documentType.toUpperCase()}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()})\n${"=".repeat(50)}\n\n`;
+    
+    if (format === "md") {
+        return `# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n\n---\n\n${content}`;
+    }
+    
+    return header + content;
+}
+
+function getMimeType(format: string): string {
+    switch (format) {
+        case "txt": return "text/plain";
+        case "md": return "text/markdown";
+        case "docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        default: return "text/plain";
+    }
+}

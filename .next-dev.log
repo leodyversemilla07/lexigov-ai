@@ -1,0 +1,283 @@
+
+> lexigov-ai@0.1.0 dev
+> next dev
+
+Γû▓ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.37.60.19:3000
+- Environments: .env.local
+
+Γ£ô Starting...
+Γ£ô Ready in 5s
+Γùï Compiling / ...
+ GET / 200 in 32.7s (compile: 7.2s, proxy.ts: 23.9s, render: 1521ms)
+ POST / 200 in 111ms (compile: 22ms, proxy.ts: 45ms, render: 43ms)
+ GET /dashboard 200 in 3.2s (compile: 3.0s, proxy.ts: 48ms, render: 112ms)
+ GET /drafts 200 in 2.5s (compile: 2.4s, proxy.ts: 28ms, render: 73ms)
+Γ£ô Compiled in 217ms
+Γ¿» Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./middleware.(ts|js) or proxy.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+
+    at ignore-listed frames {
+  digest: '1884973976'
+}
+Γ¿» Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./middleware.(ts|js) or proxy.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+
+    at ignore-listed frames {
+  digest: '2100014488'
+}
+Γ¿» Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./middleware.(ts|js) or proxy.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+
+    at ignore-listed frames {
+  digest: '1884973976'
+}
+Γ¿» Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./middleware.(ts|js) or proxy.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+
+    at ignore-listed frames {
+  digest: '2100014488'
+}
+Γ¿» Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./middleware.(ts|js) or proxy.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+
+    at ignore-listed frames {
+  digest: '1884973976'
+}
+Γ¿» Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware(). Please ensure the following:
+- Your Middleware exists at ./middleware.(ts|js) or proxy.(ts|js)
+- clerkMiddleware() is used in your Next.js Middleware.
+- Your Middleware matcher is configured to match this route or page.
+- If you are using the src directory, make sure the Middleware file is inside of it.
+
+For more details, see https://clerk.com/err/auth-middleware
+
+    at ignore-listed frames {
+  digest: '2100014488'
+}
+ GET / 500 in 922ms (compile: 10ms, render: 912ms)
+ GET /sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard 200 in 3.0s (compile: 2.9s, render: 159ms)
+Γ£ô Compiled in 121ms
+ GET / 404 in 1895ms (compile: 1294ms, proxy.ts: 320ms, render: 280ms)
+ GET /dashboard 404 in 1569ms (compile: 1388ms, proxy.ts: 44ms, render: 137ms)
+Γ£ô Compiled in 1026ms
+ GET /drafts 200 in 10.6s (compile: 40ms, proxy.ts: 10.4s, render: 161ms)
+ GET /sign-in?redirect_url=http%3A%2F%2Flocalhost%3A3000%2Fdashboard 200 in 212ms (compile: 35ms, render: 178ms)
+ GET / 200 in 1589ms (compile: 447ms, render: 1142ms)
+ GET /dashboard 200 in 95ms (compile: 14ms, proxy.ts: 24ms, render: 57ms)
+ GET /drafts 200 in 92ms (compile: 13ms, proxy.ts: 24ms, render: 55ms)
+ GET /templates 200 in 1624ms (compile: 1518ms, proxy.ts: 24ms, render: 82ms)
+ GET /ai 404 in 77ms (compile: 20ms, render: 57ms)
+ GET /ai 404 in 160ms (compile: 13ms, render: 147ms)
+ POST /ai 404 in 48ms (compile: 16ms, render: 32ms)
+ GET /templates 200 in 499ms (compile: 22ms, proxy.ts: 41ms, render: 436ms)
+ POST /templates 200 in 84ms (compile: 13ms, proxy.ts: 33ms, render: 37ms)
+ GET /ai 404 in 79ms (compile: 15ms, render: 64ms)
+ GET /ai 404 in 156ms (compile: 27ms, render: 129ms)
+ POST /ai 404 in 44ms (compile: 15ms, render: 29ms)
+Γ£ô Compiled in 405ms
+ GET /ai 200 in 2.2s (compile: 1656ms, render: 521ms)
+ GET /ai 200 in 2.1s (compile: 22ms, proxy.ts: 1700ms, render: 329ms)
+ GET /ai 200 in 2.4s (compile: 106ms, proxy.ts: 2.0s, render: 244ms)
+ GET /ai 200 in 1053ms (compile: 14ms, proxy.ts: 31ms, render: 1008ms)
+ GET /ai 200 in 1042ms (compile: 727ms, proxy.ts: 50ms, render: 265ms)
+ GET /ai 307 in 1140ms (compile: 23ms, proxy.ts: 44ms, render: 1074ms)
+ GET /ai 200 in 287ms (compile: 23ms, proxy.ts: 44ms, render: 220ms)
+ GET /ai 200 in 261ms (compile: 16ms, proxy.ts: 30ms, render: 214ms)
+ GET /ai 200 in 257ms (compile: 13ms, proxy.ts: 33ms, render: 211ms)
+ GET /ai 200 in 266ms (compile: 12ms, proxy.ts: 31ms, render: 224ms)
+ GET /ai 200 in 263ms (compile: 13ms, proxy.ts: 30ms, render: 221ms)
+ GET /ai 200 in 269ms (compile: 12ms, proxy.ts: 25ms, render: 232ms)
+ GET /ai 200 in 282ms (compile: 14ms, proxy.ts: 33ms, render: 235ms)
+ GET /ai 200 in 360ms (compile: 14ms, proxy.ts: 32ms, render: 314ms)
+ GET /ai 200 in 411ms (compile: 15ms, proxy.ts: 27ms, render: 369ms)
+ GET /ai 200 in 413ms (compile: 18ms, proxy.ts: 51ms, render: 344ms)
+ GET /ai 200 in 396ms (compile: 23ms, proxy.ts: 53ms, render: 320ms)
+ GET /ai 200 in 319ms (compile: 21ms, proxy.ts: 31ms, render: 267ms)
+ GET /ai 200 in 835ms (compile: 28ms, proxy.ts: 33ms, render: 774ms)
+ GET /ai 200 in 979ms (compile: 18ms, proxy.ts: 34ms, render: 927ms)
+ GET /drafts/new 200 in 3.0s (compile: 2.0s, proxy.ts: 43ms, render: 883ms)
+ POST /drafts/new 200 in 75ms (compile: 14ms, proxy.ts: 32ms, render: 29ms)
+ GET /ai 200 in 110ms (compile: 12ms, proxy.ts: 30ms, render: 68ms)
+ GET /drafts/new 200 in 133ms (compile: 16ms, proxy.ts: 31ms, render: 86ms)
+ GET /drafts/new 200 in 103ms (compile: 13ms, proxy.ts: 25ms, render: 65ms)
+ GET /templates 200 in 333ms (compile: 77ms, proxy.ts: 72ms, render: 184ms)
+ GET /ai 200 in 201ms (compile: 26ms, proxy.ts: 59ms, render: 115ms)
+ GET /drafts/new 200 in 222ms (compile: 18ms, proxy.ts: 44ms, render: 160ms)
+ GET /drafts/new 200 in 209ms (compile: 31ms, proxy.ts: 59ms, render: 119ms)
+ GET /drafts 200 in 247ms (compile: 70ms, proxy.ts: 47ms, render: 131ms)
+ GET /ai 200 in 187ms (compile: 24ms, proxy.ts: 53ms, render: 111ms)
+ GET /drafts/new 200 in 277ms (compile: 37ms, proxy.ts: 62ms, render: 178ms)
+ GET /drafts/new 200 in 174ms (compile: 25ms, proxy.ts: 43ms, render: 106ms)
+Γ£ô Compiled in 369ms
+ GET /drafts/new 200 in 835ms (compile: 504ms, proxy.ts: 31ms, render: 299ms)
+ GET /drafts/new 200 in 117ms (compile: 15ms, proxy.ts: 28ms, render: 74ms)
+ GET /ai 200 in 649ms (compile: 411ms, proxy.ts: 20ms, render: 218ms)
+ GET /drafts 200 in 87ms (compile: 10ms, proxy.ts: 29ms, render: 48ms)
+ GET /ai 200 in 103ms (compile: 28ms, proxy.ts: 23ms, render: 52ms)
+ GET /templates 200 in 90ms (compile: 10ms, proxy.ts: 26ms, render: 54ms)
+ GET /ai 200 in 100ms (compile: 13ms, proxy.ts: 24ms, render: 63ms)
+ GET /compliance 200 in 2.0s (compile: 1796ms, proxy.ts: 46ms, render: 172ms)
+ GET /compare 200 in 1488ms (compile: 1371ms, proxy.ts: 40ms, render: 76ms)
+ GET /export 200 in 1278ms (compile: 1197ms, proxy.ts: 20ms, render: 60ms)
+ GET /settings 200 in 1329ms (compile: 1238ms, proxy.ts: 23ms, render: 67ms)
+ GET /compare 200 in 86ms (compile: 9ms, proxy.ts: 22ms, render: 55ms)
+ GET /compliance 200 in 82ms (compile: 10ms, proxy.ts: 22ms, render: 50ms)
+ GET /ai 200 in 76ms (compile: 9ms, proxy.ts: 21ms, render: 46ms)
+ GET /templates 200 in 72ms (compile: 11ms, proxy.ts: 21ms, render: 41ms)
+ GET /drafts 200 in 123ms (compile: 20ms, proxy.ts: 27ms, render: 75ms)
+ GET /dashboard 200 in 118ms (compile: 36ms, proxy.ts: 25ms, render: 57ms)
+ GET /drafts 200 in 95ms (compile: 11ms, proxy.ts: 27ms, render: 57ms)
+ GET /templates 200 in 87ms (compile: 11ms, proxy.ts: 28ms, render: 48ms)
+ GET /compliance 200 in 85ms (compile: 10ms, proxy.ts: 24ms, render: 51ms)
+ GET /compare 200 in 90ms (compile: 11ms, proxy.ts: 35ms, render: 44ms)
+ GET /export 200 in 89ms (compile: 14ms, proxy.ts: 25ms, render: 50ms)
+ GET /settings 200 in 87ms (compile: 8ms, proxy.ts: 25ms, render: 54ms)
+Γ£ô Compiled in 233ms
+ΓÜá Fast Refresh had to perform a full reload when ./components/new-draft-form.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ΓÜá Fast Refresh had to perform a full reload when ./components/new-draft-form.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /settings 200 in 1220ms (compile: 15ms, proxy.ts: 28ms, render: 1177ms)
+ GET /settings 200 in 1008ms (compile: 783ms, proxy.ts: 86ms, render: 138ms)
+ GET /settings 200 in 1043ms (compile: 25ms, proxy.ts: 85ms, render: 933ms)
+ POST /settings 200 in 78ms (compile: 12ms, proxy.ts: 32ms, render: 34ms)
+ GET /ai 200 in 683ms (compile: 417ms, proxy.ts: 23ms, render: 243ms)
+Γ£ô Compiled in 156ms
+ GET /ai 200 in 7.6s (compile: 414ms, proxy.ts: 6.8s, render: 392ms)
+ GET /templates 200 in 79ms (compile: 11ms, proxy.ts: 23ms, render: 44ms)
+ GET /drafts 200 in 92ms (compile: 11ms, proxy.ts: 22ms, render: 59ms)
+ GET /ai 200 in 134ms (compile: 14ms, proxy.ts: 41ms, render: 79ms)
+ GET /templates 200 in 100ms (compile: 13ms, proxy.ts: 23ms, render: 64ms)
+ GET /drafts 200 in 78ms (compile: 11ms, proxy.ts: 20ms, render: 48ms)
+ GET /dashboard 200 in 89ms (compile: 14ms, proxy.ts: 23ms, render: 52ms)
+ GET /ai 200 in 99ms (compile: 10ms, proxy.ts: 20ms, render: 69ms)
+Γ£ô Compiled in 323ms
+ GET /ai 200 in 691ms (compile: 405ms, proxy.ts: 30ms, render: 256ms)
+ GET /drafts/new 200 in 529ms (compile: 336ms, proxy.ts: 38ms, render: 155ms)
+ GET /ai 200 in 96ms (compile: 13ms, proxy.ts: 23ms, render: 61ms)
+ GET /drafts/new 200 in 94ms (compile: 11ms, proxy.ts: 26ms, render: 57ms)
+ GET /ai 200 in 111ms (compile: 10ms, proxy.ts: 23ms, render: 78ms)
+ GET /drafts/new 200 in 92ms (compile: 12ms, proxy.ts: 20ms, render: 60ms)
+ GET /ai 200 in 212ms (compile: 19ms, proxy.ts: 39ms, render: 153ms)
+ GET /drafts/new 200 in 194ms (compile: 25ms, proxy.ts: 50ms, render: 118ms)
+ GET /drafts/new 200 in 734ms (compile: 440ms, proxy.ts: 28ms, render: 266ms)
+ GET /ai 200 in 204ms (compile: 13ms, proxy.ts: 39ms, render: 152ms)
+ GET /drafts/new 200 in 169ms (compile: 18ms, proxy.ts: 47ms, render: 104ms)
+ GET /ai 200 in 102ms (compile: 11ms, proxy.ts: 25ms, render: 65ms)
+ GET /drafts/new 200 in 96ms (compile: 12ms, proxy.ts: 22ms, render: 62ms)
+ GET /drafts 200 in 93ms (compile: 12ms, proxy.ts: 25ms, render: 55ms)
+ GET /ai 200 in 101ms (compile: 10ms, proxy.ts: 21ms, render: 71ms)
+ GET /drafts/new 200 in 112ms (compile: 11ms, proxy.ts: 30ms, render: 72ms)
+Γ£ô Compiled in 112ms
+ GET /ai 200 in 711ms (compile: 442ms, proxy.ts: 31ms, render: 237ms)
+ GET /drafts/new 200 in 595ms (compile: 383ms, proxy.ts: 25ms, render: 187ms)
+ GET /ai 200 in 104ms (compile: 11ms, proxy.ts: 26ms, render: 68ms)
+ GET /drafts/new 200 in 117ms (compile: 9ms, proxy.ts: 24ms, render: 84ms)
+ GET /ai 200 in 103ms (compile: 8ms, proxy.ts: 18ms, render: 77ms)
+ GET /templates 200 in 3.0s (compile: 328ms, proxy.ts: 2.5s, render: 141ms)
+ GET /drafts 200 in 492ms (compile: 341ms, proxy.ts: 18ms, render: 134ms)
+ GET /dashboard 200 in 608ms (compile: 388ms, proxy.ts: 22ms, render: 198ms)
+Γ£ô Compiled in 377ms
+ GET /dashboard 200 in 173ms (compile: 16ms, proxy.ts: 35ms, render: 121ms)
+ GET /settings 200 in 606ms (compile: 415ms, proxy.ts: 23ms, render: 168ms)
+ GET /export 200 in 641ms (compile: 421ms, proxy.ts: 34ms, render: 186ms)
+ GET /compare 200 in 487ms (compile: 323ms, proxy.ts: 19ms, render: 144ms)
+ GET /ai 200 in 2.3s (compile: 958ms, proxy.ts: 150ms, render: 1164ms)
+ GET /ai 200 in 111ms (compile: 12ms, proxy.ts: 41ms, render: 58ms)
+ΓÜá Fast Refresh had to perform a full reload when ./components/new-draft-form.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ΓÜá Fast Refresh had to perform a full reload when ./components/new-draft-form.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+Γ£ô Compiled in 299ms
+ GET /ai 200 in 1424ms (compile: 437ms, proxy.ts: 59ms, render: 927ms)
+ GET /ai 200 in 1542ms (compile: 15ms, proxy.ts: 620ms, render: 906ms)
+ POST /ai 200 in 97ms (compile: 19ms, proxy.ts: 42ms, render: 36ms)
+ GET /drafts 200 in 160ms (compile: 14ms, proxy.ts: 34ms, render: 112ms)
+ GET /drafts/new 200 in 640ms (compile: 410ms, proxy.ts: 29ms, render: 201ms)
+Γ£ô Compiled in 373ms
+ GET /dashboard 200 in 5.1s (compile: 378ms, proxy.ts: 4.6s, render: 132ms)
+ GET /settings 200 in 543ms (compile: 350ms, proxy.ts: 23ms, render: 170ms)
+Γ£ô Compiled in 701ms
+ GET /settings 200 in 1368ms (compile: 383ms, proxy.ts: 110ms, render: 875ms)
+ POST /settings 200 in 58ms (compile: 11ms, proxy.ts: 24ms, render: 24ms)
+Γ£ô Compiled in 164ms
+Γ£ô Compiled in 434ms
+ GET /settings 200 in 2.3s (compile: 374ms, proxy.ts: 1668ms, render: 308ms)
+ GET /settings 200 in 225ms (compile: 13ms, proxy.ts: 23ms, render: 189ms)
+ GET /settings 200 in 224ms (compile: 12ms, proxy.ts: 27ms, render: 185ms)
+ GET /settings 200 in 220ms (compile: 17ms, proxy.ts: 26ms, render: 177ms)
+ GET /settings 200 in 210ms (compile: 10ms, proxy.ts: 27ms, render: 173ms)
+ GET /settings 200 in 202ms (compile: 11ms, proxy.ts: 27ms, render: 164ms)
+ GET /settings 200 in 206ms (compile: 10ms, proxy.ts: 22ms, render: 174ms)
+ GET /settings 200 in 239ms (compile: 12ms, proxy.ts: 30ms, render: 196ms)
+ GET /settings 200 in 209ms (compile: 11ms, proxy.ts: 28ms, render: 171ms)
+ GET /settings 200 in 189ms (compile: 10ms, proxy.ts: 24ms, render: 155ms)
+ GET /settings 200 in 216ms (compile: 10ms, proxy.ts: 22ms, render: 184ms)
+ GET /settings 200 in 227ms (compile: 11ms, proxy.ts: 23ms, render: 193ms)
+ GET /settings 200 in 307ms (compile: 12ms, proxy.ts: 28ms, render: 267ms)
+ GET /settings 200 in 287ms (compile: 12ms, proxy.ts: 27ms, render: 248ms)
+ GET /settings 200 in 189ms (compile: 12ms, proxy.ts: 25ms, render: 151ms)
+ GET /settings 200 in 188ms (compile: 10ms, proxy.ts: 22ms, render: 156ms)
+ GET /settings 200 in 183ms (compile: 9ms, proxy.ts: 19ms, render: 154ms)
+ GET /settings 200 in 197ms (compile: 11ms, proxy.ts: 21ms, render: 166ms)
+ GET /settings 200 in 245ms (compile: 12ms, proxy.ts: 20ms, render: 213ms)
+ GET /settings 200 in 231ms (compile: 14ms, proxy.ts: 36ms, render: 181ms)
+ GET /settings 200 in 193ms (compile: 10ms, proxy.ts: 21ms, render: 161ms)
+ GET /settings 200 in 209ms (compile: 10ms, proxy.ts: 21ms, render: 178ms)
+ GET /settings 200 in 199ms (compile: 11ms, proxy.ts: 28ms, render: 159ms)
+ GET /settings 200 in 190ms (compile: 9ms, proxy.ts: 22ms, render: 159ms)
+ GET /settings 200 in 206ms (compile: 13ms, proxy.ts: 26ms, render: 167ms)
+ GET /settings 200 in 194ms (compile: 10ms, proxy.ts: 21ms, render: 163ms)
+ GET /settings 200 in 161ms (compile: 13ms, proxy.ts: 21ms, render: 127ms)
+ GET /settings 200 in 174ms (compile: 9ms, proxy.ts: 19ms, render: 146ms)
+ GET /settings 200 in 193ms (compile: 11ms, proxy.ts: 22ms, render: 160ms)
+ GET /settings 200 in 178ms (compile: 10ms, proxy.ts: 22ms, render: 146ms)
+ GET /settings 200 in 175ms (compile: 10ms, proxy.ts: 21ms, render: 145ms)
+ GET /settings 200 in 96ms (compile: 10ms, proxy.ts: 21ms, render: 64ms)
+ GET /account 200 in 2.8s (compile: 2.7s, proxy.ts: 40ms, render: 74ms)
+ GET /account/UserProfile_clerk_catchall_check_1772887051660 200 in 764ms (compile: 40ms, proxy.ts: 28ms, render: 696ms)
+Γ£ô Compiled in 281ms
+ GET /account 200 in 578ms (compile: 371ms, proxy.ts: 34ms, render: 173ms)
+Γ£ô Compiled in 97ms
+ GET /account 200 in 511ms (compile: 294ms, proxy.ts: 38ms, render: 178ms)
+ GET /settings 200 in 1682ms (compile: 10ms, proxy.ts: 1583ms, render: 88ms)
+ GET /settings 200 in 101ms (compile: 19ms, proxy.ts: 29ms, render: 52ms)
+Γ£ô Compiled in 400ms
+ GET /settings 200 in 949ms (compile: 289ms, proxy.ts: 27ms, render: 632ms)
+ POST /settings 200 in 67ms (compile: 9ms, proxy.ts: 29ms, render: 29ms)
+ GET /account 200 in 523ms (compile: 330ms, proxy.ts: 39ms, render: 154ms)
+ GET /account/UserProfile_clerk_catchall_check_1772887423255 200 in 728ms (compile: 34ms, proxy.ts: 20ms, render: 674ms)
+ GET /settings 200 in 77ms (compile: 8ms, proxy.ts: 18ms, render: 52ms)
+ GET /export 200 in 562ms (compile: 392ms, proxy.ts: 26ms, render: 145ms)
+ GET /dashboard 200 in 383ms (compile: 248ms, proxy.ts: 26ms, render: 109ms)
+Γ£ô Compiled in 167ms
+ΓÜá Fast Refresh had to perform a full reload when ./components/ui/sidebar.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+Γ£ô Compiled in 152ms
+ GET /dashboard 200 in 4.2s (compile: 302ms, proxy.ts: 2.9s, render: 941ms)
+ POST /dashboard 200 in 76ms (compile: 14ms, proxy.ts: 30ms, render: 31ms)
+ GET /drafts 200 in 3.1s (compile: 1446ms, proxy.ts: 1250ms, render: 431ms)
+ GET /drafts/new 200 in 1334ms (compile: 856ms, proxy.ts: 69ms, render: 409ms)
+^C

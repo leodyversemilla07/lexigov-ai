@@ -11,8 +11,6 @@
  * This file is kept for reference but should not be used.
  */
 
-import { useUser, useAuth as useClerkAuth } from '@clerk/nextjs'
-
 export function useAuth() {
   console.warn('useAuth from @/hooks/use-auth is deprecated. Use useUser or useAuth from @clerk/nextjs instead.')
   return {
