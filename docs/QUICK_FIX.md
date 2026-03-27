@@ -243,3 +243,4 @@ Then you can proceed with:
 **Last Updated**: January 18, 2026  
 **Estimated Fix Time**: 30 minutes
 **Difficulty**: ⭐ Easy (beginner-friendly)
+> Archived legacy document: this file refers to Prisma-based code paths that do not match the current Clerk + Convex application.

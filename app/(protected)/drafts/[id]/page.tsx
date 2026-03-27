@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Id } from "@/convex/_generated/dataModel";
-import { ArrowLeft, Save, Sparkles, CheckCircle, CheckCircle2, XCircle, Loader2, Shield, Download, FileText, AlertTriangle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Plus, Save, Sparkles, CheckCircle, CheckCircle2, Trash2, XCircle, Loader2, Shield, Download, FileText, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DraftSection, buildDraftSectionsFromBody, composeDraftBodyFromSections, createDraftSection, extractDraftBody, extractDraftSections, updateDraftSectionsContent } from "@/lib/draft-content";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ComplianceResult = {
     overallScore: number;
@@ -41,7 +43,10 @@ export default function DraftEditorPage() {
     const draftId = params.id as Id<"drafts">;
 
     const draft = useQuery(api.drafts.get, { id: draftId });
+    const versionHistory = useQuery(api.drafts.listVersions, { draftId });
+    const complianceHistory = useQuery(api.complianceReports.listByDraft, { draftId, limit: 3 });
     const updateDraft = useMutation(api.drafts.update);
+    const saveComplianceReport = useMutation(api.complianceReports.save);
     const checkCompliance = useAction(api.ai.checkCompliance);
 
     const [title, setTitle] = useState("");
@@ -52,15 +57,17 @@ export default function DraftEditorPage() {
     const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null);
     const [showCompliance, setShowCompliance] = useState(false);
     const [status, setStatus] = useState("DRAFT");
+    const [sections, setSections] = useState<DraftSection[]>([]);
+    const [selectedSectionId, setSelectedSectionId] = useState("");
 
     useEffect(() => {
         if (draft) {
             setTitle(draft.title);
-            setContent(
-                typeof draft.content === "string"
-                    ? draft.content
-                    : draft.content?.body ?? draft.content?.description ?? ""
-            );
+            const body = extractDraftBody(draft.content);
+            const parsedSections = extractDraftSections(draft.content);
+            setContent(body);
+            setSections(parsedSections);
+            setSelectedSectionId(parsedSections[0]?.id ?? "");
             setStatus(draft.status);
         }
     }, [draft]);
@@ -73,14 +80,56 @@ export default function DraftEditorPage() {
             await updateDraft({
                 id: draftId,
                 title,
-                content: { ...draft.content, body: content },
+                content: updateDraftSectionsContent(draft.content, sections.length > 0 ? sections : buildDraftSectionsFromBody(content)),
                 status,
             });
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
+            toast.success("Draft saved.");
+        } catch (error) {
+            console.error("Failed to save draft:", error);
+            toast.error("Failed to save draft. Please try again.");
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const sectionOutline = sections.length > 0 ? sections : buildDraftSectionsFromBody(content);
+    const selectedSection = sectionOutline.find((section) => section.id === selectedSectionId) ?? sectionOutline[0] ?? null;
+
+    const replaceSections = (nextSections: DraftSection[]) => {
+        setSections(nextSections);
+        setContent(composeDraftBodyFromSections(nextSections));
+        if (!nextSections.some((section) => section.id === selectedSectionId)) {
+            setSelectedSectionId(nextSections[0]?.id ?? "");
+        }
+    };
+
+    const handleContentChange = (nextBody: string) => {
+        setContent(nextBody);
+        const nextSections = buildDraftSectionsFromBody(nextBody);
+        setSections(nextSections);
+        if (!nextSections.some((section) => section.id === selectedSectionId)) {
+            setSelectedSectionId(nextSections[0]?.id ?? "");
+        }
+    };
+
+    const handleSectionChange = (sectionId: string, field: "heading" | "body", value: string) => {
+        const nextSections = sectionOutline.map((section) =>
+            section.id === sectionId ? { ...section, [field]: value } : section,
+        );
+        replaceSections(nextSections);
+    };
+
+    const handleAddSection = () => {
+        const nextSections = [...sectionOutline, createDraftSection(sectionOutline.length)];
+        replaceSections(nextSections);
+        setSelectedSectionId(nextSections[nextSections.length - 1]?.id ?? "");
+    };
+
+    const handleRemoveSection = (sectionId: string) => {
+        const nextSections = sectionOutline.filter((section) => section.id !== sectionId);
+        replaceSections(nextSections);
     };
 
     const handleCheckCompliance = async () => {
@@ -92,10 +141,19 @@ export default function DraftEditorPage() {
                 content,
                 jurisdiction: draft.jurisdiction,
             });
-            setComplianceResult(result as ComplianceResult);
+            const normalizedResult = result as ComplianceResult;
+            setComplianceResult(normalizedResult);
+            await saveComplianceReport({
+                draftId,
+                draftVersion: draft.version,
+                overallScore: normalizedResult.overallScore,
+                isValid: normalizedResult.isValid,
+                issues: normalizedResult.issues,
+            });
+            toast.success("Compliance report saved.");
         } catch (error) {
             console.error("Failed to check compliance:", error);
-            alert("Failed to check compliance. Please try again.");
+            toast.error("Failed to check compliance. Please try again.");
         } finally {
             setIsCheckingCompliance(false);
         }
@@ -307,11 +365,99 @@ export default function DraftEditorPage() {
                                 <Textarea
                                     id="content"
                                     value={content}
-                                    onChange={(e) => setContent(e.target.value)}
+                                    onChange={(e) => handleContentChange(e.target.value)}
                                     rows={25}
                                     className="font-mono text-sm min-h-[500px]"
                                     placeholder="Start writing your ordinance here..."
                                 />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-start justify-between">
+                            <div>
+                                <CardTitle>Section Editor</CardTitle>
+                                <CardDescription>Edit the draft as structured sections and keep the full text in sync.</CardDescription>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={handleAddSection}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Section
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="grid gap-6 lg:grid-cols-[260px_1fr]">
+                            <div className="space-y-2">
+                                {sectionOutline.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                        Add section headings in the main editor or create a new section here.
+                                    </div>
+                                ) : (
+                                    sectionOutline.map((section, index) => (
+                                        <button
+                                            key={section.id}
+                                            type="button"
+                                            className={cn(
+                                                "w-full rounded-lg border p-3 text-left transition-colors",
+                                                selectedSection?.id === section.id
+                                                    ? "border-primary bg-primary/5"
+                                                    : "border-border hover:border-primary/40",
+                                            )}
+                                            onClick={() => setSelectedSectionId(section.id)}
+                                        >
+                                            <div className="text-xs text-muted-foreground">Section {index + 1}</div>
+                                            <div className="mt-1 font-medium">{section.heading}</div>
+                                            <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                {section.body || "No body text yet"}
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                            <div className="space-y-4 rounded-xl border border-border/70 bg-muted/20 p-4">
+                                {selectedSection ? (
+                                    <>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <div className="text-sm font-medium">Selected Section</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    Editing this section updates the full ordinance text automatically.
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleRemoveSection(selectedSection.id)}
+                                                disabled={sectionOutline.length <= 1}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Remove
+                                            </Button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="section-heading">Heading</Label>
+                                            <Input
+                                                id="section-heading"
+                                                value={selectedSection.heading}
+                                                onChange={(event) => handleSectionChange(selectedSection.id, "heading", event.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="section-body">Section Body</Label>
+                                            <Textarea
+                                                id="section-body"
+                                                value={selectedSection.body}
+                                                onChange={(event) => handleSectionChange(selectedSection.id, "body", event.target.value)}
+                                                rows={14}
+                                                className="font-mono text-sm"
+                                                placeholder="Write the text for this section..."
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                                        Create a section to start structured editing.
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -372,6 +518,106 @@ export default function DraftEditorPage() {
                                 <span className="text-muted-foreground">Updated</span>
                                 <span className="font-medium">{new Date(draft.updatedAt).toLocaleDateString()}</span>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Document Structure</CardTitle>
+                            <CardDescription>Live outline parsed from the draft body</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            {sectionOutline.length === 0 ? (
+                                <p className="text-muted-foreground">
+                                    Add section headings like &quot;SECTION 1. Title.&quot; to build a reusable structure.
+                                </p>
+                            ) : (
+                                sectionOutline.map((section, index) => (
+                                    <div key={section.id} className="rounded-lg border p-3">
+                                        <div className="font-medium">{section.heading}</div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            {section.body ? `${section.body.length} characters` : "No body text yet"}
+                                        </div>
+                                        <div className="mt-2 text-xs text-muted-foreground">
+                                            Section {index + 1}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Compliance History</CardTitle>
+                            <CardDescription>Recent saved checks for this draft</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            {complianceHistory === undefined ? (
+                                <Skeleton className="h-24" />
+                            ) : complianceHistory.length === 0 ? (
+                                <p className="text-muted-foreground">
+                                    No saved compliance checks yet.
+                                </p>
+                            ) : (
+                                complianceHistory.map((report) => (
+                                    <div key={report._id} className="rounded-lg border p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="font-medium">v{report.draftVersion} · {report.overallScore}/100</span>
+                                            <Badge variant={report.isValid ? "default" : "secondary"}>
+                                                {report.isValid ? "Compliant" : "Needs Review"}
+                                            </Badge>
+                                        </div>
+                                        <div className="text-muted-foreground mt-1">
+                                            {new Date(report.checkedAt).toLocaleString()}
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                            <Badge variant="outline">{report.issuesCount} issues</Badge>
+                                            <Badge variant="outline">{report.warningsCount} warnings</Badge>
+                                            <Badge variant="outline">{report.suggestionsCount} suggestions</Badge>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Version History</CardTitle>
+                            <CardDescription>Saved revisions for this draft</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            {versionHistory === undefined ? (
+                                <Skeleton className="h-24" />
+                            ) : versionHistory.length === 0 ? (
+                                <p className="text-muted-foreground">No saved revisions yet.</p>
+                            ) : (
+                                versionHistory.slice(0, 4).map((version) => (
+                                    <div key={version._id} className="rounded-lg border p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="font-medium">
+                                                v{version.version} {version.isCurrent ? "(Current)" : ""}
+                                            </span>
+                                            <Badge variant={version.isCurrent ? "default" : "outline"}>
+                                                {version.status}
+                                            </Badge>
+                                        </div>
+                                        <div className="text-muted-foreground mt-1">
+                                            {new Date(version.updatedAt).toLocaleString()}
+                                        </div>
+                                        {version.commitMessage && (
+                                            <div className="mt-2 text-muted-foreground">{version.commitMessage}</div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                            <Button variant="outline" className="w-full" asChild>
+                                <Link href={`/compare?draft=${draftId}`}>
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Open Compare
+                                </Link>
+                            </Button>
                         </CardContent>
                     </Card>
 

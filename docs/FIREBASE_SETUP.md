@@ -263,3 +263,4 @@ The backend (`apps/api/`) already has Firebase integration:
 For issues with Firebase or GCP setup, consult:
 - Firebase Community: https://firebase.community
 - Google Cloud Support: https://cloud.google.com/support
+> Archived legacy document: Firebase setup is no longer part of the running app. The current implementation uses Clerk for authentication and Convex for backend state.

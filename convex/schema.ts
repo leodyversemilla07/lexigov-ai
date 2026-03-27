@@ -27,12 +27,13 @@ export default defineSchema({
         userId: v.id("users"),
         templateId: v.optional(v.id("templates")),
         version: v.number(),
-        parentDraftId: v.optional(v.id("drafts")), // For versioning
+        parentDraftId: v.optional(v.id("drafts")), // Reserved for future version history
         commitMessage: v.optional(v.string()),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index("by_user", ["userId"])
+        .index("by_parent_draft", ["parentDraftId"])
         .index("by_status", ["status"])
         .index("by_user_status", ["userId", "status"]),
 
@@ -57,19 +58,21 @@ export default defineSchema({
     // Compliance reports
     complianceReports: defineTable({
         draftId: v.id("drafts"),
+        draftVersion: v.number(),
+        revisionDraftId: v.optional(v.id("drafts")),
         overallScore: v.number(), // 0-100
         isValid: v.boolean(),
         issuesCount: v.number(),
         warningsCount: v.number(),
         suggestionsCount: v.number(),
-        issues: v.any(), // Array of compliance issues
+        issues: v.any(), // Reserved for future persisted compliance history
         checkedAt: v.number(),
     }).index("by_draft", ["draftId"]),
 
     // Export history
     exportHistory: defineTable({
         draftId: v.id("drafts"),
-        exportType: v.string(), // PDF, DOCX
+        exportType: v.string(), // TXT, MD, DOCX, PDF
         fileUrl: v.optional(v.string()),
         fileSize: v.optional(v.number()),
         pageCount: v.optional(v.number()),
@@ -79,7 +82,7 @@ export default defineSchema({
 
     // Audit logs
     auditLogs: defineTable({
-        action: v.string(), // CREATE, UPDATE, DELETE, EXPORT, AI_GENERATE, etc.
+        action: v.string(), // CREATE, UPDATE, DELETE, EXPORT, AI_GENERATE, CHECK_COMPLIANCE, etc.
         entityType: v.string(), // drafts, templates, etc.
         entityId: v.string(),
         userId: v.id("users"),

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAction, useMutation } from "convex/react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { WandSparkles, FileText, Clock, Loader2, ChevronRight, Sparkles, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { extractDraftSections, normalizeDraftContent } from "@/lib/draft-content";
+import {
+    getTemplateDescription,
+    getTemplateDocumentType,
+    getTemplateJurisdiction,
+    getTemplatePrompt,
+    getTemplateSections,
+    type TemplateData,
+} from "@/lib/template-utils";
 
 const documentTypes = [
     { value: "ORDINANCE", label: "Ordinance", description: "Formal legislative document requiring quorum and voting" },
@@ -90,42 +101,75 @@ const promptTemplates = [
     }
 ];
 
-export default function AIPage() {
+function AIPageContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const generateOrdinance = useAction(api.ai.generateOrdinance);
     const createDraft = useMutation(api.drafts.create);
+    const incrementTemplateUsage = useMutation(api.templates.incrementUsage);
     
     const [step, setStep] = useState<"configure" | "preview">("configure");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+    const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState(searchParams.get("template"));
     const [formData, setFormData] = useState({
         title: "",
         prompt: "",
         documentType: "ORDINANCE",
         jurisdiction: "barangay",
         jurisdictionName: "",
-        templateId: "custom",
+        quickTemplateId: "custom",
     });
+    const selectedSavedTemplate = useQuery(
+        api.templates.get,
+        selectedSavedTemplateId ? { id: selectedSavedTemplateId as Id<"templates"> } : "skip",
+    ) as TemplateData | null | undefined;
+    const lastAppliedSavedTemplateId = useRef<string | null>(null);
 
     const selectedDocType = documentTypes.find(d => d.value === formData.documentType);
     const selectedJurisdiction = jurisdictions.find(j => j.value === formData.jurisdiction);
+    const templateSections = selectedSavedTemplate ? getTemplateSections(selectedSavedTemplate) : [];
+    const generatedSections = generatedContent ? extractDraftSections({ body: generatedContent }) : [];
 
-    const handleTemplateSelect = (templateId: string) => {
+    useEffect(() => {
+        if (!selectedSavedTemplate || lastAppliedSavedTemplateId.current === selectedSavedTemplate._id) {
+            return;
+        }
+
+        lastAppliedSavedTemplateId.current = selectedSavedTemplate._id;
+        setFormData((current) => {
+            const jurisdiction = getTemplateJurisdiction(selectedSavedTemplate) ?? current.jurisdiction;
+            const penalty = jurisdictions.find((item) => item.value === jurisdiction)?.penalty;
+
+            return {
+                ...current,
+                title: selectedSavedTemplate.name,
+                documentType: getTemplateDocumentType(selectedSavedTemplate),
+                jurisdiction,
+                prompt: getTemplatePrompt(selectedSavedTemplate, current.jurisdictionName, penalty),
+                quickTemplateId: "custom",
+            };
+        });
+    }, [selectedSavedTemplate]);
+
+    const handleQuickTemplateSelect = (templateId: string) => {
         const template = promptTemplates.find(t => t.id === templateId);
         if (template && template.id !== "custom") {
             let prompt = template.prompt;
             prompt = prompt.replace("[JURISDICTION]", formData.jurisdictionName || "[Jurisdiction Name]");
             prompt = prompt.replace("[PENALTY]", selectedJurisdiction?.penalty || "[Penalty]");
-            setFormData({ ...formData, templateId, prompt });
+            setSelectedSavedTemplateId(null);
+            setFormData({ ...formData, quickTemplateId: templateId, prompt });
         } else {
-            setFormData({ ...formData, templateId, prompt: "" });
+            setSelectedSavedTemplateId(null);
+            setFormData({ ...formData, quickTemplateId: "custom", prompt: "" });
         }
     };
 
     const handleGenerate = async () => {
         if (!formData.title || !formData.prompt || !formData.jurisdictionName) {
-            alert("Please fill in all required fields");
+            toast.error("Please fill in the title, jurisdiction name, and drafting prompt.");
             return;
         }
 
@@ -141,7 +185,7 @@ export default function AIPage() {
             setStep("preview");
         } catch (error) {
             console.error("Failed to generate:", error);
-            alert("Failed to generate draft. Please check your configuration and try again.");
+            toast.error("Failed to generate draft. Please check your configuration and try again.");
         } finally {
             setIsGenerating(false);
         }
@@ -158,17 +202,21 @@ export default function AIPage() {
                 jurisdiction: formData.jurisdiction,
                 jurisdictionName: formData.jurisdictionName,
                 aiGenerated: true,
-                content: {
+                templateId: selectedSavedTemplate?._id as Id<"templates"> | undefined,
+                content: normalizeDraftContent({
                     body: generatedContent,
                     prompt: formData.prompt,
                     generatedAt: Date.now(),
                     model: "gemini-1.5-flash",
-                },
+                }),
             });
+            if (selectedSavedTemplate) {
+                await incrementTemplateUsage({ id: selectedSavedTemplate._id as Id<"templates"> });
+            }
             router.push(`/drafts/${draftId}`);
         } catch (error) {
             console.error("Failed to create draft:", error);
-            alert("Failed to save draft. Please try again.");
+            toast.error("Failed to save draft. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -337,18 +385,18 @@ export default function AIPage() {
                     <div className="space-y-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Quick Templates</CardTitle>
+                                <CardTitle className="text-base">Quick Prompt Presets</CardTitle>
                                 <CardDescription>
-                                    Start with a pre-built prompt template
+                                    Use local prompt starters when you are not generating from a saved template
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 {promptTemplates.map((template) => (
                                     <Button
                                         key={template.id}
-                                        variant={formData.templateId === template.id ? "secondary" : "ghost"}
+                                        variant={formData.quickTemplateId === template.id ? "secondary" : "ghost"}
                                         className="w-full justify-start text-left h-auto py-3"
-                                        onClick={() => handleTemplateSelect(template.id)}
+                                        onClick={() => handleQuickTemplateSelect(template.id)}
                                     >
                                         <div>
                                             <div className="font-medium">{template.title}</div>
@@ -362,6 +410,52 @@ export default function AIPage() {
                                 ))}
                             </CardContent>
                         </Card>
+
+                        {selectedSavedTemplate && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base">Saved Template</CardTitle>
+                                    <CardDescription>
+                                        This draft was started from the shared template library
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-3 text-sm">
+                                    <div>
+                                        <div className="font-medium">{selectedSavedTemplate.name}</div>
+                                        <p className="text-muted-foreground mt-1">
+                                            {getTemplateDescription(selectedSavedTemplate)}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                            Template Section Backbone
+                                        </div>
+                                        {templateSections.length === 0 ? (
+                                            <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                                                This template does not define explicit sections yet.
+                                            </div>
+                                        ) : (
+                                            templateSections.map((section, index) => (
+                                                <div key={section.id} className="rounded-lg border p-3 text-xs">
+                                                    <div className="font-medium">{section.heading}</div>
+                                                    <div className="mt-1 text-muted-foreground">Section {index + 1}</div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => {
+                                            setSelectedSavedTemplateId(null);
+                                            setFormData((current) => ({ ...current, prompt: "", quickTemplateId: "custom" }));
+                                        }}
+                                    >
+                                        Use Custom Prompt Instead
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
 
                         <Card>
                             <CardHeader>
@@ -486,9 +580,64 @@ export default function AIPage() {
                                 </Button>
                             </CardContent>
                         </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Generated Structure</CardTitle>
+                                <CardDescription>
+                                    Parsed section outline from the AI output
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                {generatedSections.length === 0 ? (
+                                    <p className="text-muted-foreground">
+                                        The generated draft does not yet expose named sections.
+                                    </p>
+                                ) : (
+                                    generatedSections.map((section, index) => (
+                                        <div key={section.id} className="rounded-lg border p-3">
+                                            <div className="font-medium">{section.heading}</div>
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                Section {index + 1} • {section.body.length} characters
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             )}
         </div>
+    );
+}
+
+function AIPageLoading() {
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                    <div className="h-10 w-64 rounded-md bg-muted animate-pulse" />
+                    <div className="h-5 w-80 rounded-md bg-muted animate-pulse" />
+                </div>
+                <div className="h-8 w-36 rounded-full bg-muted animate-pulse" />
+            </div>
+            <div className="h-12 w-64 rounded-full bg-muted animate-pulse" />
+            <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2 h-[640px] rounded-xl bg-muted animate-pulse" />
+                <div className="space-y-6">
+                    <div className="h-56 rounded-xl bg-muted animate-pulse" />
+                    <div className="h-48 rounded-xl bg-muted animate-pulse" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function AIPage() {
+    return (
+        <Suspense fallback={<AIPageLoading />}>
+            <AIPageContent />
+        </Suspense>
     );
 }

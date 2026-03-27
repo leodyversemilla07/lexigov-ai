@@ -54,7 +54,7 @@ export default function Home() {
                         <FeatureCard icon={Sparkles} title="AI Generation" description="Generate complete ordinance drafts from simple prompts using Google Gemini AI" />
                         <FeatureCard icon={Shield} title="RA 7160 Compliance" description="Automatic compliance checking against the Local Government Code of 1991" />
                         <FeatureCard icon={FileText} title="Template Library" description="Pre-built templates for common ordinances: curfew, business permits, traffic, and more" />
-                        <FeatureCard icon={Zap} title="Export Options" description="Export to PDF and DOCX formats for council presentations and official filing" />
+                        <FeatureCard icon={Zap} title="Export Options" description="Export drafts to plain text and Markdown for review, filing, and further editing" />
                     </div>
                 </div>
             </section>

@@ -1,9 +1,23 @@
 /**
  * Draft Zod Schemas
- * Validation for creating and updating ordinance drafts
+ * Validation for creating and updating Convex-backed ordinance drafts
  */
 import { z } from 'zod'
 import { documentTypeSchema, documentStatusSchema, jurisdictionLevelSchema } from './enums.js'
+
+export const draftContentSchema = z.object({
+    body: z.string().optional(),
+    summary: z.string().optional(),
+    sections: z.array(z.object({
+        id: z.string().min(1),
+        heading: z.string().min(1),
+        body: z.string(),
+    })).optional(),
+    prompt: z.string().optional(),
+    generatedAt: z.number().optional(),
+    model: z.string().optional()
+}).catchall(z.unknown())
+export type DraftContentInput = z.infer<typeof draftContentSchema>
 
 // Jurisdiction details schema
 export const jurisdictionDetailsSchema = z.object({
@@ -24,8 +38,8 @@ export const createDraftSchema = z.object({
     documentType: documentTypeSchema,
     jurisdiction: jurisdictionLevelSchema,
     jurisdictionName: z.string().min(1, 'Jurisdiction name is required'),
-    content: z.record(z.unknown()).optional(),
-    templateId: z.string().cuid().optional(),
+    content: draftContentSchema.optional(),
+    templateId: z.string().min(1).optional(),
     commitMessage: z.string().max(500).optional()
 })
 export type CreateDraftInput = z.infer<typeof createDraftSchema>
@@ -37,7 +51,7 @@ export const updateDraftSchema = z.object({
         .min(5, 'Title must be at least 5 characters')
         .max(500, 'Title must be less than 500 characters')
         .optional(),
-    content: z.record(z.unknown()).optional(),
+    content: draftContentSchema.optional(),
     status: documentStatusSchema.optional(),
     commitMessage: z.string().max(500).optional(),
     aiGenerated: z.boolean().optional()

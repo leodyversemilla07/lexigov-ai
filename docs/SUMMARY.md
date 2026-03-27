@@ -592,3 +592,4 @@ pnpm type-check
 ---
 
 *This document is maintained throughout the development process. Last updated: January 17, 2026 at 7:39 PM PHT*
+> Archived legacy document: this file describes an older Prisma/Firebase-era architecture and is not the source of truth for the current Clerk + Convex app. Use `README.md` and the live codebase instead.

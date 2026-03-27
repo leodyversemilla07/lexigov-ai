@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { FileText, LayoutTemplate, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { DraftComposerForm } from "@/components/new-draft-form";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function NewDraftPage() {
     return (
@@ -51,9 +53,29 @@ export default function NewDraftPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <DraftComposerForm wrapped={false} submitLabel="Create Manual Draft" />
+                    <Suspense fallback={<DraftComposerFormLoading />}>
+                        <DraftComposerForm wrapped={false} submitLabel="Create Manual Draft" />
+                    </Suspense>
                 </CardContent>
             </Card>
+        </div>
+    );
+}
+
+function DraftComposerFormLoading() {
+    return (
+        <div className="space-y-6">
+            <Skeleton className="h-10" />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+            </div>
+            <Skeleton className="h-10" />
+            <Skeleton className="h-56" />
+            <div className="flex justify-end gap-4">
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-40" />
+            </div>
         </div>
     );
 }

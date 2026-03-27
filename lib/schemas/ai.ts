@@ -1,6 +1,6 @@
 /**
  * AI Generation Zod Schemas
- * Validation for AI-powered ordinance generation and compliance checking
+ * Validation for the current Gemini-powered drafting flows
  */
 import { z } from 'zod'
 import { documentTypeSchema, jurisdictionLevelSchema } from './enums.js'
@@ -13,28 +13,29 @@ export const generateOrdinanceSchema = z.object({
         .min(10, 'Please provide more details (at least 10 characters)')
         .max(5000, 'Prompt is too long (max 5000 characters)'),
     jurisdiction: jurisdictionLevelSchema,
+    jurisdictionName: z.string().min(1, 'Jurisdiction name is required'),
     documentType: documentTypeSchema,
-    templateId: z.string().cuid().optional()
+    templateId: z.string().min(1).optional()
 })
 export type GenerateOrdinanceInput = z.infer<typeof generateOrdinanceSchema>
 
 // Compliance check schema
 export const complianceCheckSchema = z.object({
-    draftId: z.string().min(1, 'Draft ID is required'),
-    content: z.record(z.unknown()).optional()
+    content: z.string().min(1, 'Draft content is required'),
+    jurisdiction: jurisdictionLevelSchema
 })
 export type ComplianceCheckInput = z.infer<typeof complianceCheckSchema>
 
 // Executive summary generation schema
 export const generateSummarySchema = z.object({
-    draftId: z.string().min(1, 'Draft ID is required'),
+    content: z.string().min(1, 'Draft content is required'),
     maxLength: z.number().int().positive().max(2000).optional()
 })
 export type GenerateSummaryInput = z.infer<typeof generateSummarySchema>
 
 // Legal reference suggestion schema
 export const suggestReferencesSchema = z.object({
-    draftId: z.string().min(1, 'Draft ID is required'),
+    content: z.string().min(1, 'Draft content is required'),
     sectionNumber: z.number().int().positive().optional()
 })
 export type SuggestReferencesInput = z.infer<typeof suggestReferencesSchema>

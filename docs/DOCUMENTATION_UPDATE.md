@@ -347,3 +347,4 @@ Developer experience improved:
 ---
 
 *All documentation is now accurate, comprehensive, and actionable. Ready for immediate use.*
+> Archived legacy document: this file tracks documentation work for an older Prisma/Firebase-era architecture and should not be used for current implementation decisions.

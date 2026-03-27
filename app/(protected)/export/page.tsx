@@ -1,37 +1,54 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, File, Loader2, CheckCircle, ChevronRight, FileType } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { AlignmentType, Document, Packer, Paragraph, TextRun } from "docx";
+import { jsPDF } from "jspdf";
+import { useMutation, useQuery } from "convex/react";
+import type { Id } from "@/convex/_generated/dataModel";
+import { api } from "@/convex/_generated/api";
+import { CheckCircle, ChevronRight, Download, FileText, FileType, Loader2, ScrollText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { extractDraftBody, extractDraftSections } from "@/lib/draft-content";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-const exportFormats = [
+type ExportFormat = "txt" | "md" | "docx" | "pdf";
+
+const exportFormats: Array<{
+    id: ExportFormat;
+    name: string;
+    description: string;
+    icon: typeof FileText;
+}> = [
     {
         id: "txt",
         name: "Plain Text",
-        description: "Export as .txt file",
+        description: "Export as a .txt file",
         icon: FileText,
     },
     {
         id: "md",
         name: "Markdown",
-        description: "Export as .md file for documentation",
+        description: "Export as a .md document",
         icon: FileType,
     },
     {
         id: "docx",
         name: "Word Document",
-        description: "Export as .docx file (coming soon)",
-        icon: File,
-        disabled: true,
+        description: "Export as a .docx file",
+        icon: ScrollText,
+    },
+    {
+        id: "pdf",
+        name: "PDF",
+        description: "Export as a paginated .pdf file",
+        icon: FileText,
     },
 ];
 
@@ -42,73 +59,335 @@ interface Draft {
     jurisdiction: string;
     jurisdictionName: string;
     status: string;
+    version: number;
     content: unknown;
     updatedAt: number;
+}
+
+interface DraftVersion {
+    _id: string;
+    title: string;
+    status: string;
+    version: number;
+    updatedAt: number;
+    createdAt: number;
+    commitMessage?: string;
+    isCurrent: boolean;
+    body: string;
+}
+
+interface ExportSection {
+    heading: string;
+    body: string;
+}
+
+function getDraftContent(draft: Draft): string {
+    return extractDraftBody(draft.content);
+}
+
+function sanitizeFilename(value: string) {
+    return value.replace(/[^a-z0-9]/gi, "_");
+}
+
+function buildTextExportContent(draft: Draft, version: DraftVersion, format: "txt" | "md") {
+    const sections = extractDraftSections({ body: version.body });
+    const structuredContent =
+        sections.length > 0
+            ? sections.map((section) => `${section.heading}\n${section.body}`.trim()).join("\n\n")
+            : version.body;
+
+    if (format === "md") {
+        const markdownSections =
+            sections.length > 0
+                ? sections
+                    .map((section) => `## ${section.heading}\n\n${section.body || "No content"}`)
+                    .join("\n\n")
+                : version.body;
+        return `# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**Version:** ${version.version}\n**Status:** ${version.status}\n\n---\n\n${markdownSections}`;
+    }
+
+    return `${draft.documentType.toUpperCase()}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()})\nVersion: ${version.version}\nStatus: ${version.status}\n${"=".repeat(50)}\n\n${structuredContent}`;
+}
+
+async function buildDocxBlob(draft: Draft, version: DraftVersion) {
+    const sections = extractDraftSections({ body: version.body });
+    const bodyParagraphs = buildDocxSectionParagraphs(sections);
+
+    const document = new Document({
+        sections: [
+            {
+                children: [
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 160 },
+                        children: [new TextRun({ text: draft.documentType, bold: true, size: 30 })],
+                    }),
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 240 },
+                        children: [new TextRun({ text: draft.title, bold: true, size: 34 })],
+                    }),
+                    new Paragraph({
+                        spacing: { after: 120 },
+                        children: [new TextRun({ text: `Jurisdiction: ${draft.jurisdictionName} (${draft.jurisdiction})`, bold: true })],
+                    }),
+                    new Paragraph({
+                        spacing: { after: 120 },
+                        children: [new TextRun({ text: `Version: v${version.version}`, bold: true })],
+                    }),
+                    new Paragraph({
+                        spacing: { after: 120 },
+                        children: [new TextRun({ text: `Status: ${version.status}`, bold: true })],
+                    }),
+                    new Paragraph({
+                        spacing: { after: 240 },
+                        children: [new TextRun({ text: `Last Updated: ${new Date(version.updatedAt).toLocaleString()}` })],
+                    }),
+                    ...(version.commitMessage
+                        ? [
+                            new Paragraph({
+                                spacing: { after: 240 },
+                                children: [new TextRun({ text: `Revision Note: ${version.commitMessage}` })],
+                            }),
+                        ]
+                        : []),
+                    ...bodyParagraphs,
+                ],
+            },
+        ],
+    });
+
+    return Packer.toBlob(document);
+}
+
+async function buildPdfBlob(draft: Draft, version: DraftVersion) {
+    const sections = extractDraftSections({ body: version.body });
+    const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4",
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const marginX = 56;
+    const topMargin = 64;
+    const bottomMargin = 56;
+    const maxWidth = pageWidth - marginX * 2;
+    let y = topMargin;
+
+    const ensureSpace = (requiredHeight: number) => {
+        if (y + requiredHeight <= pageHeight - bottomMargin) {
+            return;
+        }
+
+        pdf.addPage();
+        y = topMargin;
+    };
+
+    const drawWrappedText = (text: string, fontSize: number, lineHeight: number, options?: { align?: "left" | "center" | "right"; bold?: boolean }) => {
+        pdf.setFont("times", options?.bold ? "bold" : "normal");
+        pdf.setFontSize(fontSize);
+        const lines = pdf.splitTextToSize(text || " ", maxWidth);
+
+        for (const line of lines) {
+            ensureSpace(lineHeight);
+            pdf.text(line, options?.align === "center" ? pageWidth / 2 : marginX, y, {
+                align: options?.align ?? "left",
+                maxWidth,
+            });
+            y += lineHeight;
+        }
+    };
+
+    drawWrappedText(draft.documentType, 16, 20, { align: "center", bold: true });
+    y += 8;
+    drawWrappedText(draft.title, 18, 24, { align: "center", bold: true });
+    y += 18;
+    drawWrappedText(`Jurisdiction: ${draft.jurisdictionName} (${draft.jurisdiction})`, 11, 16, { bold: true });
+    drawWrappedText(`Version: v${version.version}`, 11, 16, { bold: true });
+    drawWrappedText(`Status: ${version.status}`, 11, 16, { bold: true });
+    drawWrappedText(`Last Updated: ${new Date(version.updatedAt).toLocaleString()}`, 11, 16);
+
+    if (version.commitMessage) {
+        drawWrappedText(`Revision Note: ${version.commitMessage}`, 11, 16);
+    }
+
+    y += 10;
+    pdf.setDrawColor(180, 180, 180);
+    pdf.line(marginX, y, pageWidth - marginX, y);
+    y += 18;
+
+    const exportSections = sections.length > 0 ? sections : [{ heading: "Body", body: version.body || "No content available for this version." }];
+
+    for (const section of exportSections) {
+        drawWrappedText(section.heading, 13, 18, { bold: true });
+        if (section.body.trim()) {
+            for (const line of section.body.split("\n")) {
+                drawWrappedText(line || " ", 12, 18);
+            }
+        } else {
+            drawWrappedText("No content", 12, 18);
+        }
+        y += 10;
+    }
+
+    const pageCount = pdf.getNumberOfPages();
+    for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
+        pdf.setPage(pageIndex);
+        pdf.setFont("times", "normal");
+        pdf.setFontSize(10);
+        pdf.text(`Page ${pageIndex} of ${pageCount}`, pageWidth - marginX, pageHeight - 24, {
+            align: "right",
+        });
+    }
+
+    return pdf.output("blob");
+}
+
+function buildDocxSectionParagraphs(sections: ExportSection[]) {
+    const exportSections = sections.length > 0 ? sections : [{ heading: "Body", body: "No content available for this version." }];
+
+    return exportSections.flatMap((section) => {
+        const sectionBody = section.body.trim()
+            ? section.body.split("\n").map((line, index) =>
+                new Paragraph({
+                    alignment: AlignmentType.JUSTIFIED,
+                    spacing: { after: index === section.body.split("\n").length - 1 ? 180 : 80 },
+                    children: [new TextRun({ text: line || " " })],
+                }),
+            )
+            : [
+                new Paragraph({
+                    spacing: { after: 180 },
+                    children: [new TextRun({ text: "No content available for this section." })],
+                }),
+            ];
+
+        return [
+            new Paragraph({
+                spacing: { after: 120 },
+                children: [new TextRun({ text: section.heading, bold: true, size: 26 })],
+            }),
+            ...sectionBody,
+        ];
+    });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
 }
 
 function ExportPageContent() {
     const searchParams = useSearchParams();
     const initialDraftId = searchParams.get("draft");
-    
+
     const drafts = useQuery(api.drafts.list, {});
     const exportDraft = useMutation(api.drafts.exportDraft);
+    const recordExport = useMutation(api.drafts.recordExport);
 
     const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || "");
-    const [selectedFormat, setSelectedFormat] = useState<string>("txt");
+    const [selectedVersionId, setSelectedVersionId] = useState("");
+    const [selectedFormat, setSelectedFormat] = useState<ExportFormat>("txt");
     const [isExporting, setIsExporting] = useState(false);
     const [exportSuccess, setExportSuccess] = useState(false);
     const [previewContent, setPreviewContent] = useState<string>("");
     const [showPreview, setShowPreview] = useState(false);
 
-    const selectedDraft = drafts?.find((d: Draft) => d._id === selectedDraftId);
+    const selectedDraft = drafts?.find((draft: Draft) => draft._id === selectedDraftId);
+    const versionHistory = useQuery(
+        api.drafts.listVersions,
+        selectedDraftId ? { draftId: selectedDraftId as Id<"drafts"> } : "skip",
+    ) as DraftVersion[] | undefined;
 
-    const getContent = (draft: Draft): string => {
-        if (!draft.content) return "";
-        if (typeof draft.content === "string") return draft.content;
-        return (draft.content as { body?: string }).body || "";
-    };
+    const fallbackVersion: DraftVersion | undefined = selectedDraft
+        ? {
+            _id: selectedDraft._id,
+            title: selectedDraft.title,
+            status: selectedDraft.status,
+            version: selectedDraft.version,
+            updatedAt: selectedDraft.updatedAt,
+            createdAt: selectedDraft.updatedAt,
+            commitMessage: undefined,
+            isCurrent: true,
+            body: getDraftContent(selectedDraft),
+        }
+        : undefined;
+
+    const currentVersion = versionHistory?.find((version) => version.isCurrent) ?? fallbackVersion;
+    const resolvedVersionId =
+        selectedVersionId && versionHistory?.some((version) => version._id === selectedVersionId)
+            ? selectedVersionId
+            : currentVersion?._id ?? "";
+    const selectedVersion =
+        versionHistory?.find((version) => version._id === resolvedVersionId) ?? fallbackVersion;
 
     const handleExport = async () => {
-        if (!selectedDraft || selectedFormat === "docx") return;
-        
+        if (!selectedDraft || !selectedVersion) {
+            return;
+        }
+
         setIsExporting(true);
         setExportSuccess(false);
-        
-        try {
-            const result = await exportDraft({
-                id: selectedDraft._id,
-                format: selectedFormat as "txt" | "md" | "docx",
-            });
 
-            const blob = new Blob([result.content], { type: result.mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = result.filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        try {
+            if (selectedFormat === "docx") {
+                const blob = await buildDocxBlob(selectedDraft, selectedVersion);
+                const filename = `${sanitizeFilename(selectedDraft.title)}_v${selectedVersion.version}.docx`;
+                downloadBlob(blob, filename);
+
+                await recordExport({
+                    id: selectedVersion._id as Id<"drafts">,
+                    format: "docx",
+                    fileSize: blob.size,
+                });
+                toast.success(`Exported ${filename}`);
+            } else if (selectedFormat === "pdf") {
+                const blob = await buildPdfBlob(selectedDraft, selectedVersion);
+                const filename = `${sanitizeFilename(selectedDraft.title)}_v${selectedVersion.version}.pdf`;
+                downloadBlob(blob, filename);
+
+                await recordExport({
+                    id: selectedVersion._id as Id<"drafts">,
+                    format: "pdf",
+                    fileSize: blob.size,
+                });
+                toast.success(`Exported ${filename}`);
+            } else {
+                const result = await exportDraft({
+                    id: selectedVersion._id as Id<"drafts">,
+                    format: selectedFormat,
+                });
+
+                const blob = new Blob([result.content], { type: result.mimeType });
+                downloadBlob(blob, result.filename);
+                toast.success(`Exported ${result.filename}`);
+            }
 
             setExportSuccess(true);
             setTimeout(() => setExportSuccess(false), 3000);
         } catch (error) {
             console.error("Failed to export:", error);
-            alert("Failed to export draft. Please try again.");
+            toast.error("Failed to export draft. Please try again.");
         } finally {
             setIsExporting(false);
         }
     };
 
     const handlePreview = () => {
-        if (!selectedDraft) return;
-        const content = getContent(selectedDraft);
-        
-        if (selectedFormat === "md") {
-            setPreviewContent(`# ${selectedDraft.title}\n\n**Type:** ${selectedDraft.documentType}\n**Jurisdiction:** ${selectedDraft.jurisdictionName}\n\n---\n\n${content}`);
-        } else {
-            setPreviewContent(`${selectedDraft.documentType.toUpperCase()}\n${selectedDraft.title}\n${selectedDraft.jurisdictionName} (${selectedDraft.jurisdiction.toUpperCase()})\n${"=".repeat(50)}\n\n${content}`);
+        if (!selectedDraft || !selectedVersion) {
+            return;
         }
+
+        const previewFormat = selectedFormat === "docx" || selectedFormat === "pdf" ? "md" : selectedFormat;
+        setPreviewContent(buildTextExportContent(selectedDraft, selectedVersion, previewFormat));
         setShowPreview(true);
     };
 
@@ -119,19 +398,16 @@ function ExportPageContent() {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Export</h1>
                 <p className="text-muted-foreground">
-                    Export your ordinance drafts in various formats
+                    Export current drafts and saved revisions as text, Markdown, DOCX, or PDF.
                 </p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-                {/* Draft Selection */}
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Select Draft</CardTitle>
-                            <CardDescription>
-                                Choose a draft to export
-                            </CardDescription>
+                            <CardDescription>Choose a draft to export</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {isLoading ? (
@@ -145,7 +421,13 @@ function ExportPageContent() {
                                     <p className="text-sm text-muted-foreground">No drafts found</p>
                                 </div>
                             ) : (
-                                <Select value={selectedDraftId} onValueChange={setSelectedDraftId}>
+                                <Select
+                                    value={selectedDraftId}
+                                    onValueChange={(value) => {
+                                        setSelectedDraftId(value);
+                                        setSelectedVersionId("");
+                                    }}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a draft" />
                                     </SelectTrigger>
@@ -155,7 +437,7 @@ function ExportPageContent() {
                                                 <div className="truncate">
                                                     <div className="font-medium truncate">{draft.title}</div>
                                                     <div className="text-xs text-muted-foreground">
-                                                        {draft.documentType} • {new Date(draft.updatedAt).toLocaleDateString()}
+                                                        v{draft.version} • {new Date(draft.updatedAt).toLocaleDateString()}
                                                     </div>
                                                 </div>
                                             </SelectItem>
@@ -172,9 +454,7 @@ function ExportPageContent() {
                                 <CardTitle className="text-base">Selected Draft</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3 text-sm">
-                                <div>
-                                    <div className="font-medium">{selectedDraft.title}</div>
-                                </div>
+                                <div className="font-medium">{selectedDraft.title}</div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Type</span>
                                     <Badge variant="outline">{selectedDraft.documentType}</Badge>
@@ -184,20 +464,15 @@ function ExportPageContent() {
                                     <span className="capitalize">{selectedDraft.jurisdiction}</span>
                                 </div>
                                 <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Current Version</span>
+                                    <span>v{selectedDraft.version}</span>
+                                </div>
+                                <div className="flex justify-between">
                                     <span className="text-muted-foreground">Status</span>
                                     <Badge variant="secondary">{selectedDraft.status}</Badge>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Last Updated</span>
-                                    <span>{new Date(selectedDraft.updatedAt).toLocaleDateString()}</span>
-                                </div>
                                 <div className="pt-2">
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="w-full"
-                                        asChild
-                                    >
+                                    <Button variant="outline" size="sm" className="w-full" asChild>
                                         <Link href={`/drafts/${selectedDraft._id}`}>
                                             View Draft
                                             <ChevronRight className="ml-1 h-4 w-4" />
@@ -207,72 +482,111 @@ function ExportPageContent() {
                             </CardContent>
                         </Card>
                     )}
+
+                    {selectedDraft && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Select Version</CardTitle>
+                                <CardDescription>Export the current draft or a saved revision.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {versionHistory === undefined ? (
+                                    <Skeleton className="h-10" />
+                                ) : (
+                                    <Select value={resolvedVersionId} onValueChange={setSelectedVersionId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a version" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {versionHistory.map((version) => (
+                                                <SelectItem key={version._id} value={version._id}>
+                                                    v{version.version} {version.isCurrent ? "(Current)" : ""}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                {selectedVersion && (
+                                    <div className="mt-4 space-y-2 rounded-lg border p-3 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">Exporting</span>
+                                            <span>v{selectedVersion.version}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">Updated</span>
+                                            <span>{new Date(selectedVersion.updatedAt).toLocaleDateString()}</span>
+                                        </div>
+                                        {selectedVersion.commitMessage && (
+                                            <div className="text-muted-foreground">{selectedVersion.commitMessage}</div>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
-                {/* Format Selection & Preview */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Format Selection */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Export Format</CardTitle>
-                            <CardDescription>
-                                Choose the format for your export
-                            </CardDescription>
+                            <CardDescription>Choose the format for your export</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="grid gap-4 md:grid-cols-3">
                                 {exportFormats.map((format) => (
-                                    <div
+                                    <button
                                         key={format.id}
+                                        type="button"
                                         className={cn(
-                                            "cursor-pointer rounded-lg border-2 p-4 transition-all",
-                                            selectedFormat === format.id 
-                                                ? "border-primary bg-primary/5" 
-                                                : format.disabled 
-                                                    ? "border-muted opacity-50" 
-                                                    : "border-muted hover:border-primary/50"
+                                            "rounded-lg border-2 p-4 text-left transition-all",
+                                            selectedFormat === format.id
+                                                ? "border-primary bg-primary/5"
+                                                : "border-muted hover:border-primary/50",
                                         )}
-                                        onClick={() => !format.disabled && setSelectedFormat(format.id)}
+                                        onClick={() => setSelectedFormat(format.id)}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={cn(
-                                                "p-2 rounded-lg",
-                                                selectedFormat === format.id ? "bg-primary/10" : "bg-muted"
-                                            )}>
-                                                <format.icon className={cn(
-                                                    "h-5 w-5",
-                                                    selectedFormat === format.id ? "text-primary" : "text-muted-foreground"
-                                                )} />
+                                            <div
+                                                className={cn(
+                                                    "rounded-lg p-2",
+                                                    selectedFormat === format.id ? "bg-primary/10" : "bg-muted",
+                                                )}
+                                            >
+                                                <format.icon
+                                                    className={cn(
+                                                        "h-5 w-5",
+                                                        selectedFormat === format.id ? "text-primary" : "text-muted-foreground",
+                                                    )}
+                                                />
                                             </div>
                                             <div>
                                                 <div className="font-medium">{format.name}</div>
                                                 <div className="text-xs text-muted-foreground">{format.description}</div>
                                             </div>
                                         </div>
-                                        {format.disabled && (
-                                            <Badge variant="secondary" className="mt-2">Coming Soon</Badge>
-                                        )}
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Export Actions */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Export Actions</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {selectedDraft ? (
+                            {selectedDraft && selectedVersion ? (
                                 <>
-                                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                                    <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
                                         <div className="flex items-center gap-3">
                                             <FileText className="h-8 w-8 text-muted-foreground" />
                                             <div>
-                                                <div className="font-medium">{selectedDraft.title}.{selectedFormat}</div>
+                                                <div className="font-medium">
+                                                    {sanitizeFilename(selectedDraft.title)}_v{selectedVersion.version}.{selectedFormat}
+                                                </div>
                                                 <div className="text-sm text-muted-foreground">
-                                                    {getContent(selectedDraft).length} characters
+                                                    v{selectedVersion.version} • {selectedVersion.body.length} characters
                                                 </div>
                                             </div>
                                         </div>
@@ -283,21 +597,13 @@ function ExportPageContent() {
                                             </Badge>
                                         )}
                                     </div>
-                                    
+
                                     <div className="flex gap-2">
-                                        <Button 
-                                            variant="outline"
-                                            onClick={handlePreview}
-                                            disabled={!selectedDraft}
-                                        >
+                                        <Button variant="outline" onClick={handlePreview}>
                                             <FileText className="mr-2 h-4 w-4" />
                                             Preview
                                         </Button>
-                                        <Button 
-                                            onClick={handleExport}
-                                            disabled={isExporting || selectedFormat === "docx" || !selectedDraft}
-                                            className="flex-1"
-                                        >
+                                        <Button onClick={handleExport} disabled={isExporting} className="flex-1">
                                             {isExporting ? (
                                                 <>
                                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -313,24 +619,32 @@ function ExportPageContent() {
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    Select a draft to export
+                                <div className="py-8 text-center text-muted-foreground">
+                                    Select a draft and version to export
                                 </div>
                             )}
                         </CardContent>
                     </Card>
 
-                    {/* Preview Modal */}
                     {showPreview && (
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle>Export Preview</CardTitle>
+                                        <div>
+                                            <CardTitle>Export Preview</CardTitle>
+                                            <CardDescription>
+                                        {selectedFormat === "docx"
+                                            ? "DOCX preview uses the same structured content that will be written into the Word document."
+                                            : selectedFormat === "pdf"
+                                                ? "PDF preview uses the same structured content and metadata that will be laid out in the final document."
+                                                : "Text preview for the selected export format."}
+                                    </CardDescription>
+                                </div>
                                 <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
                                     Close
                                 </Button>
                             </CardHeader>
                             <CardContent>
-                                <div className="bg-muted p-4 rounded-lg font-mono text-sm whitespace-pre-wrap max-h-[400px] overflow-y-auto">
+                                <div className="max-h-[400px] overflow-y-auto rounded-lg bg-muted p-4 font-mono text-sm whitespace-pre-wrap">
                                     {previewContent}
                                 </div>
                             </CardContent>
@@ -346,16 +660,28 @@ function ExportLoading() {
     return (
         <div className="space-y-6">
             <div>
-                <Skeleton className="h-10 w-64 mb-2" />
+                <Skeleton className="mb-2 h-10 w-64" />
                 <Skeleton className="h-5 w-96" />
             </div>
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="space-y-6">
-                    <Card><CardContent className="p-6"><Skeleton className="h-40" /></CardContent></Card>
+                    <Card>
+                        <CardContent className="p-6">
+                            <Skeleton className="h-40" />
+                        </CardContent>
+                    </Card>
                 </div>
                 <div className="lg:col-span-2 space-y-6">
-                    <Card><CardContent className="p-6"><Skeleton className="h-40" /></CardContent></Card>
-                    <Card><CardContent className="p-6"><Skeleton className="h-60" /></CardContent></Card>
+                    <Card>
+                        <CardContent className="p-6">
+                            <Skeleton className="h-40" />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-6">
+                            <Skeleton className="h-60" />
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </div>

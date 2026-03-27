@@ -1,6 +1,6 @@
 /**
  * Shared Zod Enums
- * Matches Prisma schema enums for consistent validation
+ * Matches the current Clerk + Convex application contracts
  */
 import { z } from 'zod'
 
@@ -13,7 +13,7 @@ export const jurisdictionLevelSchema = z.enum([
 ])
 export type JurisdictionLevel = z.infer<typeof jurisdictionLevelSchema>
 
-// Document types (uppercase to match Prisma)
+// Document types stored in Convex
 export const documentTypeSchema = z.enum([
     'ORDINANCE',
     'RESOLUTION',
@@ -54,6 +54,6 @@ export const auditActionSchema = z.enum([
 ])
 export type AuditAction = z.infer<typeof auditActionSchema>
 
-// Export types
-export const exportTypeSchema = z.enum(['PDF', 'DOCX'])
+// Supported export types in the current MVP
+export const exportTypeSchema = z.enum(['txt', 'md', 'docx', 'pdf'])
 export type ExportType = z.infer<typeof exportTypeSchema>

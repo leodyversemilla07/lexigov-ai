@@ -425,3 +425,4 @@ Pending Phase 1 & 2 completion.
 ---
 
 *This status report provides an honest, comprehensive assessment of the LexiGov AI project as of January 18, 2026. All issues have been identified and documented with clear resolution paths.*
+> Archived legacy document: this file describes an older Prisma/Firebase-era architecture and is not the source of truth for the current Clerk + Convex app. Use `README.md` and the live codebase instead.

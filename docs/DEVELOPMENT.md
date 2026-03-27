@@ -737,3 +737,4 @@ This session completed:
 **Continue with dependency installation and backend API development in next session!**
 
 *Last Updated: January 17, 2026 at 8:15 PM PHT*
+> Archived legacy document: this file describes an older Prisma/Firebase-era architecture and is not the source of truth for the current Clerk + Convex app. Use `README.md` and the live codebase instead.

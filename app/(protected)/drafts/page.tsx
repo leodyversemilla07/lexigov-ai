@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { FileText, Plus, Search, Filter, Shield, Download, Sparkles, MoreHorizontal, ArrowRight } from "lucide-react";
+import { FileText, Plus, Search, Filter, Shield, Download, Sparkles, MoreHorizontal, ArrowRight, FileCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -284,6 +284,12 @@ export default function DraftsPage() {
                                                             <Link href={`/export?draft=${draft._id}`}>
                                                                 <Download className="mr-2 h-4 w-4" />
                                                                 Export
+                                                            </Link>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem asChild>
+                                                            <Link href={`/compare?draft=${draft._id}`}>
+                                                                <FileCheck className="mr-2 h-4 w-4" />
+                                                                Compare Versions
                                                             </Link>
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />

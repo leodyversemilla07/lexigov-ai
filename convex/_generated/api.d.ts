@@ -9,6 +9,7 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as complianceReports from "../complianceReports.js";
 import type * as drafts from "../drafts.js";
 import type * as http from "../http.js";
 import type * as lib_currentUser from "../lib/currentUser.js";
@@ -23,6 +24,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  complianceReports: typeof complianceReports;
   drafts: typeof drafts;
   http: typeof http;
   "lib/currentUser": typeof lib_currentUser;

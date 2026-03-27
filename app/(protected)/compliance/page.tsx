@@ -1,17 +1,20 @@
 "use client";
 
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import Link from "next/link";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Scale, CheckCircle, AlertTriangle, XCircle, FileText, Loader2, RefreshCw, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { extractDraftBody } from "@/lib/draft-content";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ComplianceResult = {
     overallScore: number;
@@ -32,6 +35,7 @@ interface Draft {
     jurisdiction: string;
     jurisdictionName: string;
     status: string;
+    version: number;
     content: unknown;
 }
 
@@ -41,17 +45,20 @@ function CompliancePageContent() {
     
     const drafts = useQuery(api.drafts.list, {});
     const checkCompliance = useAction(api.ai.checkCompliance);
+    const saveComplianceReport = useMutation(api.complianceReports.save);
 
     const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || "");
     const [isChecking, setIsChecking] = useState(false);
     const [result, setResult] = useState<ComplianceResult | null>(null);
 
     const selectedDraft = drafts?.find((d: Draft) => d._id === selectedDraftId);
+    const reportHistory = useQuery(
+        api.complianceReports.listByDraft,
+        selectedDraftId ? { draftId: selectedDraftId as Id<"drafts">, limit: 5 } : "skip",
+    );
 
     const getContent = (draft: Draft): string => {
-        if (!draft.content) return "";
-        if (typeof draft.content === "string") return draft.content;
-        return (draft.content as { body?: string }).body || "";
+        return extractDraftBody(draft.content);
     };
 
     const handleCheckCompliance = async () => {
@@ -59,7 +66,7 @@ function CompliancePageContent() {
         
         const content = getContent(selectedDraft);
         if (!content) {
-            alert("This draft has no content to check");
+            toast.error("This draft has no content to check.");
             return;
         }
 
@@ -71,10 +78,19 @@ function CompliancePageContent() {
                 content,
                 jurisdiction: selectedDraft.jurisdiction,
             });
-            setResult(complianceResult as ComplianceResult);
+            const normalizedResult = complianceResult as ComplianceResult;
+            setResult(normalizedResult);
+            await saveComplianceReport({
+                draftId: selectedDraft._id as Id<"drafts">,
+                draftVersion: selectedDraft.version ?? 1,
+                overallScore: normalizedResult.overallScore,
+                isValid: normalizedResult.isValid,
+                issues: normalizedResult.issues,
+            });
+            toast.success("Compliance report saved.");
         } catch (error) {
             console.error("Failed to check compliance:", error);
-            alert("Failed to check compliance. Please try again.");
+            toast.error("Failed to check compliance. Please try again.");
         } finally {
             setIsChecking(false);
         }
@@ -196,6 +212,37 @@ function CompliancePageContent() {
                                         </>
                                     )}
                                 </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {selectedDraft && reportHistory && reportHistory.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Recent Checks</CardTitle>
+                                <CardDescription>
+                                    Latest saved compliance reports for this draft
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                {reportHistory.map((report) => (
+                                    <div key={report._id} className="rounded-lg border p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="font-medium">v{report.draftVersion} · {report.overallScore}/100</span>
+                                            <Badge variant={report.isValid ? "default" : "secondary"}>
+                                                {report.isValid ? "Compliant" : "Needs Review"}
+                                            </Badge>
+                                        </div>
+                                        <div className="mt-2 text-muted-foreground">
+                                            {new Date(report.checkedAt).toLocaleString()}
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                            <Badge variant="outline">{report.issuesCount} issues</Badge>
+                                            <Badge variant="outline">{report.warningsCount} warnings</Badge>
+                                            <Badge variant="outline">{report.suggestionsCount} suggestions</Badge>
+                                        </div>
+                                    </div>
+                                ))}
                             </CardContent>
                         </Card>
                     )}
@@ -338,6 +385,40 @@ function CompliancePageContent() {
                                         ))}
                                     </div>
                                 )}
+                            </CardContent>
+                        </Card>
+                    ) : selectedDraft && reportHistory && reportHistory.length > 0 ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Latest Saved Report</CardTitle>
+                                <CardDescription>
+                                    Most recent persisted compliance result for this draft
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="rounded-lg border p-4">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <div className={cn(
+                                                "text-3xl font-bold",
+                                                getScoreColor(reportHistory[0].overallScore),
+                                            )}>
+                                                v{reportHistory[0].draftVersion} · {reportHistory[0].overallScore}/100
+                                            </div>
+                                            <div className="text-sm text-muted-foreground mt-1">
+                                                Checked {new Date(reportHistory[0].checkedAt).toLocaleString()}
+                                            </div>
+                                        </div>
+                                        <Badge variant={reportHistory[0].isValid ? "default" : "secondary"}>
+                                            {reportHistory[0].isValid ? "Compliant" : "Needs Review"}
+                                        </Badge>
+                                    </div>
+                                    <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                                        <Badge variant="outline">{reportHistory[0].issuesCount} issues</Badge>
+                                        <Badge variant="outline">{reportHistory[0].warningsCount} warnings</Badge>
+                                        <Badge variant="outline">{reportHistory[0].suggestionsCount} suggestions</Badge>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     ) : selectedDraft ? (

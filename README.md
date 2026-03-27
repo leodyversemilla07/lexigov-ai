@@ -30,10 +30,11 @@ LexiGov AI streamlines the ordinance creation process by combining Google Gemini
 
 - **AI Ordinance Generation** — Generate complete, professionally formatted ordinances from a plain-language prompt using Google Gemini AI
 - **RA 7160 Compliance Checking** — Automated compliance scoring against the Local Government Code of 1991
-- **Draft Management** — Full CRUD with versioning, commit messages, and status workflow (Draft → Review → Final → Archived)
-- **Template Library** — Reusable ordinance templates by category and jurisdiction level, with public sharing
-- **Document Comparison** — Side-by-side diff of draft versions
-- **Export** — Export drafts to PDF and DOCX
+- **Draft Management** — Create, edit, and track ordinance drafts through a status workflow (Draft → Review → Final → Archived)
+- **Template Library** — Reusable ordinance templates by category and jurisdiction level, with manual and AI draft entry points
+- **Version History & Compare** — Each substantive save snapshots the prior draft state and enables line-by-line comparison between revisions
+- **Compliance History** — Saved compliance reports are tracked per draft version for later review
+- **Export** — Export drafts and saved revisions to TXT, Markdown, DOCX, and PDF
 - **Role-Based Access** — Roles: Admin, Legislative Staff, Barangay Secretary, City Council, Researcher
 - **Collapsible Sidebar** — shadcn sidebar-07 with collapse-to-icons navigation
 
@@ -56,7 +57,6 @@ app/
     │   └── new/          # → /drafts/new  (create draft)
     ├── templates/        # → /templates
     ├── compliance/       # → /compliance
-    ├── compare/          # → /compare
     ├── export/           # → /export
     └── settings/         # → /settings
 components/
@@ -125,6 +125,14 @@ npx convex dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Current MVP Boundaries
+
+- Supported exports: `txt`, `md`, `docx`, `pdf`
+- Saved template flow is active from `/templates` into `/drafts/new` and `/ai`
+- Draft edits create saved revision snapshots that can be compared in `/compare`
+- Compliance reports are persisted with draft version metadata
+- The `docs/` folder contains archived planning material from an older Prisma/Firebase architecture and should not be used as the source of truth for the running app
 
 ---
 

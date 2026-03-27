@@ -6,6 +6,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "LexiGov AI - Philippine Ordinance Generator",
@@ -25,6 +26,7 @@ export default function RootLayout({
         >
           <ConvexClientProvider>
             {children}
+            <Toaster richColors />
           </ConvexClientProvider>
         </body>
       </html>

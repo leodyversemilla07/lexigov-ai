@@ -75,13 +75,98 @@ export const create = mutation({
 
         const now = Date.now();
 
-        return await ctx.db.insert("templates", {
+        const templateId = await ctx.db.insert("templates", {
             ...args,
             usageCount: 0,
             userId: user._id,
             createdAt: now,
             updatedAt: now,
         });
+
+        await ctx.db.insert("auditLogs", {
+            action: "CREATE",
+            entityType: "templates",
+            entityId: templateId,
+            userId: user._id,
+            changes: {
+                name: args.name,
+                category: args.category,
+                isPublic: args.isPublic,
+            },
+            createdAt: now,
+        });
+
+        return templateId;
+    },
+});
+
+/**
+ * Update a template owned by the current user
+ */
+export const update = mutation({
+    args: {
+        id: v.id("templates"),
+        name: v.optional(v.string()),
+        category: v.optional(v.string()),
+        subcategory: v.optional(v.string()),
+        jurisdiction: v.optional(v.array(v.string())),
+        structure: v.optional(v.any()),
+        exampleContent: v.optional(v.any()),
+        isPublic: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        const user = await requireCurrentUser(ctx);
+
+        const template = await ctx.db.get(args.id);
+        if (!template || template.userId !== user._id) {
+            throw new Error("Template not found");
+        }
+
+        const now = Date.now();
+        const { id, ...updates } = args;
+
+        await ctx.db.patch(id, {
+            ...updates,
+            updatedAt: now,
+        });
+
+        await ctx.db.insert("auditLogs", {
+            action: "UPDATE",
+            entityType: "templates",
+            entityId: id,
+            userId: user._id,
+            changes: updates,
+            createdAt: now,
+        });
+
+        return { success: true };
+    },
+});
+
+/**
+ * Delete a template owned by the current user
+ */
+export const remove = mutation({
+    args: { id: v.id("templates") },
+    handler: async (ctx, args) => {
+        const user = await requireCurrentUser(ctx);
+
+        const template = await ctx.db.get(args.id);
+        if (!template || template.userId !== user._id) {
+            throw new Error("Template not found");
+        }
+
+        await ctx.db.delete(args.id);
+
+        await ctx.db.insert("auditLogs", {
+            action: "DELETE",
+            entityType: "templates",
+            entityId: args.id,
+            userId: user._id,
+            createdAt: Date.now(),
+        });
+
+        return { success: true };
     },
 });
 
