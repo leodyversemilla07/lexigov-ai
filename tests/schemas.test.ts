@@ -5,8 +5,14 @@ import {
     documentTypeValues,
     jurisdictionLevelValues,
 } from "../lib/schemas/enums";
-import { createDraftSchema, updateDraftSchema } from "../lib/schemas/draft";
-import { createTemplateSchema, templateCategoryValues, updateTemplateSchema } from "../lib/schemas/template";
+import { aiDraftFormSchema } from "../lib/schemas/ai";
+import { createDraftSchema, draftComposerSchema, updateDraftSchema } from "../lib/schemas/draft";
+import {
+    createTemplateSchema,
+    templateCategoryValues,
+    templateEditorSchema,
+    updateTemplateSchema,
+} from "../lib/schemas/template";
 
 describe("shared schema enums", () => {
     it("exposes the document, jurisdiction, and status contracts used by the app", () => {
@@ -39,6 +45,19 @@ describe("createDraftSchema", () => {
                 jurisdictionName: "Barangay San Roque",
             }),
         ).toThrow(ZodError);
+    });
+});
+
+describe("draftComposerSchema", () => {
+    it("matches the manual draft form contract", () => {
+        expect(
+            draftComposerSchema.parse({
+                title: "Barangay Curfew Ordinance 2026",
+                documentType: "ORDINANCE",
+                jurisdiction: "barangay",
+                jurisdictionName: "Barangay San Roque",
+            }).title,
+        ).toBe("Barangay Curfew Ordinance 2026");
     });
 });
 
@@ -82,5 +101,36 @@ describe("template schemas", () => {
     it("rejects invalid categories on update", () => {
         expect(() => updateTemplateSchema.parse({ category: "Unknown" })).toThrow(ZodError);
         expect(updateTemplateSchema.parse({ category: "Environment" }).category).toBe("Environment");
+    });
+
+    it("validates the template editor form state", () => {
+        expect(
+            templateEditorSchema.parse({
+                name: "Barangay Curfew Template",
+                category: "Public Safety",
+                subcategory: "Youth safety",
+                documentType: "ORDINANCE",
+                jurisdictions: ["barangay", "city"],
+                description: "Used for curfew enforcement.",
+                prompt: "Generate an ordinance with penalties and exceptions.",
+                body: "SECTION 1. Title.",
+                visibility: "private",
+            }).visibility,
+        ).toBe("private");
+    });
+});
+
+describe("aiDraftFormSchema", () => {
+    it("extends AI generation validation with title and quick template state", () => {
+        expect(
+            aiDraftFormSchema.parse({
+                title: "Barangay Curfew Ordinance 2026",
+                prompt: "Create a curfew ordinance with penalties, exemptions, and enforcement details.",
+                documentType: "ORDINANCE",
+                jurisdiction: "barangay",
+                jurisdictionName: "Barangay San Roque",
+                quickTemplateId: "curfew",
+            }).quickTemplateId,
+        ).toBe("curfew");
     });
 });

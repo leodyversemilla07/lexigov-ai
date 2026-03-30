@@ -44,6 +44,13 @@ export const createDraftSchema = z.object({
 })
 export type CreateDraftInput = z.infer<typeof createDraftSchema>
 
+export const draftComposerSchema = createDraftSchema.omit({
+    content: true,
+    templateId: true,
+    commitMessage: true,
+})
+export type DraftComposerInput = z.infer<typeof draftComposerSchema>
+
 // Update draft schema
 export const updateDraftSchema = z.object({
     title: z

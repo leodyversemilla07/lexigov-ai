@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { Controller } from "react-hook-form";
 import { WandSparkles, FileText, Clock, Loader2, ChevronRight, Sparkles, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -15,9 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { DocumentType, JurisdictionLevel } from "@/lib/schemas/enums";
 import { toast } from "sonner";
 import { extractDraftSections, normalizeDraftContent } from "@/lib/draft-content";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { aiDraftFormSchema } from "@/lib/schemas/ai";
 import {
     getTemplateDescription,
     getTemplateDocumentType,
@@ -125,25 +127,32 @@ function AIPageContent() {
     const incrementTemplateUsage = useMutation(api.templates.incrementUsage);
     
     const [step, setStep] = useState<"configure" | "preview">("configure");
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<string | null>(null);
     const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState(searchParams.get("template"));
-    const [formData, setFormData] = useState<{
-        title: string;
-        prompt: string;
-        documentType: DocumentType;
-        jurisdiction: JurisdictionLevel;
-        jurisdictionName: string;
-        quickTemplateId: string;
-    }>({
-        title: "",
-        prompt: "",
-        documentType: "ORDINANCE",
-        jurisdiction: "barangay",
-        jurisdictionName: "",
-        quickTemplateId: "custom",
+    const form = useZodForm({
+        schema: aiDraftFormSchema,
+        defaultValues: {
+            title: "",
+            prompt: "",
+            documentType: "ORDINANCE",
+            jurisdiction: "barangay",
+            jurisdictionName: "",
+            quickTemplateId: "custom",
+        },
+        mode: "onBlur",
+        reValidateMode: "onChange",
     });
+    const {
+        control,
+        formState: { errors, isSubmitting },
+        getValues,
+        handleSubmit,
+        register,
+        setValue,
+        watch,
+    } = form;
+    const formData = watch();
     const selectedSavedTemplate = useQuery(
         api.templates.get,
         selectedSavedTemplateId ? { id: selectedSavedTemplateId as Id<"templates"> } : "skip",
@@ -162,22 +171,23 @@ function AIPageContent() {
         }
 
         lastAppliedSavedTemplateId.current = selectedSavedTemplate._id;
-        setFormData((current) => {
-            const jurisdiction = getTemplateJurisdiction(selectedSavedTemplate) ?? current.jurisdiction;
-            const penalty = jurisdictions.find((item) => item.value === jurisdiction)?.penalty;
-            const prompt = getTemplatePrompt(selectedSavedTemplate, current.jurisdictionName, penalty);
-            lastSuggestedPrompt.current = prompt;
+        const jurisdiction = getTemplateJurisdiction(selectedSavedTemplate) ?? getValues("jurisdiction");
+        const penalty = jurisdictions.find((item) => item.value === jurisdiction)?.penalty;
+        const prompt = getTemplatePrompt(
+            selectedSavedTemplate,
+            getValues("jurisdictionName"),
+            penalty,
+        );
+        lastSuggestedPrompt.current = prompt;
 
-            return {
-                ...current,
-                title: selectedSavedTemplate.name,
-                documentType: getTemplateDocumentType(selectedSavedTemplate),
-                jurisdiction,
-                prompt,
-                quickTemplateId: "custom",
-            };
+        setValue("title", selectedSavedTemplate.name, { shouldValidate: true });
+        setValue("documentType", getTemplateDocumentType(selectedSavedTemplate), {
+            shouldValidate: true,
         });
-    }, [selectedSavedTemplate]);
+        setValue("jurisdiction", jurisdiction, { shouldValidate: true });
+        setValue("prompt", prompt, { shouldValidate: true });
+        setValue("quickTemplateId", "custom");
+    }, [getValues, selectedSavedTemplate, setValue]);
 
     useEffect(() => {
         if (!selectedSavedTemplate) {
@@ -187,12 +197,20 @@ function AIPageContent() {
         const penalty = selectedJurisdiction?.penalty;
         const prompt = getTemplatePrompt(selectedSavedTemplate, formData.jurisdictionName, penalty);
 
-        setFormData((current) => {
-            const shouldReplace = !current.prompt.trim() || current.prompt === lastSuggestedPrompt.current;
-            lastSuggestedPrompt.current = prompt;
-            return shouldReplace ? { ...current, prompt } : current;
-        });
-    }, [formData.jurisdictionName, selectedJurisdiction?.penalty, selectedSavedTemplate]);
+        const currentPrompt = getValues("prompt");
+        const shouldReplace =
+            !currentPrompt.trim() || currentPrompt === lastSuggestedPrompt.current;
+        lastSuggestedPrompt.current = prompt;
+        if (shouldReplace) {
+            setValue("prompt", prompt, { shouldValidate: true });
+        }
+    }, [
+        formData.jurisdictionName,
+        selectedJurisdiction?.penalty,
+        selectedSavedTemplate,
+        getValues,
+        setValue,
+    ]);
 
     useEffect(() => {
         if (selectedSavedTemplateId || formData.quickTemplateId === "custom") {
@@ -205,16 +223,20 @@ function AIPageContent() {
             selectedJurisdiction?.penalty,
         );
 
-        setFormData((current) => {
-            const shouldReplace = !current.prompt.trim() || current.prompt === lastSuggestedPrompt.current;
-            lastSuggestedPrompt.current = prompt;
-            return shouldReplace ? { ...current, prompt } : current;
-        });
+        const currentPrompt = getValues("prompt");
+        const shouldReplace =
+            !currentPrompt.trim() || currentPrompt === lastSuggestedPrompt.current;
+        lastSuggestedPrompt.current = prompt;
+        if (shouldReplace) {
+            setValue("prompt", prompt, { shouldValidate: true });
+        }
     }, [
         formData.jurisdictionName,
         formData.quickTemplateId,
         selectedJurisdiction?.penalty,
         selectedSavedTemplateId,
+        getValues,
+        setValue,
     ]);
 
     const handleQuickTemplateSelect = (templateId: string) => {
@@ -227,27 +249,24 @@ function AIPageContent() {
         if (templateId !== "custom") {
             lastSuggestedPrompt.current = prompt;
             setSelectedSavedTemplateId(null);
-            setFormData((current) => ({ ...current, quickTemplateId: templateId, prompt }));
+            setValue("quickTemplateId", templateId);
+            setValue("prompt", prompt, { shouldValidate: true });
         } else {
             lastSuggestedPrompt.current = "";
             setSelectedSavedTemplateId(null);
-            setFormData((current) => ({ ...current, quickTemplateId: "custom", prompt: "" }));
+            setValue("quickTemplateId", "custom");
+            setValue("prompt", "", { shouldValidate: true });
         }
     };
 
-    const handleGenerate = async () => {
-        if (!formData.title || !formData.prompt || !formData.jurisdictionName) {
-            toast.error("Please fill in the title, jurisdiction name, and drafting prompt.");
-            return;
-        }
-
+    const handleGenerate = handleSubmit(async (values) => {
         setIsGenerating(true);
         try {
             const generated = await generateOrdinance({
-                prompt: formData.prompt,
-                jurisdiction: formData.jurisdiction,
-                jurisdictionName: formData.jurisdictionName,
-                documentType: formData.documentType,
+                prompt: values.prompt,
+                jurisdiction: values.jurisdiction,
+                jurisdictionName: values.jurisdictionName,
+                documentType: values.documentType,
             });
             setGeneratedContent(generated.content);
             setStep("preview");
@@ -257,23 +276,23 @@ function AIPageContent() {
         } finally {
             setIsGenerating(false);
         }
-    };
+    });
 
     const handleSaveDraft = async () => {
         if (!generatedContent) return;
+        const values = getValues();
         
-        setIsSubmitting(true);
         try {
             const draftId = await createDraft({
-                title: formData.title,
-                documentType: formData.documentType,
-                jurisdiction: formData.jurisdiction,
-                jurisdictionName: formData.jurisdictionName,
+                title: values.title,
+                documentType: values.documentType,
+                jurisdiction: values.jurisdiction,
+                jurisdictionName: values.jurisdictionName,
                 aiGenerated: true,
                 templateId: selectedSavedTemplate?._id as Id<"templates"> | undefined,
                 content: normalizeDraftContent({
                     body: generatedContent,
-                    prompt: formData.prompt,
+                    prompt: values.prompt,
                     generatedAt: Date.now(),
                     model: "gemini-1.5-flash",
                 }),
@@ -285,8 +304,6 @@ function AIPageContent() {
         } catch (error) {
             console.error("Failed to create draft:", error);
             toast.error("Failed to save draft. Please try again.");
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
@@ -346,56 +363,69 @@ function AIPageContent() {
                                     <Input
                                         id="title"
                                         type="text"
-                                        required
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                         placeholder="e.g., Barangay Curfew Ordinance 2024"
+                                        {...register("title")}
                                     />
+                                    {errors.title ? (
+                                        <p className="text-sm text-destructive">{errors.title.message}</p>
+                                    ) : null}
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
                                         <Label>Document Type *</Label>
-                                        <Select
-                                            value={formData.documentType}
-                                            onValueChange={(value) => setFormData({ ...formData, documentType: value as DocumentType })}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {documentTypes.map((type) => (
-                                                    <SelectItem key={type.value} value={type.value}>
-                                                        <div>
-                                                            <div className="font-medium">{type.label}</div>
-                                                            <div className="text-xs text-muted-foreground">{type.description}</div>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <Controller
+                                            control={control}
+                                            name="documentType"
+                                            render={({ field }) => (
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {documentTypes.map((type) => (
+                                                            <SelectItem key={type.value} value={type.value}>
+                                                                <div>
+                                                                    <div className="font-medium">{type.label}</div>
+                                                                    <div className="text-xs text-muted-foreground">{type.description}</div>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {errors.documentType ? (
+                                            <p className="text-sm text-destructive">{errors.documentType.message}</p>
+                                        ) : null}
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>Jurisdiction Level *</Label>
-                                        <Select
-                                            value={formData.jurisdiction}
-                                            onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as JurisdictionLevel })}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {jurisdictions.map((j) => (
-                                                    <SelectItem key={j.value} value={j.value}>
-                                                        <div>
-                                                            <div className="font-medium">{j.label}</div>
-                                                            <div className="text-xs text-muted-foreground">{j.penalty}</div>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <Controller
+                                            control={control}
+                                            name="jurisdiction"
+                                            render={({ field }) => (
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {jurisdictions.map((j) => (
+                                                            <SelectItem key={j.value} value={j.value}>
+                                                                <div>
+                                                                    <div className="font-medium">{j.label}</div>
+                                                                    <div className="text-xs text-muted-foreground">{j.penalty}</div>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {errors.jurisdiction ? (
+                                            <p className="text-sm text-destructive">{errors.jurisdiction.message}</p>
+                                        ) : null}
                                     </div>
                                 </div>
 
@@ -404,34 +434,37 @@ function AIPageContent() {
                                     <Input
                                         id="jurisdictionName"
                                         type="text"
-                                        required
-                                        value={formData.jurisdictionName}
-                                        onChange={(e) => setFormData({ ...formData, jurisdictionName: e.target.value })}
                                         placeholder="e.g., Barangay San Roque, City of Manila"
+                                        {...register("jurisdictionName")}
                                     />
+                                    {errors.jurisdictionName ? (
+                                        <p className="text-sm text-destructive">{errors.jurisdictionName.message}</p>
+                                    ) : null}
                                 </div>
 
                                 <div className="space-y-2">
                                     <Label htmlFor="prompt">Drafting Prompt *</Label>
                                     <Textarea
                                         id="prompt"
-                                        required
                                         rows={8}
-                                        value={formData.prompt}
-                                        onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
                                         placeholder="Describe the ordinance you want to generate, including purpose, scope, restrictions, penalties, exceptions, and implementation details."
                                         className="font-mono text-sm"
+                                        {...register("prompt")}
                                     />
                                     <p className="text-xs text-muted-foreground">
                                         Be specific about requirements, penalties, exceptions, and enforcement
                                     </p>
+                                    {errors.prompt ? (
+                                        <p className="text-sm text-destructive">{errors.prompt.message}</p>
+                                    ) : null}
                                 </div>
 
                                 <Button 
                                     onClick={handleGenerate} 
-                                    disabled={isGenerating || !formData.title || !formData.prompt || !formData.jurisdictionName}
+                                    disabled={isGenerating}
                                     className="w-full"
                                     size="lg"
+                                    type="button"
                                 >
                                     {isGenerating ? (
                                         <>
@@ -516,7 +549,9 @@ function AIPageContent() {
                                         className="w-full"
                                         onClick={() => {
                                             setSelectedSavedTemplateId(null);
-                                            setFormData((current) => ({ ...current, prompt: "", quickTemplateId: "custom" }));
+                                            lastSuggestedPrompt.current = "";
+                                            setValue("quickTemplateId", "custom");
+                                            setValue("prompt", "", { shouldValidate: true });
                                         }}
                                     >
                                         Use Custom Prompt Instead

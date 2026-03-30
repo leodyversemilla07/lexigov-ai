@@ -3,7 +3,7 @@
  * Validation for creating and updating ordinance templates
  */
 import { z } from 'zod'
-import { jurisdictionLevelSchema } from './enums'
+import { documentTypeSchema, jurisdictionLevelSchema } from './enums'
 
 // Template categories
 export const templateCategoryValues = [
@@ -18,14 +18,26 @@ export const templateCategoryValues = [
  ] as const
 export const templateCategorySchema = z.enum(templateCategoryValues)
 export type TemplateCategory = z.infer<typeof templateCategorySchema>
+export const templateVisibilitySchema = z.enum(['public', 'private'])
+export type TemplateVisibility = z.infer<typeof templateVisibilitySchema>
+
+const templateNameSchema = z
+    .string()
+    .min(1, 'Template name is required')
+    .min(3, 'Name must be at least 3 characters')
+    .max(200, 'Name must be less than 200 characters')
+
+const templateTextFieldSchema = z
+    .string()
+    .max(5000, 'Field must be less than 5000 characters')
+
+const templateBodyFieldSchema = z
+    .string()
+    .max(50000, 'Starter body must be less than 50000 characters')
 
 // Create template schema
 export const createTemplateSchema = z.object({
-    name: z
-        .string()
-        .min(1, 'Template name is required')
-        .min(3, 'Name must be at least 3 characters')
-        .max(200, 'Name must be less than 200 characters'),
+    name: templateNameSchema,
     category: templateCategorySchema,
     subcategory: z.string().optional(),
     jurisdiction: z.array(jurisdictionLevelSchema).min(1, 'At least one jurisdiction is required'),
@@ -35,13 +47,26 @@ export const createTemplateSchema = z.object({
 })
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>
 
+export const templateEditorSchema = z.object({
+    name: templateNameSchema,
+    category: templateCategorySchema,
+    subcategory: z
+        .string()
+        .max(200, 'Focus area must be less than 200 characters'),
+    documentType: documentTypeSchema,
+    jurisdictions: z
+        .array(jurisdictionLevelSchema)
+        .min(1, 'At least one jurisdiction is required'),
+    description: templateTextFieldSchema,
+    prompt: templateTextFieldSchema,
+    body: templateBodyFieldSchema,
+    visibility: templateVisibilitySchema,
+})
+export type TemplateEditorInput = z.infer<typeof templateEditorSchema>
+
 // Update template schema
 export const updateTemplateSchema = z.object({
-    name: z
-        .string()
-        .min(3, 'Name must be at least 3 characters')
-        .max(200)
-        .optional(),
+    name: templateNameSchema.optional(),
     category: templateCategorySchema.optional(),
     subcategory: z.string().optional(),
     jurisdiction: z.array(jurisdictionLevelSchema).optional(),

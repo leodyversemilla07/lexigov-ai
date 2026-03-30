@@ -3,6 +3,7 @@
  * Validation for the current Gemini-powered drafting flows
  */
 import { z } from 'zod'
+import { createDraftSchema } from './draft'
 import { documentTypeSchema, jurisdictionLevelSchema } from './enums'
 
 // Generate ordinance schema
@@ -18,6 +19,14 @@ export const generateOrdinanceSchema = z.object({
     templateId: z.string().min(1).optional()
 })
 export type GenerateOrdinanceInput = z.infer<typeof generateOrdinanceSchema>
+
+export const aiDraftFormSchema = generateOrdinanceSchema
+    .omit({ templateId: true })
+    .extend({
+        title: createDraftSchema.shape.title,
+        quickTemplateId: z.string().default('custom')
+    })
+export type AIDraftFormInput = z.infer<typeof aiDraftFormSchema>
 
 // Compliance check schema
 export const complianceCheckSchema = z.object({

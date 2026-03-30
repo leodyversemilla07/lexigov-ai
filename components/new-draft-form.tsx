@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
+import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
@@ -13,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { DocumentType, JurisdictionLevel } from "@/lib/schemas/enums";
 import {
     getTemplateBody,
     getTemplateDescription,
@@ -22,6 +22,8 @@ import {
     type TemplateData,
 } from "@/lib/template-utils";
 import { normalizeDraftContent } from "@/lib/draft-content";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { draftComposerSchema } from "@/lib/schemas/draft";
 
 const documentTypes = [
     { value: "ORDINANCE", label: "Ordinance" },
@@ -50,19 +52,28 @@ export function DraftComposerForm({
     const searchParams = useSearchParams();
     const createDraft = useMutation(api.drafts.create);
     const incrementTemplateUsage = useMutation(api.templates.incrementUsage);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [initialContent, setInitialContent] = useState("");
-    const [formData, setFormData] = useState<{
-        title: string;
-        documentType: DocumentType;
-        jurisdiction: JurisdictionLevel;
-        jurisdictionName: string;
-    }>({
-        title: "",
-        documentType: "ORDINANCE",
-        jurisdiction: "barangay",
-        jurisdictionName: "",
+    const form = useZodForm({
+        schema: draftComposerSchema,
+        defaultValues: {
+            title: "",
+            documentType: "ORDINANCE",
+            jurisdiction: "barangay",
+            jurisdictionName: "",
+        },
+        mode: "onBlur",
+        reValidateMode: "onChange",
     });
+    const {
+        control,
+        formState: { errors, isSubmitting },
+        getValues,
+        handleSubmit,
+        register,
+        setValue,
+        watch,
+    } = form;
+    const formData = watch();
     const templateId = searchParams.get("template");
     const selectedTemplate = useQuery(
         api.templates.get,
@@ -78,13 +89,16 @@ export function DraftComposerForm({
         }
 
         lastAppliedTemplateId.current = selectedTemplate._id;
-        setFormData((current) => ({
-            ...current,
-            title: selectedTemplate.name,
-            documentType: getTemplateDocumentType(selectedTemplate),
-            jurisdiction: getTemplateJurisdiction(selectedTemplate) ?? current.jurisdiction,
-        }));
-    }, [selectedTemplate]);
+        setValue("title", selectedTemplate.name, { shouldValidate: true });
+        setValue("documentType", getTemplateDocumentType(selectedTemplate), {
+            shouldValidate: true,
+        });
+        setValue(
+            "jurisdiction",
+            getTemplateJurisdiction(selectedTemplate) ?? getValues("jurisdiction"),
+            { shouldValidate: true },
+        );
+    }, [getValues, selectedTemplate, setValue]);
 
     useEffect(() => {
         if (!selectedTemplate) {
@@ -105,14 +119,13 @@ export function DraftComposerForm({
         });
     }, [formData.jurisdictionName, selectedPenalty, selectedTemplate]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-
+    const onSubmit = handleSubmit(async (values) => {
         try {
-            const content = initialContent.trim() ? normalizeDraftContent({ body: initialContent.trim() }) : undefined;
+            const content = initialContent.trim()
+                ? normalizeDraftContent({ body: initialContent.trim() })
+                : undefined;
             const draftId = await createDraft({
-                ...formData,
+                ...values,
                 content,
                 templateId: selectedTemplate?._id as Id<"templates"> | undefined,
             });
@@ -123,10 +136,8 @@ export function DraftComposerForm({
         } catch (error) {
             console.error("Failed to create draft:", error);
             toast.error("Failed to create draft. Please try again.");
-        } finally {
-            setIsSubmitting(false);
         }
-    };
+    });
 
     const formFields = (
         <div className="space-y-6">
@@ -135,50 +146,63 @@ export function DraftComposerForm({
                 <Input
                     id="title"
                     type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="e.g., Barangay Curfew Ordinance 2024"
+                    {...register("title")}
                 />
+                {errors.title ? (
+                    <p className="text-sm text-destructive">{errors.title.message}</p>
+                ) : null}
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Document Type *</Label>
-                    <Select
-                        value={formData.documentType}
-                        onValueChange={(value) => setFormData({ ...formData, documentType: value as DocumentType })}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {documentTypes.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                    {type.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Controller
+                        control={control}
+                        name="documentType"
+                        render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {documentTypes.map((type) => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                            {type.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                    {errors.documentType ? (
+                        <p className="text-sm text-destructive">{errors.documentType.message}</p>
+                    ) : null}
                 </div>
 
                 <div className="space-y-2">
                     <Label>Jurisdiction Level *</Label>
-                    <Select
-                        value={formData.jurisdiction}
-                        onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as JurisdictionLevel })}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {jurisdictions.map((j) => (
-                                <SelectItem key={j.value} value={j.value}>
-                                    {j.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Controller
+                        control={control}
+                        name="jurisdiction"
+                        render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {jurisdictions.map((j) => (
+                                        <SelectItem key={j.value} value={j.value}>
+                                            {j.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                    {errors.jurisdiction ? (
+                        <p className="text-sm text-destructive">{errors.jurisdiction.message}</p>
+                    ) : null}
                 </div>
             </div>
 
@@ -187,11 +211,12 @@ export function DraftComposerForm({
                 <Input
                     id="jurisdictionName"
                     type="text"
-                    required
-                    value={formData.jurisdictionName}
-                    onChange={(e) => setFormData({ ...formData, jurisdictionName: e.target.value })}
                     placeholder="e.g., Barangay San Roque, City of Manila"
+                    {...register("jurisdictionName")}
                 />
+                {errors.jurisdictionName ? (
+                    <p className="text-sm text-destructive">{errors.jurisdictionName.message}</p>
+                ) : null}
             </div>
 
             {selectedTemplate && (
@@ -228,7 +253,7 @@ export function DraftComposerForm({
     );
 
     return (
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
             {wrapped ? <Card><CardContent className="p-6">{formFields}</CardContent></Card> : formFields}
         </form>
     );

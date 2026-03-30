@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
+import { Controller } from "react-hook-form";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { ArrowRight, FilePenLine, FileText, FolderOpen, Globe, Lock, Pencil, Plus, Search, Sparkles, Trash2, Users } from "lucide-react";
@@ -15,31 +16,26 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { buildDraftSectionsFromBody } from "@/lib/draft-content";
 import type { DocumentType, JurisdictionLevel } from "@/lib/schemas/enums";
-import { templateCategoryValues, type TemplateCategory } from "@/lib/schemas/template";
+import {
+    templateCategoryValues,
+    templateEditorSchema,
+    type TemplateCategory,
+    type TemplateEditorInput,
+    type TemplateVisibility,
+} from "@/lib/schemas/template";
 import { getTemplateDescription, getTemplateSections, type TemplateData } from "@/lib/template-utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type TemplateVisibility = "public" | "private";
 type EditableTemplate = TemplateData & { userId: string; isPublic: boolean; createdAt: number; updatedAt: number };
-type TemplateFormState = {
-    name: string;
-    category: TemplateCategory;
-    subcategory: string;
-    documentType: DocumentType;
-    jurisdictions: JurisdictionLevel[];
-    description: string;
-    prompt: string;
-    body: string;
-    visibility: TemplateVisibility;
-};
 
 const templateCategories: TemplateCategory[] = [...templateCategoryValues];
 const documentTypes: DocumentType[] = ["ORDINANCE", "RESOLUTION", "MEMORANDUM", "POLICY"];
 const jurisdictionOptions: JurisdictionLevel[] = ["barangay", "municipal", "city", "provincial"];
-const emptyTemplateForm: TemplateFormState = {
+const emptyTemplateForm: TemplateEditorInput = {
     name: "",
     category: templateCategories[0],
     subcategory: "",
@@ -69,7 +65,7 @@ function readTemplateField(value: unknown) {
     return typeof value === "string" ? value : "";
 }
 
-function getTemplateFormState(template?: EditableTemplate): TemplateFormState {
+function getTemplateFormState(template?: EditableTemplate): TemplateEditorInput {
     if (!template) return emptyTemplateForm;
     const structure = template.structure && typeof template.structure === "object" ? template.structure as Record<string, unknown> : {};
     const exampleContent = template.exampleContent && typeof template.exampleContent === "object" ? template.exampleContent as Record<string, unknown> : {};
@@ -86,7 +82,7 @@ function getTemplateFormState(template?: EditableTemplate): TemplateFormState {
     };
 }
 
-function buildTemplatePayload(form: TemplateFormState) {
+function buildTemplatePayload(form: TemplateEditorInput) {
     const sections = buildDraftSectionsFromBody(form.body.trim());
     return {
         name: form.name.trim(),
@@ -148,9 +144,24 @@ function TemplatesPageContent() {
     const [searchQuery, setSearchQuery] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-    const [form, setForm] = useState<TemplateFormState>(emptyTemplateForm);
+    const templateForm = useZodForm({
+        schema: templateEditorSchema,
+        defaultValues: emptyTemplateForm,
+        mode: "onBlur",
+        reValidateMode: "onChange",
+    });
+    const {
+        control,
+        formState: { errors, isSubmitting },
+        getValues,
+        handleSubmit,
+        register,
+        reset,
+        setValue,
+        watch,
+    } = templateForm;
+    const form = watch();
 
     const templates = (templatesQuery ?? []) as EditableTemplate[];
     const isLoading = templatesQuery === undefined;
@@ -173,38 +184,33 @@ function TemplatesPageContent() {
 
     const openCreateDialog = () => {
         setEditingTemplateId(null);
-        setForm(emptyTemplateForm);
+        reset(emptyTemplateForm);
         setDialogOpen(true);
     };
 
     const openEditDialog = (template: EditableTemplate) => {
         setEditingTemplateId(template._id);
-        setForm(getTemplateFormState(template));
+        reset(getTemplateFormState(template));
         setDialogOpen(true);
     };
 
     const handleJurisdictionToggle = (jurisdiction: JurisdictionLevel) => {
-        setForm((current) => {
-            const active = current.jurisdictions.includes(jurisdiction);
-            if (active && current.jurisdictions.length === 1) return current;
-            return {
-                ...current,
-                jurisdictions: active
-                    ? current.jurisdictions.filter((value) => value !== jurisdiction)
-                    : [...current.jurisdictions, jurisdiction],
-            };
-        });
+        const currentJurisdictions = getValues("jurisdictions");
+        const active = currentJurisdictions.includes(jurisdiction);
+        if (active && currentJurisdictions.length === 1) return;
+
+        setValue(
+            "jurisdictions",
+            active
+                ? currentJurisdictions.filter((value) => value !== jurisdiction)
+                : [...currentJurisdictions, jurisdiction],
+            { shouldValidate: true },
+        );
     };
 
-    const handleSubmit = async () => {
-        if (!form.name.trim() || !form.category || form.jurisdictions.length === 0) {
-            toast.error("Name, category, and at least one jurisdiction are required.");
-            return;
-        }
-
-        setIsSubmitting(true);
+    const handleDialogSubmit = handleSubmit(async (values) => {
         try {
-            const payload = buildTemplatePayload(form);
+            const payload = buildTemplatePayload(values);
             if (editingTemplateId) {
                 await updateTemplate({ id: editingTemplateId as Id<"templates">, ...payload });
                 toast.success("Template updated.");
@@ -214,14 +220,12 @@ function TemplatesPageContent() {
             }
             setDialogOpen(false);
             setEditingTemplateId(null);
-            setForm(emptyTemplateForm);
+            reset(emptyTemplateForm);
         } catch (error) {
             console.error("Failed to save template:", error);
             toast.error("Failed to save template. Please try again.");
-        } finally {
-            setIsSubmitting(false);
         }
-    };
+    });
 
     const handleDelete = async (template: EditableTemplate) => {
         if (!window.confirm(`Delete "${template.name}"? This cannot be undone.`)) return;
@@ -329,108 +333,150 @@ function TemplatesPageContent() {
                 </CardContent>
             </Card>
 
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog
+                open={dialogOpen}
+                onOpenChange={(open) => {
+                    setDialogOpen(open);
+                    if (!open) {
+                        setEditingTemplateId(null);
+                        reset(emptyTemplateForm);
+                    }
+                }}
+            >
                 <DialogContent className="max-w-4xl">
-                    <DialogHeader>
-                        <DialogTitle>{editingTemplateId ? "Edit Template" : "Create Template"}</DialogTitle>
-                        <DialogDescription>Capture a reusable ordinance pattern with prompt guidance and starter content.</DialogDescription>
-                    </DialogHeader>
+                    <form onSubmit={handleDialogSubmit}>
+                        <DialogHeader>
+                            <DialogTitle>{editingTemplateId ? "Edit Template" : "Create Template"}</DialogTitle>
+                            <DialogDescription>Capture a reusable ordinance pattern with prompt guidance and starter content.</DialogDescription>
+                        </DialogHeader>
 
-                    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-                        <div className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="template-name">Template Name</Label>
-                                    <Input id="template-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Example: Barangay Curfew Ordinance" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Category</Label>
-                                    <Select value={form.category} onValueChange={(value) => setForm((current) => ({ ...current, category: value as TemplateCategory }))}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>{templateCategories.map((category) => <SelectItem key={category} value={category}>{getCategoryIcon(category)} {category}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="template-subcategory">Focus Area</Label>
-                                    <Input id="template-subcategory" value={form.subcategory} onChange={(event) => setForm((current) => ({ ...current, subcategory: event.target.value }))} placeholder="Example: Youth safety" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Document Type</Label>
-                                    <Select value={form.documentType} onValueChange={(value) => setForm((current) => ({ ...current, documentType: value as DocumentType }))}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>{documentTypes.map((documentType) => <SelectItem key={documentType} value={documentType}>{documentType}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Jurisdictions</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {jurisdictionOptions.map((jurisdiction) => {
-                                        const active = form.jurisdictions.includes(jurisdiction);
-                                        return <button key={jurisdiction} type="button" className={cn("rounded-full border px-3 py-1.5 text-sm capitalize transition-colors", active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:border-primary/50")} onClick={() => handleJurisdictionToggle(jurisdiction)}>{jurisdiction}</button>;
-                                    })}
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="template-description">Template Summary</Label>
-                                <Textarea id="template-description" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Describe when this template should be used and what it covers." rows={3} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="template-prompt">AI Prompt Guidance</Label>
-                                <Textarea id="template-prompt" value={form.prompt} onChange={(event) => setForm((current) => ({ ...current, prompt: event.target.value }))} placeholder="Explain how the AI should interpret and expand this template." rows={4} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="template-body">Starter Body</Label>
-                                <Textarea id="template-body" value={form.body} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} placeholder="Provide the reusable ordinance skeleton or sample sections." rows={10} />
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <Card className="border-border/60 bg-muted/30">
-                                <CardHeader><CardTitle className="text-base">Publishing</CardTitle><CardDescription>Choose who can see and use this template.</CardDescription></CardHeader>
-                                <CardContent className="space-y-3">
-                                    <button type="button" className={cn("w-full rounded-xl border p-3 text-left transition-colors", form.visibility === "private" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")} onClick={() => setForm((current) => ({ ...current, visibility: "private" }))}>
-                                        <div className="flex items-center gap-2 font-medium"><Lock className="h-4 w-4" />Private</div>
-                                        <p className="mt-1 text-sm text-muted-foreground">Only your account can manage and use it.</p>
-                                    </button>
-                                    <button type="button" className={cn("w-full rounded-xl border p-3 text-left transition-colors", form.visibility === "public" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")} onClick={() => setForm((current) => ({ ...current, visibility: "public" }))}>
-                                        <div className="flex items-center gap-2 font-medium"><Globe className="h-4 w-4" />Public</div>
-                                        <p className="mt-1 text-sm text-muted-foreground">Shared in the library so other users can draft from it.</p>
-                                    </button>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-border/60 bg-muted/30">
-                                <CardHeader><CardTitle className="text-base">Blueprint Preview</CardTitle><CardDescription>How this template will read inside the library.</CardDescription></CardHeader>
-                                <CardContent className="space-y-3 text-sm">
-                                    <div className="font-medium">{form.name || "Untitled template"}</div>
-                                    <div className="text-muted-foreground">{form.description || "Add a summary to help other drafters choose the right template."}</div>
-                                    <div className="flex flex-wrap gap-1.5">{form.jurisdictions.map((jurisdiction) => <Badge key={jurisdiction} variant="outline" className="capitalize">{jurisdiction}</Badge>)}</div>
-                                    <div className="rounded-lg border bg-background p-3 text-xs text-muted-foreground whitespace-pre-wrap">{form.body || "Starter body preview will appear here."}</div>
+                        <div className="grid gap-6 py-4 lg:grid-cols-[1.4fr_1fr]">
+                            <div className="space-y-4">
+                                <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
-                                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Structured Sections</div>
-                                        {buildDraftSectionsFromBody(form.body).length === 0 ? (
-                                            <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                                                Add headings like &quot;SECTION 1. Title.&quot; to save explicit template sections.
-                                            </div>
-                                        ) : (
-                                            buildDraftSectionsFromBody(form.body).map((section, index) => (
-                                                <div key={section.id} className="rounded-lg border bg-background p-3 text-xs">
-                                                    <div className="font-medium">{section.heading}</div>
-                                                    <div className="mt-1 text-muted-foreground">Section {index + 1}</div>
-                                                </div>
-                                            ))
-                                        )}
+                                        <Label htmlFor="template-name">Template Name</Label>
+                                        <Input id="template-name" placeholder="Example: Barangay Curfew Ordinance" {...register("name")} />
+                                        {errors.name ? <p className="text-sm text-destructive">{errors.name.message}</p> : null}
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Category</Label>
+                                        <Controller
+                                            control={control}
+                                            name="category"
+                                            render={({ field }) => (
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>{templateCategories.map((category) => <SelectItem key={category} value={category}>{getCategoryIcon(category)} {category}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {errors.category ? <p className="text-sm text-destructive">{errors.category.message}</p> : null}
+                                    </div>
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="template-subcategory">Focus Area</Label>
+                                        <Input id="template-subcategory" placeholder="Example: Youth safety" {...register("subcategory")} />
+                                        {errors.subcategory ? <p className="text-sm text-destructive">{errors.subcategory.message}</p> : null}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Document Type</Label>
+                                        <Controller
+                                            control={control}
+                                            name="documentType"
+                                            render={({ field }) => (
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>{documentTypes.map((documentType) => <SelectItem key={documentType} value={documentType}>{documentType}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {errors.documentType ? <p className="text-sm text-destructive">{errors.documentType.message}</p> : null}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Jurisdictions</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {jurisdictionOptions.map((jurisdiction) => {
+                                            const active = form.jurisdictions.includes(jurisdiction);
+                                            return <button key={jurisdiction} type="button" className={cn("rounded-full border px-3 py-1.5 text-sm capitalize transition-colors", active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:border-primary/50")} onClick={() => handleJurisdictionToggle(jurisdiction)}>{jurisdiction}</button>;
+                                        })}
+                                    </div>
+                                    {errors.jurisdictions ? <p className="text-sm text-destructive">{errors.jurisdictions.message}</p> : null}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="template-description">Template Summary</Label>
+                                    <Textarea id="template-description" placeholder="Describe when this template should be used and what it covers." rows={3} {...register("description")} />
+                                    {errors.description ? <p className="text-sm text-destructive">{errors.description.message}</p> : null}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="template-prompt">AI Prompt Guidance</Label>
+                                    <Textarea id="template-prompt" placeholder="Explain how the AI should interpret and expand this template." rows={4} {...register("prompt")} />
+                                    {errors.prompt ? <p className="text-sm text-destructive">{errors.prompt.message}</p> : null}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="template-body">Starter Body</Label>
+                                    <Textarea id="template-body" placeholder="Provide the reusable ordinance skeleton or sample sections." rows={10} {...register("body")} />
+                                    {errors.body ? <p className="text-sm text-destructive">{errors.body.message}</p> : null}
+                                </div>
+                            </div>
 
-                    <DialogFooter showCloseButton>
-                        <Button onClick={handleSubmit} disabled={isSubmitting}>{isSubmitting ? "Saving..." : editingTemplateId ? "Save Changes" : "Create Template"}</Button>
-                    </DialogFooter>
+                            <div className="space-y-4">
+                                <Card className="border-border/60 bg-muted/30">
+                                    <CardHeader><CardTitle className="text-base">Publishing</CardTitle><CardDescription>Choose who can see and use this template.</CardDescription></CardHeader>
+                                    <CardContent className="space-y-3">
+                                        {(["private", "public"] as TemplateVisibility[]).map((visibility) => (
+                                            <button
+                                                key={visibility}
+                                                type="button"
+                                                className={cn("w-full rounded-xl border p-3 text-left transition-colors", form.visibility === visibility ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}
+                                                onClick={() => setValue("visibility", visibility, { shouldValidate: true })}
+                                            >
+                                                <div className="flex items-center gap-2 font-medium">
+                                                    {visibility === "private" ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                                                    {visibility === "private" ? "Private" : "Public"}
+                                                </div>
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    {visibility === "private"
+                                                        ? "Only your account can manage and use it."
+                                                        : "Shared in the library so other users can draft from it."}
+                                                </p>
+                                            </button>
+                                        ))}
+                                        {errors.visibility ? <p className="text-sm text-destructive">{errors.visibility.message}</p> : null}
+                                    </CardContent>
+                                </Card>
+                                <Card className="border-border/60 bg-muted/30">
+                                    <CardHeader><CardTitle className="text-base">Blueprint Preview</CardTitle><CardDescription>How this template will read inside the library.</CardDescription></CardHeader>
+                                    <CardContent className="space-y-3 text-sm">
+                                        <div className="font-medium">{form.name || "Untitled template"}</div>
+                                        <div className="text-muted-foreground">{form.description || "Add a summary to help other drafters choose the right template."}</div>
+                                        <div className="flex flex-wrap gap-1.5">{form.jurisdictions.map((jurisdiction) => <Badge key={jurisdiction} variant="outline" className="capitalize">{jurisdiction}</Badge>)}</div>
+                                        <div className="rounded-lg border bg-background p-3 text-xs text-muted-foreground whitespace-pre-wrap">{form.body || "Starter body preview will appear here."}</div>
+                                        <div className="space-y-2">
+                                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Structured Sections</div>
+                                            {buildDraftSectionsFromBody(form.body).length === 0 ? (
+                                                <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                                                    Add headings like &quot;SECTION 1. Title.&quot; to save explicit template sections.
+                                                </div>
+                                            ) : (
+                                                buildDraftSectionsFromBody(form.body).map((section, index) => (
+                                                    <div key={section.id} className="rounded-lg border bg-background p-3 text-xs">
+                                                        <div className="font-medium">{section.heading}</div>
+                                                        <div className="mt-1 text-muted-foreground">Section {index + 1}</div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+
+                        <DialogFooter showCloseButton>
+                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : editingTemplateId ? "Save Changes" : "Create Template"}</Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
         </div>
