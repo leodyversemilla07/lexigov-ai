@@ -80,7 +80,7 @@ export default function DashboardPage() {
                             <LayoutTemplate className="w-4 h-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats.templates || 8}</div>
+                            <div className="text-2xl font-bold">{stats.templates}</div>
                             <p className="text-xs text-muted-foreground mt-1">Reusable ordinance templates</p>
                         </CardContent>
                     </Card>

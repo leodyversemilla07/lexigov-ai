@@ -31,6 +31,8 @@ type ComplianceResult = {
     }>;
 };
 
+type DocumentStatus = "DRAFT" | "REVIEW" | "FINAL" | "ARCHIVED";
+
 const statusOptions = [
     { value: "DRAFT", label: "Draft", description: "Work in progress" },
     { value: "REVIEW", label: "Review", description: "Under review" },
@@ -56,7 +58,7 @@ export default function DraftEditorPage() {
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null);
     const [showCompliance, setShowCompliance] = useState(false);
-    const [status, setStatus] = useState("DRAFT");
+    const [status, setStatus] = useState<DocumentStatus>("DRAFT");
     const [sections, setSections] = useState<DraftSection[]>([]);
     const [selectedSectionId, setSelectedSectionId] = useState("");
 
@@ -68,7 +70,7 @@ export default function DraftEditorPage() {
             setContent(body);
             setSections(parsedSections);
             setSelectedSectionId(parsedSections[0]?.id ?? "");
-            setStatus(draft.status);
+            setStatus(draft.status as DocumentStatus);
         }
     }, [draft]);
 
@@ -469,7 +471,7 @@ export default function DraftEditorPage() {
                             <CardTitle>Status</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Select value={status} onValueChange={setStatus}>
+                            <Select value={status} onValueChange={(value) => setStatus(value as DocumentStatus)}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>

@@ -1,5 +1,8 @@
 # LexiGov AI - Project Structure Reference
 
+> Archived legacy document. This file describes an older Prisma/Firebase-era structure and is not the source of truth for the running app.
+> Use `README.md` plus the current Clerk + Convex codebase instead.
+
 ## Complete File Tree
 
 ```

@@ -1,5 +1,8 @@
 # LexiGov AI - Current Project Status
 
+> Archived legacy document. This file describes an older Prisma/Firebase-era status snapshot and is not the source of truth for the running app.
+> Use `README.md` plus the current Clerk + Convex codebase instead.
+
 > **Last Updated**: January 18, 2026 at 11:40 PM PHT  
 > **Analyzed By**: AI Code Assistant  
 > **Overall Status**: 🟢 **Phase 1 Complete** - Critical issues fixed, implementation pending

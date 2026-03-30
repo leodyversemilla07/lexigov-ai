@@ -244,3 +244,5 @@ Then you can proceed with:
 **Estimated Fix Time**: 30 minutes
 **Difficulty**: ⭐ Easy (beginner-friendly)
 > Archived legacy document: this file refers to Prisma-based code paths that do not match the current Clerk + Convex application.
+> Archived legacy document. This file refers to older Prisma-based code paths and is not the source of truth for the running app.
+> Use `README.md` plus the current Clerk + Convex codebase instead.

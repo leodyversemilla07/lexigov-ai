@@ -1,5 +1,8 @@
 # Firebase & Google Cloud Setup Guide
 
+> Archived legacy document. Firebase is no longer part of the running app.
+> The current implementation uses Clerk for authentication and Convex for backend state.
+
 This guide walks you through setting up Firebase Authentication and Google Cloud Vertex AI for LexiGov AI.
 
 ## Prerequisites

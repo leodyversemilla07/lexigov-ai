@@ -3,12 +3,62 @@ import { v } from "convex/values";
 import { getCurrentUser, requireCurrentUser } from "./lib/currentUser";
 import { extractDraftBody, normalizeDraftContent } from "../lib/draft-content";
 
+const documentTypeValidator = v.union(
+    v.literal("ORDINANCE"),
+    v.literal("RESOLUTION"),
+    v.literal("MEMORANDUM"),
+    v.literal("POLICY"),
+);
+const jurisdictionValidator = v.union(
+    v.literal("barangay"),
+    v.literal("city"),
+    v.literal("municipal"),
+    v.literal("provincial"),
+);
+const statusValidator = v.union(
+    v.literal("DRAFT"),
+    v.literal("REVIEW"),
+    v.literal("FINAL"),
+    v.literal("ARCHIVED"),
+);
+
 function contentEquals(left: unknown, right: unknown) {
     return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 function sanitizeFilename(title: string) {
     return title.replace(/[^a-z0-9]/gi, "_");
+}
+
+function validateTitle(title: string) {
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length < 5 || trimmedTitle.length > 500) {
+        throw new Error("Title must be between 5 and 500 characters");
+    }
+
+    return trimmedTitle;
+}
+
+function validateJurisdictionName(jurisdictionName: string) {
+    const trimmedJurisdictionName = jurisdictionName.trim();
+    if (!trimmedJurisdictionName) {
+        throw new Error("Jurisdiction name is required");
+    }
+
+    return trimmedJurisdictionName;
+}
+
+function validateCommitMessage(commitMessage?: string) {
+    if (commitMessage === undefined) {
+        return undefined;
+    }
+
+    const trimmedCommitMessage = commitMessage.trim();
+    if (trimmedCommitMessage.length > 500) {
+        throw new Error("Commit message must be 500 characters or fewer");
+    }
+
+    return trimmedCommitMessage || undefined;
 }
 
 /**
@@ -23,18 +73,22 @@ export const list = query({
         const user = await getCurrentUser(ctx);
         if (!user) return [];
 
-        const draftsQuery = ctx.db
-            .query("drafts")
-            .withIndex("by_user", (q) => q.eq("userId", user._id));
-
-        const drafts = await draftsQuery.collect();
+        const drafts = args.status
+            ? await ctx.db
+                .query("drafts")
+                .withIndex("by_user_status", (q) => q.eq("userId", user._id).eq("status", args.status!))
+                .collect()
+            : await ctx.db
+                .query("drafts")
+                .withIndex("by_user", (q) => q.eq("userId", user._id))
+                .collect();
 
         const filtered = drafts.filter((d) => {
             if (d.parentDraftId) {
                 return false;
             }
 
-            return args.status ? d.status === args.status : true;
+            return true;
         });
 
         return filtered
@@ -109,8 +163,8 @@ export const listVersions = query({
 export const create = mutation({
     args: {
         title: v.string(),
-        documentType: v.string(),
-        jurisdiction: v.string(),
+        documentType: documentTypeValidator,
+        jurisdiction: jurisdictionValidator,
         jurisdictionName: v.string(),
         aiGenerated: v.optional(v.boolean()),
         content: v.optional(v.any()),
@@ -120,12 +174,14 @@ export const create = mutation({
         const user = await requireCurrentUser(ctx);
 
         const now = Date.now();
+        const title = validateTitle(args.title);
+        const jurisdictionName = validateJurisdictionName(args.jurisdictionName);
 
         const draftId = await ctx.db.insert("drafts", {
-            title: args.title,
+            title,
             documentType: args.documentType,
             jurisdiction: args.jurisdiction,
-            jurisdictionName: args.jurisdictionName,
+            jurisdictionName,
             content: normalizeDraftContent(args.content ?? {}),
             status: "DRAFT",
             aiGenerated: args.aiGenerated ?? false,
@@ -156,7 +212,7 @@ export const update = mutation({
         id: v.id("drafts"),
         title: v.optional(v.string()),
         content: v.optional(v.any()),
-        status: v.optional(v.string()),
+        status: v.optional(statusValidator),
         commitMessage: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
@@ -172,12 +228,14 @@ export const update = mutation({
 
         const now = Date.now();
         const { id, ...updates } = args;
-        const nextTitle = updates.title ?? draft.title;
+        const nextTitle = updates.title !== undefined ? validateTitle(updates.title) : draft.title;
         const nextContent = normalizeDraftContent(updates.content ?? draft.content);
         const nextStatus = updates.status ?? draft.status;
+        const nextCommitMessage = validateCommitMessage(updates.commitMessage ?? draft.commitMessage);
         const hasMeaningfulChange =
             nextTitle !== draft.title ||
             nextStatus !== draft.status ||
+            nextCommitMessage !== draft.commitMessage ||
             !contentEquals(nextContent, draft.content);
 
         if (!hasMeaningfulChange) {
@@ -218,7 +276,7 @@ export const update = mutation({
             title: nextTitle,
             content: nextContent,
             status: nextStatus,
-            commitMessage: updates.commitMessage ?? draft.commitMessage,
+            commitMessage: nextCommitMessage,
             version: draft.version + 1,
             updatedAt: now,
         });

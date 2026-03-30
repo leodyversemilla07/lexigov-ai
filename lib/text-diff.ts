@@ -70,34 +70,24 @@ export function buildLineDiff(leftText: string, rightText: string) {
     let rightCursor = 0;
 
     for (const match of commonSequence) {
-        while (leftCursor < match.leftIndex || rightCursor < match.rightIndex) {
-            if (leftCursor < match.leftIndex && rightCursor < match.rightIndex) {
-                rows.push({
-                    leftLineNumber: leftCursor + 1,
-                    rightLineNumber: rightCursor + 1,
-                    leftText: leftLines[leftCursor],
-                    rightText: rightLines[rightCursor],
-                    type: leftLines[leftCursor] === rightLines[rightCursor] ? "same" : "removed",
-                });
-                leftCursor += 1;
-                rightCursor += 1;
-            } else if (leftCursor < match.leftIndex) {
-                rows.push({
-                    leftLineNumber: leftCursor + 1,
-                    leftText: leftLines[leftCursor],
-                    rightText: "",
-                    type: "removed",
-                });
-                leftCursor += 1;
-            } else {
-                rows.push({
-                    rightLineNumber: rightCursor + 1,
-                    leftText: "",
-                    rightText: rightLines[rightCursor],
-                    type: "added",
-                });
-                rightCursor += 1;
-            }
+        while (leftCursor < match.leftIndex) {
+            rows.push({
+                leftLineNumber: leftCursor + 1,
+                leftText: leftLines[leftCursor],
+                rightText: "",
+                type: "removed",
+            });
+            leftCursor += 1;
+        }
+
+        while (rightCursor < match.rightIndex) {
+            rows.push({
+                rightLineNumber: rightCursor + 1,
+                leftText: "",
+                rightText: rightLines[rightCursor],
+                type: "added",
+            });
+            rightCursor += 1;
         }
 
         rows.push({
@@ -111,34 +101,24 @@ export function buildLineDiff(leftText: string, rightText: string) {
         rightCursor = match.rightIndex + 1;
     }
 
-    while (leftCursor < leftLines.length || rightCursor < rightLines.length) {
-        if (leftCursor < leftLines.length && rightCursor < rightLines.length) {
-            rows.push({
-                leftLineNumber: leftCursor + 1,
-                rightLineNumber: rightCursor + 1,
-                leftText: leftLines[leftCursor],
-                rightText: rightLines[rightCursor],
-                type: leftLines[leftCursor] === rightLines[rightCursor] ? "same" : "removed",
-            });
-            leftCursor += 1;
-            rightCursor += 1;
-        } else if (leftCursor < leftLines.length) {
-            rows.push({
-                leftLineNumber: leftCursor + 1,
-                leftText: leftLines[leftCursor],
-                rightText: "",
-                type: "removed",
-            });
-            leftCursor += 1;
-        } else {
-            rows.push({
-                rightLineNumber: rightCursor + 1,
-                leftText: "",
-                rightText: rightLines[rightCursor],
-                type: "added",
-            });
-            rightCursor += 1;
-        }
+    while (leftCursor < leftLines.length) {
+        rows.push({
+            leftLineNumber: leftCursor + 1,
+            leftText: leftLines[leftCursor],
+            rightText: "",
+            type: "removed",
+        });
+        leftCursor += 1;
+    }
+
+    while (rightCursor < rightLines.length) {
+        rows.push({
+            rightLineNumber: rightCursor + 1,
+            leftText: "",
+            rightText: rightLines[rightCursor],
+            type: "added",
+        });
+        rightCursor += 1;
     }
 
     return rows;

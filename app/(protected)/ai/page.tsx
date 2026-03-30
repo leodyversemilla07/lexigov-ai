@@ -40,6 +40,9 @@ const jurisdictions = [
     { value: "provincial", label: "Provincial", penalty: "Fine up to ₱20,000" },
 ];
 
+type DocumentType = "ORDINANCE" | "RESOLUTION" | "MEMORANDUM" | "POLICY";
+type Jurisdiction = "barangay" | "municipal" | "city" | "provincial";
+
 const promptTemplates = [
     {
         id: "curfew",
@@ -101,6 +104,21 @@ const promptTemplates = [
     }
 ];
 
+function buildQuickTemplatePrompt(
+    templateId: string,
+    jurisdictionName: string,
+    penalty?: string,
+) {
+    const template = promptTemplates.find((item) => item.id === templateId);
+    if (!template || template.id === "custom") {
+        return "";
+    }
+
+    return template.prompt
+        .replace("[JURISDICTION]", jurisdictionName || "[Jurisdiction Name]")
+        .replace("[PENALTY]", penalty || "[Penalty]");
+}
+
 function AIPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -113,7 +131,14 @@ function AIPageContent() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<string | null>(null);
     const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState(searchParams.get("template"));
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        title: string;
+        prompt: string;
+        documentType: DocumentType;
+        jurisdiction: Jurisdiction;
+        jurisdictionName: string;
+        quickTemplateId: string;
+    }>({
         title: "",
         prompt: "",
         documentType: "ORDINANCE",
@@ -126,6 +151,7 @@ function AIPageContent() {
         selectedSavedTemplateId ? { id: selectedSavedTemplateId as Id<"templates"> } : "skip",
     ) as TemplateData | null | undefined;
     const lastAppliedSavedTemplateId = useRef<string | null>(null);
+    const lastSuggestedPrompt = useRef("");
 
     const selectedDocType = documentTypes.find(d => d.value === formData.documentType);
     const selectedJurisdiction = jurisdictions.find(j => j.value === formData.jurisdiction);
@@ -141,29 +167,73 @@ function AIPageContent() {
         setFormData((current) => {
             const jurisdiction = getTemplateJurisdiction(selectedSavedTemplate) ?? current.jurisdiction;
             const penalty = jurisdictions.find((item) => item.value === jurisdiction)?.penalty;
+            const prompt = getTemplatePrompt(selectedSavedTemplate, current.jurisdictionName, penalty);
+            lastSuggestedPrompt.current = prompt;
 
             return {
                 ...current,
                 title: selectedSavedTemplate.name,
                 documentType: getTemplateDocumentType(selectedSavedTemplate),
                 jurisdiction,
-                prompt: getTemplatePrompt(selectedSavedTemplate, current.jurisdictionName, penalty),
+                prompt,
                 quickTemplateId: "custom",
             };
         });
     }, [selectedSavedTemplate]);
 
+    useEffect(() => {
+        if (!selectedSavedTemplate) {
+            return;
+        }
+
+        const penalty = selectedJurisdiction?.penalty;
+        const prompt = getTemplatePrompt(selectedSavedTemplate, formData.jurisdictionName, penalty);
+
+        setFormData((current) => {
+            const shouldReplace = !current.prompt.trim() || current.prompt === lastSuggestedPrompt.current;
+            lastSuggestedPrompt.current = prompt;
+            return shouldReplace ? { ...current, prompt } : current;
+        });
+    }, [formData.jurisdictionName, selectedJurisdiction?.penalty, selectedSavedTemplate]);
+
+    useEffect(() => {
+        if (selectedSavedTemplateId || formData.quickTemplateId === "custom") {
+            return;
+        }
+
+        const prompt = buildQuickTemplatePrompt(
+            formData.quickTemplateId,
+            formData.jurisdictionName,
+            selectedJurisdiction?.penalty,
+        );
+
+        setFormData((current) => {
+            const shouldReplace = !current.prompt.trim() || current.prompt === lastSuggestedPrompt.current;
+            lastSuggestedPrompt.current = prompt;
+            return shouldReplace ? { ...current, prompt } : current;
+        });
+    }, [
+        formData.jurisdictionName,
+        formData.quickTemplateId,
+        selectedJurisdiction?.penalty,
+        selectedSavedTemplateId,
+    ]);
+
     const handleQuickTemplateSelect = (templateId: string) => {
-        const template = promptTemplates.find(t => t.id === templateId);
-        if (template && template.id !== "custom") {
-            let prompt = template.prompt;
-            prompt = prompt.replace("[JURISDICTION]", formData.jurisdictionName || "[Jurisdiction Name]");
-            prompt = prompt.replace("[PENALTY]", selectedJurisdiction?.penalty || "[Penalty]");
+        const prompt = buildQuickTemplatePrompt(
+            templateId,
+            formData.jurisdictionName,
+            selectedJurisdiction?.penalty,
+        );
+
+        if (templateId !== "custom") {
+            lastSuggestedPrompt.current = prompt;
             setSelectedSavedTemplateId(null);
-            setFormData({ ...formData, quickTemplateId: templateId, prompt });
+            setFormData((current) => ({ ...current, quickTemplateId: templateId, prompt }));
         } else {
+            lastSuggestedPrompt.current = "";
             setSelectedSavedTemplateId(null);
-            setFormData({ ...formData, quickTemplateId: "custom", prompt: "" });
+            setFormData((current) => ({ ...current, quickTemplateId: "custom", prompt: "" }));
         }
     };
 
@@ -290,7 +360,7 @@ function AIPageContent() {
                                         <Label>Document Type *</Label>
                                         <Select
                                             value={formData.documentType}
-                                            onValueChange={(value) => setFormData({ ...formData, documentType: value })}
+                                            onValueChange={(value) => setFormData({ ...formData, documentType: value as DocumentType })}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue />
@@ -312,7 +382,7 @@ function AIPageContent() {
                                         <Label>Jurisdiction Level *</Label>
                                         <Select
                                             value={formData.jurisdiction}
-                                            onValueChange={(value) => setFormData({ ...formData, jurisdiction: value })}
+                                            onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as Jurisdiction })}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue />

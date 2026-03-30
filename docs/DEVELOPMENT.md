@@ -1,5 +1,8 @@
 # LexiGov AI - Development Progress
 
+> Archived legacy document. This file describes an older Prisma/Firebase-era development plan and is not the source of truth for the running app.
+> Use `README.md` plus the current Clerk + Convex codebase instead.
+
 > **Project Status**: 🟢 Phase 1 Complete - Implementation Pending
 > **Last Updated**: January 18, 2026 at 11:40 PM PHT
 > **Current Sprint**: Week 2 - Backend Implementation

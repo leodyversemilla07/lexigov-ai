@@ -1,5 +1,8 @@
 # LexiGov AI - Development Summary
 
+> Archived legacy document. This file describes an older Prisma/Firebase-era plan and is not the source of truth for the running app.
+> Use `README.md` plus the current Clerk + Convex codebase instead.
+
 ## 📄 Document Information
 
 - **Project Name**: LexiGov AI

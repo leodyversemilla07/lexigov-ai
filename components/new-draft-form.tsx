@@ -30,11 +30,14 @@ const documentTypes = [
 ];
 
 const jurisdictions = [
-    { value: "barangay", label: "Barangay" },
-    { value: "city", label: "City" },
-    { value: "municipal", label: "Municipal" },
-    { value: "provincial", label: "Provincial" },
+    { value: "barangay", label: "Barangay", penalty: "Fine up to P1,000 or community service" },
+    { value: "city", label: "City", penalty: "Fine up to P10,000" },
+    { value: "municipal", label: "Municipal", penalty: "Fine up to P5,000" },
+    { value: "provincial", label: "Provincial", penalty: "Fine up to P20,000" },
 ];
+
+type DocumentType = "ORDINANCE" | "RESOLUTION" | "MEMORANDUM" | "POLICY";
+type Jurisdiction = "barangay" | "city" | "municipal" | "provincial";
 
 type DraftComposerFormProps = {
     wrapped?: boolean;
@@ -51,7 +54,12 @@ export function DraftComposerForm({
     const incrementTemplateUsage = useMutation(api.templates.incrementUsage);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [initialContent, setInitialContent] = useState("");
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        title: string;
+        documentType: DocumentType;
+        jurisdiction: Jurisdiction;
+        jurisdictionName: string;
+    }>({
         title: "",
         documentType: "ORDINANCE",
         jurisdiction: "barangay",
@@ -63,6 +71,8 @@ export function DraftComposerForm({
         templateId ? { id: templateId as Id<"templates"> } : "skip",
     ) as TemplateData | null | undefined;
     const lastAppliedTemplateId = useRef<string | null>(null);
+    const lastSuggestedContent = useRef("");
+    const selectedPenalty = jurisdictions.find((item) => item.value === formData.jurisdiction)?.penalty;
 
     useEffect(() => {
         if (!selectedTemplate || lastAppliedTemplateId.current === selectedTemplate._id) {
@@ -76,8 +86,26 @@ export function DraftComposerForm({
             documentType: getTemplateDocumentType(selectedTemplate),
             jurisdiction: getTemplateJurisdiction(selectedTemplate) ?? current.jurisdiction,
         }));
-        setInitialContent(getTemplateBody(selectedTemplate, ""));
     }, [selectedTemplate]);
+
+    useEffect(() => {
+        if (!selectedTemplate) {
+            lastSuggestedContent.current = "";
+            return;
+        }
+
+        const suggestedContent = getTemplateBody(
+            selectedTemplate,
+            formData.jurisdictionName,
+            selectedPenalty,
+        );
+
+        setInitialContent((current) => {
+            const shouldReplace = !current.trim() || current === lastSuggestedContent.current;
+            lastSuggestedContent.current = suggestedContent;
+            return shouldReplace ? suggestedContent : current;
+        });
+    }, [formData.jurisdictionName, selectedPenalty, selectedTemplate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -121,7 +149,7 @@ export function DraftComposerForm({
                     <Label>Document Type *</Label>
                     <Select
                         value={formData.documentType}
-                        onValueChange={(value) => setFormData({ ...formData, documentType: value })}
+                        onValueChange={(value) => setFormData({ ...formData, documentType: value as DocumentType })}
                     >
                         <SelectTrigger>
                             <SelectValue />
@@ -140,7 +168,7 @@ export function DraftComposerForm({
                     <Label>Jurisdiction Level *</Label>
                     <Select
                         value={formData.jurisdiction}
-                        onValueChange={(value) => setFormData({ ...formData, jurisdiction: value })}
+                        onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as Jurisdiction })}
                     >
                         <SelectTrigger>
                             <SelectValue />

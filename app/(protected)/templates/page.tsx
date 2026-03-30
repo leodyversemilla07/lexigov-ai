@@ -21,22 +21,25 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type TemplateVisibility = "public" | "private";
+type TemplateCategory = "Environment" | "Health" | "Public Safety" | "Revenue" | "Social Welfare" | "Infrastructure" | "Education" | "Other";
+type DocumentType = "ORDINANCE" | "RESOLUTION" | "MEMORANDUM" | "POLICY";
+type Jurisdiction = "barangay" | "municipal" | "city" | "provincial";
 type EditableTemplate = TemplateData & { userId: string; isPublic: boolean; createdAt: number; updatedAt: number };
 type TemplateFormState = {
     name: string;
-    category: string;
+    category: TemplateCategory;
     subcategory: string;
-    documentType: string;
-    jurisdictions: string[];
+    documentType: DocumentType;
+    jurisdictions: Jurisdiction[];
     description: string;
     prompt: string;
     body: string;
     visibility: TemplateVisibility;
 };
 
-const templateCategories = ["Environment", "Health", "Public Safety", "Revenue", "Social Welfare", "Infrastructure", "Education", "Other"];
-const documentTypes = ["ORDINANCE", "RESOLUTION", "MEMORANDUM", "POLICY"];
-const jurisdictionOptions = ["barangay", "municipal", "city", "provincial"];
+const templateCategories: TemplateCategory[] = ["Environment", "Health", "Public Safety", "Revenue", "Social Welfare", "Infrastructure", "Education", "Other"];
+const documentTypes: DocumentType[] = ["ORDINANCE", "RESOLUTION", "MEMORANDUM", "POLICY"];
+const jurisdictionOptions: Jurisdiction[] = ["barangay", "municipal", "city", "provincial"];
 const emptyTemplateForm: TemplateFormState = {
     name: "",
     category: templateCategories[0],
@@ -73,10 +76,10 @@ function getTemplateFormState(template?: EditableTemplate): TemplateFormState {
     const exampleContent = template.exampleContent && typeof template.exampleContent === "object" ? template.exampleContent as Record<string, unknown> : {};
     return {
         name: template.name,
-        category: template.category || templateCategories[0],
+        category: (template.category as TemplateCategory) || templateCategories[0],
         subcategory: template.subcategory || "",
-        documentType: readTemplateField(exampleContent.documentType) || readTemplateField(structure.documentType) || "ORDINANCE",
-        jurisdictions: template.jurisdiction.length > 0 ? template.jurisdiction : ["barangay"],
+        documentType: ((readTemplateField(exampleContent.documentType) || readTemplateField(structure.documentType)) as DocumentType) || "ORDINANCE",
+        jurisdictions: template.jurisdiction.length > 0 ? template.jurisdiction as Jurisdiction[] : ["barangay"],
         description: readTemplateField(exampleContent.description) || readTemplateField(exampleContent.summary) || readTemplateField(structure.description) || readTemplateField(structure.summary) || "",
         prompt: readTemplateField(exampleContent.prompt) || readTemplateField(exampleContent.instructions) || readTemplateField(structure.prompt) || readTemplateField(structure.instructions) || "",
         body: readTemplateField(exampleContent.body) || readTemplateField(exampleContent.content) || readTemplateField(structure.body) || readTemplateField(structure.content) || readTemplateField(structure.template) || "",
@@ -181,7 +184,7 @@ function TemplatesPageContent() {
         setDialogOpen(true);
     };
 
-    const handleJurisdictionToggle = (jurisdiction: string) => {
+    const handleJurisdictionToggle = (jurisdiction: Jurisdiction) => {
         setForm((current) => {
             const active = current.jurisdictions.includes(jurisdiction);
             if (active && current.jurisdictions.length === 1) return current;
@@ -343,7 +346,7 @@ function TemplatesPageContent() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Category</Label>
-                                    <Select value={form.category} onValueChange={(value) => setForm((current) => ({ ...current, category: value }))}>
+                                    <Select value={form.category} onValueChange={(value) => setForm((current) => ({ ...current, category: value as TemplateCategory }))}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>{templateCategories.map((category) => <SelectItem key={category} value={category}>{getCategoryIcon(category)} {category}</SelectItem>)}</SelectContent>
                                     </Select>
@@ -356,7 +359,7 @@ function TemplatesPageContent() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Document Type</Label>
-                                    <Select value={form.documentType} onValueChange={(value) => setForm((current) => ({ ...current, documentType: value }))}>
+                                    <Select value={form.documentType} onValueChange={(value) => setForm((current) => ({ ...current, documentType: value as DocumentType }))}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>{documentTypes.map((documentType) => <SelectItem key={documentType} value={documentType}>{documentType}</SelectItem>)}</SelectContent>
                                     </Select>
