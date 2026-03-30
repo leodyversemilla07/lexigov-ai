@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import type { DocumentType, JurisdictionLevel } from "@/lib/schemas/enums";
 import { toast } from "sonner";
 import { extractDraftSections, normalizeDraftContent } from "@/lib/draft-content";
 import {
@@ -39,9 +40,6 @@ const jurisdictions = [
     { value: "city", label: "City", penalty: "Fine up to ₱10,000" },
     { value: "provincial", label: "Provincial", penalty: "Fine up to ₱20,000" },
 ];
-
-type DocumentType = "ORDINANCE" | "RESOLUTION" | "MEMORANDUM" | "POLICY";
-type Jurisdiction = "barangay" | "municipal" | "city" | "provincial";
 
 const promptTemplates = [
     {
@@ -135,7 +133,7 @@ function AIPageContent() {
         title: string;
         prompt: string;
         documentType: DocumentType;
-        jurisdiction: Jurisdiction;
+        jurisdiction: JurisdictionLevel;
         jurisdictionName: string;
         quickTemplateId: string;
     }>({
@@ -382,7 +380,7 @@ function AIPageContent() {
                                         <Label>Jurisdiction Level *</Label>
                                         <Select
                                             value={formData.jurisdiction}
-                                            onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as Jurisdiction })}
+                                            onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as JurisdictionLevel })}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue />

@@ -3,7 +3,7 @@
  * Validation for the current Gemini-powered drafting flows
  */
 import { z } from 'zod'
-import { documentTypeSchema, jurisdictionLevelSchema } from './enums.js'
+import { documentTypeSchema, jurisdictionLevelSchema } from './enums'
 
 // Generate ordinance schema
 export const generateOrdinanceSchema = z.object({

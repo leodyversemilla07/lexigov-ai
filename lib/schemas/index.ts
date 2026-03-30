@@ -4,16 +4,16 @@
  */
 
 // Enums
-export * from './enums.js'
+export * from './enums'
 
 // Authentication
-export * from './auth.js'
+export * from './auth'
 
 // Drafts
-export * from './draft.js'
+export * from './draft'
 
 // Templates
-export * from './template.js'
+export * from './template'
 
 // AI Generation
-export * from './ai.js'
+export * from './ai'

@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DraftSection, buildDraftSectionsFromBody, composeDraftBodyFromSections, createDraftSection, extractDraftBody, extractDraftSections, updateDraftSectionsContent } from "@/lib/draft-content";
+import type { DocumentStatus } from "@/lib/schemas/enums";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -30,8 +31,6 @@ type ComplianceResult = {
         suggestion: string;
     }>;
 };
-
-type DocumentStatus = "DRAFT" | "REVIEW" | "FINAL" | "ARCHIVED";
 
 const statusOptions = [
     { value: "DRAFT", label: "Draft", description: "Work in progress" },

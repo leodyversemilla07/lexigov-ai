@@ -16,30 +16,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { buildDraftSectionsFromBody } from "@/lib/draft-content";
+import type { DocumentType, JurisdictionLevel } from "@/lib/schemas/enums";
+import { templateCategoryValues, type TemplateCategory } from "@/lib/schemas/template";
 import { getTemplateDescription, getTemplateSections, type TemplateData } from "@/lib/template-utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type TemplateVisibility = "public" | "private";
-type TemplateCategory = "Environment" | "Health" | "Public Safety" | "Revenue" | "Social Welfare" | "Infrastructure" | "Education" | "Other";
-type DocumentType = "ORDINANCE" | "RESOLUTION" | "MEMORANDUM" | "POLICY";
-type Jurisdiction = "barangay" | "municipal" | "city" | "provincial";
 type EditableTemplate = TemplateData & { userId: string; isPublic: boolean; createdAt: number; updatedAt: number };
 type TemplateFormState = {
     name: string;
     category: TemplateCategory;
     subcategory: string;
     documentType: DocumentType;
-    jurisdictions: Jurisdiction[];
+    jurisdictions: JurisdictionLevel[];
     description: string;
     prompt: string;
     body: string;
     visibility: TemplateVisibility;
 };
 
-const templateCategories: TemplateCategory[] = ["Environment", "Health", "Public Safety", "Revenue", "Social Welfare", "Infrastructure", "Education", "Other"];
+const templateCategories: TemplateCategory[] = [...templateCategoryValues];
 const documentTypes: DocumentType[] = ["ORDINANCE", "RESOLUTION", "MEMORANDUM", "POLICY"];
-const jurisdictionOptions: Jurisdiction[] = ["barangay", "municipal", "city", "provincial"];
+const jurisdictionOptions: JurisdictionLevel[] = ["barangay", "municipal", "city", "provincial"];
 const emptyTemplateForm: TemplateFormState = {
     name: "",
     category: templateCategories[0],
@@ -79,7 +78,7 @@ function getTemplateFormState(template?: EditableTemplate): TemplateFormState {
         category: (template.category as TemplateCategory) || templateCategories[0],
         subcategory: template.subcategory || "",
         documentType: ((readTemplateField(exampleContent.documentType) || readTemplateField(structure.documentType)) as DocumentType) || "ORDINANCE",
-        jurisdictions: template.jurisdiction.length > 0 ? template.jurisdiction as Jurisdiction[] : ["barangay"],
+        jurisdictions: template.jurisdiction.length > 0 ? template.jurisdiction as JurisdictionLevel[] : ["barangay"],
         description: readTemplateField(exampleContent.description) || readTemplateField(exampleContent.summary) || readTemplateField(structure.description) || readTemplateField(structure.summary) || "",
         prompt: readTemplateField(exampleContent.prompt) || readTemplateField(exampleContent.instructions) || readTemplateField(structure.prompt) || readTemplateField(structure.instructions) || "",
         body: readTemplateField(exampleContent.body) || readTemplateField(exampleContent.content) || readTemplateField(structure.body) || readTemplateField(structure.content) || readTemplateField(structure.template) || "",
@@ -184,7 +183,7 @@ function TemplatesPageContent() {
         setDialogOpen(true);
     };
 
-    const handleJurisdictionToggle = (jurisdiction: Jurisdiction) => {
+    const handleJurisdictionToggle = (jurisdiction: JurisdictionLevel) => {
         setForm((current) => {
             const active = current.jurisdictions.includes(jurisdiction);
             if (active && current.jurisdictions.length === 1) return current;

@@ -3,7 +3,7 @@
  * Validation for creating and updating Convex-backed ordinance drafts
  */
 import { z } from 'zod'
-import { documentTypeSchema, documentStatusSchema, jurisdictionLevelSchema } from './enums.js'
+import { documentTypeSchema, documentStatusSchema, jurisdictionLevelSchema } from './enums'
 
 export const draftContentSchema = z.object({
     body: z.string().optional(),

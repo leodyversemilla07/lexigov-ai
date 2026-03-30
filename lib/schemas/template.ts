@@ -3,10 +3,10 @@
  * Validation for creating and updating ordinance templates
  */
 import { z } from 'zod'
-import { jurisdictionLevelSchema } from './enums.js'
+import { jurisdictionLevelSchema } from './enums'
 
 // Template categories
-export const templateCategorySchema = z.enum([
+export const templateCategoryValues = [
     'Environment',
     'Health',
     'Public Safety',
@@ -15,7 +15,8 @@ export const templateCategorySchema = z.enum([
     'Infrastructure',
     'Education',
     'Other'
-])
+ ] as const
+export const templateCategorySchema = z.enum(templateCategoryValues)
 export type TemplateCategory = z.infer<typeof templateCategorySchema>
 
 // Create template schema
@@ -25,9 +26,9 @@ export const createTemplateSchema = z.object({
         .min(1, 'Template name is required')
         .min(3, 'Name must be at least 3 characters')
         .max(200, 'Name must be less than 200 characters'),
-    category: z.string().min(1, 'Category is required'),
+    category: templateCategorySchema,
     subcategory: z.string().optional(),
-    jurisdiction: z.array(jurisdictionLevelSchema).optional(),
+    jurisdiction: z.array(jurisdictionLevelSchema).min(1, 'At least one jurisdiction is required'),
     structure: z.record(z.unknown()),
     exampleContent: z.record(z.unknown()).optional(),
     isPublic: z.boolean().default(true)
@@ -41,7 +42,7 @@ export const updateTemplateSchema = z.object({
         .min(3, 'Name must be at least 3 characters')
         .max(200)
         .optional(),
-    category: z.string().optional(),
+    category: templateCategorySchema.optional(),
     subcategory: z.string().optional(),
     jurisdiction: z.array(jurisdictionLevelSchema).optional(),
     structure: z.record(z.unknown()).optional(),

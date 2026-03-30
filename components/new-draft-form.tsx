@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import type { DocumentType, JurisdictionLevel } from "@/lib/schemas/enums";
 import {
     getTemplateBody,
     getTemplateDescription,
@@ -36,9 +37,6 @@ const jurisdictions = [
     { value: "provincial", label: "Provincial", penalty: "Fine up to P20,000" },
 ];
 
-type DocumentType = "ORDINANCE" | "RESOLUTION" | "MEMORANDUM" | "POLICY";
-type Jurisdiction = "barangay" | "city" | "municipal" | "provincial";
-
 type DraftComposerFormProps = {
     wrapped?: boolean;
     submitLabel?: string;
@@ -57,7 +55,7 @@ export function DraftComposerForm({
     const [formData, setFormData] = useState<{
         title: string;
         documentType: DocumentType;
-        jurisdiction: Jurisdiction;
+        jurisdiction: JurisdictionLevel;
         jurisdictionName: string;
     }>({
         title: "",
@@ -168,7 +166,7 @@ export function DraftComposerForm({
                     <Label>Jurisdiction Level *</Label>
                     <Select
                         value={formData.jurisdiction}
-                        onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as Jurisdiction })}
+                        onValueChange={(value) => setFormData({ ...formData, jurisdiction: value as JurisdictionLevel })}
                     >
                         <SelectTrigger>
                             <SelectValue />
