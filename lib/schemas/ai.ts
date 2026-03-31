@@ -1,6 +1,6 @@
 /**
  * AI Generation Zod Schemas
- * Validation for the current Gemini-powered drafting flows
+ * Validation for the current Azure OpenAI-powered drafting flows
  */
 import { z } from 'zod'
 import { createDraftSchema } from './draft'

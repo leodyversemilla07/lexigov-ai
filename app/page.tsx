@@ -24,7 +24,7 @@ export default function Home() {
             <section className="px-6 py-20 max-w-7xl mx-auto text-center">
                 <Badge variant="secondary" className="mb-8 px-4 py-2 text-sm">
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Powered by Google Gemini AI
+                    Powered by Azure AI
                 </Badge>
                 <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
                     Draft Philippine Ordinances<br />
@@ -51,7 +51,7 @@ export default function Home() {
                         </p>
                     </div>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <FeatureCard icon={Sparkles} title="AI Generation" description="Generate complete ordinance drafts from simple prompts using Google Gemini AI" />
+                        <FeatureCard icon={Sparkles} title="AI Generation" description="Generate complete ordinance drafts from simple prompts using Azure OpenAI" />
                         <FeatureCard icon={Shield} title="RA 7160 Compliance" description="Automatic compliance checking against the Local Government Code of 1991" />
                         <FeatureCard icon={FileText} title="Template Library" description="Pre-built templates for common ordinances: curfew, business permits, traffic, and more" />
                         <FeatureCard icon={Zap} title="Export Options" description="Export drafts to plain text and Markdown for review, filing, and further editing" />

@@ -6,7 +6,7 @@ An AI-powered platform for drafting **RA 7160-compliant** local government ordin
 
 ## Overview
 
-LexiGov AI streamlines the ordinance creation process by combining Google Gemini AI with a structured document workflow. It supports multiple jurisdiction levels (Barangay, City, Municipal, Provincial) and document types (Ordinance, Resolution, Memorandum, Policy), with built-in RA 7160 compliance checking.
+LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI with a structured document workflow. It supports multiple jurisdiction levels (Barangay, City, Municipal, Provincial) and document types (Ordinance, Resolution, Memorandum, Policy), with built-in RA 7160 compliance checking.
 
 ---
 
@@ -18,7 +18,7 @@ LexiGov AI streamlines the ordinance creation process by combining Google Gemini
 | Language | TypeScript |
 | Auth | [Clerk](https://clerk.com) |
 | Database / Backend | [Convex](https://convex.dev) (real-time, serverless) |
-| AI | [Google Gemini 1.5 Flash](https://ai.google.dev) via `@google/generative-ai` |
+| AI | [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/overview) via `openai` |
 | UI Components | [shadcn/ui](https://ui.shadcn.com) + [Radix UI](https://radix-ui.com) |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com) |
 | Forms | React Hook Form + Zod |
@@ -28,7 +28,7 @@ LexiGov AI streamlines the ordinance creation process by combining Google Gemini
 
 ## Features
 
-- **AI Ordinance Generation** — Generate complete, professionally formatted ordinances from a plain-language prompt using Google Gemini AI
+- **AI Ordinance Generation** — Generate complete, professionally formatted ordinances from a plain-language prompt using Azure OpenAI
 - **RA 7160 Compliance Checking** — Automated compliance scoring against the Local Government Code of 1991
 - **Draft Management** — Create, edit, and track ordinance drafts through a status workflow (Draft → Review → Final → Archived)
 - **Template Library** — Reusable ordinance templates by category and jurisdiction level, with manual and AI draft entry points
@@ -68,7 +68,7 @@ convex/
 ├── schema.ts             # Database schema (users, drafts, templates, complianceReports)
 ├── drafts.ts             # Draft queries and mutations
 ├── templates.ts          # Template queries and mutations
-├── ai.ts                 # Gemini AI action (generateOrdinance)
+├── ai.ts                 # Azure OpenAI actions (generation, compliance, summary)
 └── users.ts              # User sync with Clerk
 lib/
 └── schemas/              # Shared Zod schemas (enums, draft, template, auth, ai)
@@ -84,7 +84,7 @@ proxy.ts                  # Next.js 16 middleware (Clerk auth protection)
 - Node.js 20+
 - A [Clerk](https://clerk.com) account
 - A [Convex](https://convex.dev) account
-- A [Google AI Studio](https://aistudio.google.com) API key (Gemini)
+- An Azure OpenAI resource with a deployed chat model
 
 ### Installation
 
@@ -110,8 +110,11 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 # Convex
 NEXT_PUBLIC_CONVEX_URL=https://...convex.cloud
 
-# Google Gemini AI
-GEMINI_API_KEY=AI...
+# Azure OpenAI
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_API_VERSION=...
+AZURE_OPENAI_DEPLOYMENT=...
 ```
 
 ### Run the Development Server

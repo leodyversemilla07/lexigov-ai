@@ -225,7 +225,7 @@ lexigov-ai/
 | `/templates` | CRUD | Template CRUD | ✅ Defined |
 | `/compliance` | POST | AI validation | ✅ Defined |
 | `/exports` | CRUD | PDF/DOCX export | ⚠️ **Build error** |
-| `/ai` | POST | Gemini generation | ✅ Defined |
+| `/ai` | POST | Azure OpenAI generation | ✅ Defined |
 | Main router | - | Route registration | ⚠️ **Duplicates** |
 
 ---

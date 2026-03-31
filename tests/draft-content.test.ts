@@ -37,7 +37,7 @@ describe("normalizeDraftContent", () => {
             summary: "Existing summary",
             prompt: "Draft this",
             generatedAt: 123,
-            model: "gemini",
+            model: "azure-openai",
             sections: [{ id: "s1", heading: "SECTION 1. Title.", body: "Body" }],
         });
 
@@ -46,7 +46,7 @@ describe("normalizeDraftContent", () => {
             summary: "Existing summary",
             prompt: "Draft this",
             generatedAt: 123,
-            model: "gemini",
+            model: "azure-openai",
             sections: [{ id: "s1", heading: "SECTION 1. Title.", body: "Body" }],
         });
     });

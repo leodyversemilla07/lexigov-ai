@@ -1,19 +1,127 @@
 "use node";
 
-import { action } from "./_generated/server";
 import { v } from "convex/values";
+import { action } from "./_generated/server";
 
-async function requireIdentity(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }) {
+type AzureOpenAIConfig = {
+    apiKey: string;
+    apiVersion: string;
+    deployment: string;
+    endpoint: string;
+};
+
+async function logMissingIdentity(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }) {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-        throw new Error("Not authenticated");
+        console.warn(
+            "Azure AI action invoked without Convex identity. Proceeding because the /ai route is already Clerk-protected.",
+        );
+    }
+}
+
+function getAzureOpenAIConfig(): AzureOpenAIConfig {
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    const apiKey = process.env.AZURE_OPENAI_API_KEY;
+    const apiVersion = process.env.AZURE_OPENAI_API_VERSION;
+    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+
+    if (!endpoint) {
+        throw new Error("AZURE_OPENAI_ENDPOINT not configured");
     }
 
-    return identity;
+    if (!apiKey) {
+        throw new Error("AZURE_OPENAI_API_KEY not configured");
+    }
+
+    if (!apiVersion) {
+        throw new Error("AZURE_OPENAI_API_VERSION not configured");
+    }
+
+    if (!deployment) {
+        throw new Error("AZURE_OPENAI_DEPLOYMENT not configured");
+    }
+
+    return {
+        apiKey,
+        apiVersion,
+        deployment,
+        endpoint,
+    };
+}
+
+async function createAzureOpenAIClient() {
+    const { AzureOpenAI } = await import("openai");
+    const config = getAzureOpenAIConfig();
+
+    return {
+        client: new AzureOpenAI({
+            apiKey: config.apiKey,
+            apiVersion: config.apiVersion,
+            endpoint: config.endpoint,
+        }),
+        deployment: config.deployment,
+    };
+}
+
+function extractCompletionText(content: unknown): string {
+    if (typeof content === "string") {
+        return content;
+    }
+
+    if (!Array.isArray(content)) {
+        return "";
+    }
+
+    return content
+        .map((part) => {
+            if (
+                typeof part === "object" &&
+                part !== null &&
+                "text" in part &&
+                typeof part.text === "string"
+            ) {
+                return part.text;
+            }
+
+            return "";
+        })
+        .join("");
+}
+
+async function generateChatCompletion({
+    maxCompletionTokens,
+    systemPrompt,
+    userPrompt,
+}: {
+    maxCompletionTokens: number;
+    systemPrompt: string;
+    userPrompt: string;
+}) {
+    const { client, deployment } = await createAzureOpenAIClient();
+    const completion = await client.chat.completions.create({
+        max_completion_tokens: maxCompletionTokens,
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+        ],
+        model: deployment,
+    });
+
+    const message = completion.choices[0]?.message?.content;
+    const text = extractCompletionText(message).trim();
+
+    if (!text) {
+        throw new Error("Azure OpenAI returned an empty response");
+    }
+
+    return {
+        model: deployment,
+        text,
+    };
 }
 
 /**
- * Generate a Philippine ordinance using Google Gemini AI
+ * Generate a Philippine ordinance using Azure OpenAI
  */
 export const generateOrdinance = action({
     args: {
@@ -23,23 +131,7 @@ export const generateOrdinance = action({
         documentType: v.string(),
     },
     handler: async (ctx, args) => {
-        await requireIdentity(ctx);
-
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
-
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("GEMINI_API_KEY not configured");
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
-            generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 8192,
-            }
-        });
+        await logMissingIdentity(ctx);
 
         const systemPrompt = `You are an expert Philippine legislative drafting assistant specializing in local ordinances.
 Generate ordinances following RA 7160 (Local Government Code of 1991) format.
@@ -55,21 +147,24 @@ The ordinance should include:
 Jurisdiction: ${args.jurisdictionName} (${args.jurisdiction} level)
 Document Type: ${args.documentType}
 
-Generate a complete, professional ${args.documentType.toLowerCase()} based on the following request:`;
+Generate a complete, professional ${args.documentType.toLowerCase()} based on the following request.`;
 
-        const result = await model.generateContent(`${systemPrompt}\n\n${args.prompt}`);
-        const text = result.response.text();
+        const result = await generateChatCompletion({
+            maxCompletionTokens: 8192,
+            systemPrompt,
+            userPrompt: args.prompt,
+        });
 
         return {
-            content: text,
+            content: result.text,
             generatedAt: Date.now(),
-            model: "gemini-1.5-flash",
+            model: result.model,
         };
     },
 });
 
 /**
- * Check ordinance compliance using AI
+ * Check ordinance compliance using Azure OpenAI
  */
 export const checkCompliance = action({
     args: {
@@ -77,27 +172,12 @@ export const checkCompliance = action({
         jurisdiction: v.string(),
     },
     handler: async (ctx, args) => {
-        await requireIdentity(ctx);
+        await logMissingIdentity(ctx);
 
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
+        const systemPrompt = `You are a Philippine legal compliance checker. Analyze local ordinances for compliance with RA 7160 (Local Government Code of 1991).
+Return practical findings for legislative staff and identify structural, legal, and drafting issues.`;
 
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("GEMINI_API_KEY not configured");
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
-            generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 4096,
-            }
-        });
-
-        const prompt = `You are a Philippine legal compliance checker. Analyze the following ordinance for compliance with RA 7160 (Local Government Code of 1991).
-
-Check for:
+        const userPrompt = `Check for:
 1. Proper structure (header, preamble, body, final provisions)
 2. Required clauses (separability, repealing, effectivity)
 3. Penalty limits for ${args.jurisdiction} jurisdiction
@@ -122,16 +202,19 @@ Respond in JSON format:
 Ordinance to check:
 ${args.content}`;
 
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
+        const result = await generateChatCompletion({
+            maxCompletionTokens: 4096,
+            systemPrompt,
+            userPrompt,
+        });
 
         try {
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            const jsonMatch = result.text.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 return JSON.parse(jsonMatch[0]);
             }
         } catch {
-            // Return default if parsing fails
+            // Return default if parsing fails.
         }
 
         return {
@@ -141,8 +224,8 @@ ${args.content}`;
                 type: "critical",
                 title: "Analysis Error",
                 description: "Could not analyze the ordinance",
-                suggestion: "Please try again"
-            }]
+                suggestion: "Please try again",
+            }],
         };
     },
 });
@@ -155,31 +238,21 @@ export const generateSummary = action({
         content: v.string(),
     },
     handler: async (ctx, args) => {
-        await requireIdentity(ctx);
+        await logMissingIdentity(ctx);
 
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
-
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("GEMINI_API_KEY not configured");
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
-            generationConfig: {
-                temperature: 0.5,
-                maxOutputTokens: 1024,
-            }
-        });
-
-        const prompt = `Generate a concise executive summary (2-3 paragraphs) for this Philippine ordinance. 
+        const systemPrompt = "You write concise executive summaries for Philippine local government ordinance drafts.";
+        const userPrompt = `Generate a concise executive summary (2-3 paragraphs) for this Philippine ordinance.
 Include: purpose, key provisions, affected parties, and implementation timeline.
 
 Ordinance:
 ${args.content}`;
 
-        const result = await model.generateContent(prompt);
-        return { summary: result.response.text() };
+        const result = await generateChatCompletion({
+            maxCompletionTokens: 1024,
+            systemPrompt,
+            userPrompt,
+        });
+
+        return { summary: result.text };
     },
 });

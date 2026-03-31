@@ -1,38 +1,43 @@
-# Google AI Studio Integration Guide
+# Azure OpenAI Integration Guide
 
 ## Overview
 
-LexiGov AI uses Google's Gemini models via **Google AI Studio** for ordinance generation, compliance checking, and summarization. This integration uses the `@google/generative-ai` SDK with a simple API Key.
+LexiGov AI uses Azure OpenAI for ordinance generation, compliance checking, and summarization. The backend integration is implemented with the official `openai` TypeScript SDK and Azure OpenAI credentials.
 
 ## Configuration
 
-The integration is configured in `apps/api/.env`:
+Set these environment variables in the project root `.env.local` and in your Convex deployment environment:
 
 ```bash
-GEMINI_API_KEY="AIzaSy..."
+AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+AZURE_OPENAI_API_KEY="..."
+AZURE_OPENAI_API_VERSION="..."
+AZURE_OPENAI_DEPLOYMENT="..."
 ```
 
-## Models Used
+## Deployment Requirement
 
-- **Gemini 2.0 Flash** (`gemini-2.0-flash`): Used for standard generation and summaries. Fast and cost-effective.
-- **Gemini 2.5 Pro** (`gemini-2.5-pro`): Used for compliance checking and complex ordinance generation where reasoning depth is critical.
+`AZURE_OPENAI_DEPLOYMENT` must be the name of an Azure OpenAI chat-model deployment that supports ordinance drafting and compliance analysis for your workload.
 
 ## Service Implementation
 
-The core logic is in `apps/api/src/services/vertex.ts` (kept the filename for compatibility).
+The core logic is in `convex/ai.ts`.
 
 It exports:
-- `generateOrdinance(params, useProModel)`
-- `checkCompliance(ordinance)`
-- `generateExecutiveSummary(ordinance)`
-- `suggestLegalReferences(content, jurisdiction)`
+- `generateOrdinance`
+- `checkCompliance`
+- `generateSummary`
 
-## Usage
+## Usage Notes
 
-To use the AI service, ensure you have a valid API Key from [Google AI Studio](https://aistudio.google.com/).
+- The Convex node actions call Azure OpenAI directly from the server.
+- Draft metadata stores the deployment name returned by the generation flow.
+- The frontend labels are provider-agnostic except where Azure OpenAI is shown explicitly.
 
 ## Troubleshooting
 
-If you encounter `404 Not Found` errors regarding models:
-1. Check available models using `curl https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_API_KEY`
-2. Update the model names in `src/services/vertex.ts` if newer versions replace the current ones.
+If requests fail:
+1. Confirm the Azure OpenAI resource endpoint is correct and includes `https://`.
+2. Confirm the API key is active for that resource.
+3. Confirm `AZURE_OPENAI_API_VERSION` matches a version supported by your Azure resource.
+4. Confirm `AZURE_OPENAI_DEPLOYMENT` matches an existing deployment name, not just a base model family name.

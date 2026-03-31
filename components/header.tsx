@@ -1,11 +1,24 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
+import dynamic from "next/dynamic";
 import { FolderOpenDot, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+
+const UserButton = dynamic(
+    () => import("@clerk/nextjs").then((mod) => mod.UserButton),
+    {
+        ssr: false,
+        loading: () => (
+            <div
+                aria-hidden="true"
+                className="h-9 w-9 rounded-full border bg-muted"
+            />
+        ),
+    },
+);
 
 export function Header() {
     return (

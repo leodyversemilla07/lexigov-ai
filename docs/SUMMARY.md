@@ -15,9 +15,9 @@
 
 ## 🎯 Project Overview
 
-LexiGov AI is an AI-powered platform for drafting, reviewing, and refining ordinances and policies for Philippine Local Government Units (LGUs). The platform leverages modern web technologies and Google Cloud Platform to provide:
+LexiGov AI is an AI-powered platform for drafting, reviewing, and refining ordinances and policies for Philippine Local Government Units (LGUs). The platform leverages modern web technologies and cloud AI services to provide:
 
-1. **AI-Powered Generation**: Create ordinance drafts using Google Gemini AI
+1. **AI-Powered Generation**: Create ordinance drafts using Azure OpenAI
 2. **Philippine Compliance**: Built for RA 7160 (Local Government Code of 1991)
 3. **Real-Time Collaboration**: Multi-user document editing with CRDTs
 4. **Template Library**: Pre-built ordinance templates for common use cases
@@ -46,7 +46,7 @@ LexiGov AI is an AI-powered platform for drafting, reviewing, and refining ordin
 | **Caching** | Redis | 7.0 | Session/Queue cache |
 | **Queue** | BullMQ | 5.x | Background jobs |
 | **Auth** | Firebase | Latest | User auth |
-| **AI** | Vertex AI (Gemini) | 1.5 Pro/Flash | LLM |
+| **AI** | Azure OpenAI | Deployment-based | LLM |
 | **Platform** | GCP Cloud Run | Latest | Serverless compute |
 | **Database** | GCP Cloud SQL | 15+ | Managed PostgreSQL |
 | **Storage** | GCP Cloud Storage | Latest | Object storage |

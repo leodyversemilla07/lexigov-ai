@@ -129,6 +129,7 @@ function AIPageContent() {
     const [step, setStep] = useState<"configure" | "preview">("configure");
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+    const [generatedModel, setGeneratedModel] = useState<string | null>(null);
     const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState(searchParams.get("template"));
     const form = useZodForm({
         schema: aiDraftFormSchema,
@@ -269,6 +270,7 @@ function AIPageContent() {
                 documentType: values.documentType,
             });
             setGeneratedContent(generated.content);
+            setGeneratedModel(generated.model);
             setStep("preview");
         } catch (error) {
             console.error("Failed to generate:", error);
@@ -294,7 +296,7 @@ function AIPageContent() {
                     body: generatedContent,
                     prompt: values.prompt,
                     generatedAt: Date.now(),
-                    model: "gemini-1.5-flash",
+                    model: generatedModel ?? "azure-openai",
                 }),
             });
             if (selectedSavedTemplate) {
@@ -310,6 +312,7 @@ function AIPageContent() {
     const handleBackToConfigure = () => {
         setStep("configure");
         setGeneratedContent(null);
+        setGeneratedModel(null);
     };
 
     return (
@@ -323,7 +326,7 @@ function AIPageContent() {
                 </div>
                 <Badge variant="outline" className="gap-1">
                     <Sparkles className="h-3 w-3" />
-                    Gemini 1.5 Flash
+                    Azure OpenAI
                 </Badge>
             </div>
 
