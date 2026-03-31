@@ -98,26 +98,33 @@ async function generateChatCompletion({
     userPrompt: string;
 }) {
     const { client, deployment } = await createAzureOpenAIClient();
-    const completion = await client.chat.completions.create({
-        max_completion_tokens: maxCompletionTokens,
-        messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-        ],
-        model: deployment,
-    });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        const completion = await client.chat.completions.create({
+            max_completion_tokens: maxCompletionTokens,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+            ],
+            model: deployment,
+        });
 
-    const message = completion.choices[0]?.message?.content;
-    const text = extractCompletionText(message).trim();
+        const message = completion.choices[0]?.message?.content;
+        const text = extractCompletionText(message).trim();
+        const finishReason = completion.choices[0]?.finish_reason;
 
-    if (!text) {
-        throw new Error("Azure OpenAI returned an empty response");
+        if (text) {
+            return {
+                model: deployment,
+                text,
+            };
+        }
+
+        console.warn(
+            `Azure OpenAI returned an empty response on attempt ${attempt + 1} with finish reason ${finishReason ?? "unknown"}. Retrying.`,
+        );
     }
 
-    return {
-        model: deployment,
-        text,
-    };
+    throw new Error("Azure OpenAI returned an empty response");
 }
 
 /**
@@ -184,6 +191,10 @@ Return practical findings for legislative staff and identify structural, legal, 
 4. Due process protections
 5. Legal basis citations
 
+Return only the most important findings.
+Limit the response to the top 8 issues.
+Keep each description and suggestion concise, at most 2 sentences.
+
 Respond in JSON format:
 {
   "overallScore": <0-100>,
@@ -202,11 +213,26 @@ Respond in JSON format:
 Ordinance to check:
 ${args.content}`;
 
-        const result = await generateChatCompletion({
-            maxCompletionTokens: 4096,
-            systemPrompt,
-            userPrompt,
-        });
+        let result: { model: string; text: string };
+
+        try {
+            result = await generateChatCompletion({
+                maxCompletionTokens: 8000,
+                systemPrompt,
+                userPrompt,
+            });
+        } catch (error) {
+            return {
+                overallScore: 0,
+                isValid: false,
+                issues: [{
+                    type: "critical",
+                    title: "Analysis Error",
+                    description: error instanceof Error ? error.message : "Could not analyze the ordinance",
+                    suggestion: "Please try again",
+                }],
+            };
+        }
 
         try {
             const jsonMatch = result.text.match(/\{[\s\S]*\}/);

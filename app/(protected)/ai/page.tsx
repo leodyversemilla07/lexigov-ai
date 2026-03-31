@@ -382,16 +382,13 @@ function AIPageContent() {
                                             name="documentType"
                                             render={({ field }) => (
                                                 <Select value={field.value} onValueChange={field.onChange}>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="w-full">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {documentTypes.map((type) => (
                                                             <SelectItem key={type.value} value={type.value}>
-                                                                <div>
-                                                                    <div className="font-medium">{type.label}</div>
-                                                                    <div className="text-xs text-muted-foreground">{type.description}</div>
-                                                                </div>
+                                                                {type.label}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -410,16 +407,13 @@ function AIPageContent() {
                                             name="jurisdiction"
                                             render={({ field }) => (
                                                 <Select value={field.value} onValueChange={field.onChange}>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="w-full">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {jurisdictions.map((j) => (
                                                             <SelectItem key={j.value} value={j.value}>
-                                                                <div>
-                                                                    <div className="font-medium">{j.label}</div>
-                                                                    <div className="text-xs text-muted-foreground">{j.penalty}</div>
-                                                                </div>
+                                                                {j.label}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
