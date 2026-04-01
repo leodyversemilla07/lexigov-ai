@@ -20,11 +20,107 @@ const statusClasses: Record<string, string> = {
     ARCHIVED: "border-slate-200 bg-slate-100 text-slate-700",
 };
 
+type ContentBlock =
+    | {
+        type: "paragraph";
+        text: string;
+    }
+    | {
+        type: "clauses";
+        items: Array<{
+            marker: string;
+            text: string;
+        }>;
+    };
+
+function normalizeWhitespace(text: string) {
+    return text.replace(/\s+/g, " ").trim();
+}
+
+function extractClauseItems(text: string) {
+    const normalized = normalizeWhitespace(text);
+    const clauseRegex = /(?:^|[.;:])\s*(\(?[a-z]\)|[a-z]\)|\(?\d+\)|\d+\.)\s+([\s\S]*?)(?=(?:[.;:]\s+(?:\(?[a-z]\)|[a-z]\)|\(?\d+\)|\d+\.)\s+)|$)/gi;
+    const matches = Array.from(normalized.matchAll(clauseRegex));
+
+    if (matches.length < 2) {
+        return [];
+    }
+
+    return matches.map((match) => ({
+        marker: match[1].replace(/[()]/g, "").replace(/\.$/, "").toLowerCase(),
+        text: match[2].trim(),
+    }));
+}
+
 function renderParagraphs(text: string) {
     return text
         .split(/\n{2,}/)
-        .map((paragraph) => paragraph.trim())
+        .map((paragraph) => normalizeWhitespace(paragraph))
         .filter(Boolean);
+}
+
+function getContentBlocks(text: string): ContentBlock[] {
+    return text
+        .split(/\n{2,}/)
+        .map((paragraph) => normalizeWhitespace(paragraph))
+        .filter(Boolean)
+        .map((paragraph) => {
+            const items = extractClauseItems(paragraph);
+            if (items.length > 0) {
+                return {
+                    type: "clauses" as const,
+                    items,
+                };
+            }
+
+            return {
+                type: "paragraph" as const,
+                text: paragraph,
+            };
+        });
+}
+
+function isLetterMarker(marker: string) {
+    return /^[a-z]+$/i.test(marker);
+}
+
+function SectionBody({ text }: { text: string }) {
+    const blocks = getContentBlocks(text);
+
+    return (
+        <div className="space-y-4">
+            {blocks.map((block, blockIndex) => {
+                if (block.type === "clauses") {
+                    return (
+                        <div key={blockIndex} className="space-y-3">
+                            {block.items.map((item, itemIndex) => (
+                                <div
+                                    key={`${blockIndex}-${itemIndex}`}
+                                    className={cn(
+                                        "grid gap-3 text-base leading-8 text-foreground/90",
+                                        isLetterMarker(item.marker)
+                                            ? "ml-6 grid-cols-[2rem_minmax(0,1fr)]"
+                                            : "grid-cols-[2.5rem_minmax(0,1fr)]",
+                                    )}
+                                >
+                                    <div className="font-medium text-muted-foreground">
+                                        {item.marker})
+                                    </div>
+                                    <p>{item.text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
+
+                return (
+                    <p key={blockIndex} className="text-base leading-8 text-foreground/90">
+                        {block.text}
+                    </p>
+                );
+            })}
+        </div>
+    );
 }
 
 export default function DraftPreviewPage() {
@@ -169,16 +265,7 @@ export default function DraftPreviewPage() {
                                             </div>
                                             <h3 className="text-xl font-semibold leading-tight">{section.heading}</h3>
                                         </div>
-                                        <div className="space-y-4">
-                                            {renderParagraphs(section.body).map((paragraph, paragraphIndex) => (
-                                                <p
-                                                    key={`${section.id}-${paragraphIndex}`}
-                                                    className="text-base leading-8 text-foreground/90"
-                                                >
-                                                    {paragraph}
-                                                </p>
-                                            ))}
-                                        </div>
+                                        <SectionBody text={section.body} />
                                     </section>
                                 ))}
                             </div>
