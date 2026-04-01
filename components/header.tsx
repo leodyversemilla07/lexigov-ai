@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
 import { FolderOpenDot, Sparkles } from "lucide-react";
@@ -16,19 +15,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-
-const UserButton = dynamic(
-    () => import("@clerk/nextjs").then((mod) => mod.UserButton),
-    {
-        ssr: false,
-        loading: () => (
-            <div
-                aria-hidden="true"
-                className="h-9 w-9 rounded-full border bg-muted"
-            />
-        ),
-    },
-);
 
 const routeLabels: Record<string, string> = {
     dashboard: "Dashboard",
@@ -117,17 +103,6 @@ export function Header() {
                         AI Draft
                     </Link>
                 </Button>
-                <Separator orientation="vertical" className="h-8" />
-                <UserButton
-                    afterSignOutUrl="/"
-                    userProfileMode="navigation"
-                    userProfileUrl="/account"
-                    appearance={{
-                        elements: {
-                            avatarBox: "w-9 h-9",
-                        },
-                    }}
-                />
             </div>
         </header>
     );

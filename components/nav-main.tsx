@@ -5,48 +5,62 @@ import { usePathname } from "next/navigation"
 import { type LucideIcon } from "lucide-react"
 import {
   SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+export type NavItem = {
+  title: string
+  url: string
+  icon: LucideIcon
+}
+
+export type NavGroup = {
+  label: string
+  items: NavItem[]
+}
+
 export function NavLinks({
   items,
 }: {
-  items: {
-    title: string
-    url: string
-    icon: LucideIcon
-  }[]
+  items: NavGroup[]
 }) {
   const pathname = usePathname()
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-      <SidebarMenu>
-        {items.map((item) => {
-          const isActive =
-            item.url === "/dashboard"
-              ? pathname === "/dashboard"
-              : item.url === "/drafts"
-                ? pathname === "/drafts" || (pathname?.startsWith("/drafts/") && pathname !== "/drafts/new")
-              : item.url === "/settings"
-                ? pathname === "/settings"
-              : pathname === item.url || pathname?.startsWith(item.url + "/")
-          return (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-                <Link href={item.url}>
-                  <item.icon />
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )
-        })}
-      </SidebarMenu>
-    </SidebarGroup>
+    <>
+      {items.map((group) => (
+        <SidebarGroup key={group.label}>
+          <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {group.items.map((item) => {
+                const isActive =
+                  item.url === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : item.url === "/drafts"
+                      ? pathname === "/drafts" || (pathname?.startsWith("/drafts/") && pathname !== "/drafts/new")
+                      : item.url === "/settings"
+                        ? pathname === "/settings"
+                        : pathname === item.url || pathname?.startsWith(item.url + "/")
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+                      <Link href={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </>
   )
 }
