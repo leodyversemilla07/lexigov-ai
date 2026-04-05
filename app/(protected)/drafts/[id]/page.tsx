@@ -16,6 +16,7 @@ import {
     Loader2,
     Plus,
     RefreshCw,
+    RotateCcw,
     Save,
     Shield,
     Sparkles,
@@ -271,6 +272,7 @@ export default function DraftEditorPage() {
     const versionHistory = useQuery(api.drafts.listVersions, { draftId });
     const complianceHistory = useQuery(api.complianceReports.listByDraft, { draftId, limit: 3 });
     const updateDraft = useMutation(api.drafts.update);
+    const restoreDraftVersion = useMutation(api.drafts.restoreVersion);
     const saveComplianceReport = useMutation(api.complianceReports.save);
     const checkCompliance = useAction(api.ai.checkCompliance);
 
@@ -278,6 +280,7 @@ export default function DraftEditorPage() {
     const [content, setContent] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [isCheckingCompliance, setIsCheckingCompliance] = useState(false);
+    const [isRestoringVersionId, setIsRestoringVersionId] = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null);
     const [showCompliance, setShowCompliance] = useState(false);
@@ -305,6 +308,9 @@ export default function DraftEditorPage() {
         : 0;
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
     const characterCount = content.length;
+    const currentComplianceReport = complianceHistory?.find(
+        (report) => report.draftVersion === draft.version && !report.revisionDraftId,
+    );
     const latestCompliance = complianceResult
         ? {
               overallScore: complianceResult.overallScore,
@@ -314,7 +320,7 @@ export default function DraftEditorPage() {
               suggestionsCount: complianceResult.issues.filter((issue) => issue.type === "suggestion").length,
               checkedAt: Date.now(),
           }
-        : complianceHistory?.[0];
+        : currentComplianceReport;
 
     const replaceSections = (nextSections: DraftSection[]) => {
         setSections(nextSections);
@@ -427,6 +433,28 @@ export default function DraftEditorPage() {
             toast.error("Failed to check compliance. Please try again.");
         } finally {
             setIsCheckingCompliance(false);
+        }
+    };
+
+    const handleRestoreVersion = async (versionId: Id<"drafts">, versionNumber: number) => {
+        if (!draft) return;
+
+        setIsRestoringVersionId(versionId);
+
+        try {
+            await saveCurrentDraft();
+            await restoreDraftVersion({
+                draftId,
+                versionId,
+            });
+            setShowCompliance(false);
+            setComplianceResult(null);
+            toast.success(`Restored version v${versionNumber}.`);
+        } catch (error) {
+            console.error("Failed to restore version:", error);
+            toast.error("Failed to restore version. Please try again.");
+        } finally {
+            setIsRestoringVersionId(null);
         }
     };
 
@@ -929,6 +957,32 @@ export default function DraftEditorPage() {
                                                 <div className="mt-2 text-sm text-muted-foreground">
                                                     {version.commitMessage}
                                                 </div>
+                                            ) : null}
+                                            {!version.isCurrent ? (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-3 w-full justify-between"
+                                                    onClick={() =>
+                                                        handleRestoreVersion(
+                                                            version._id as Id<"drafts">,
+                                                            version.version,
+                                                        )
+                                                    }
+                                                    disabled={isRestoringVersionId !== null}
+                                                >
+                                                    {isRestoringVersionId === version._id ? (
+                                                        <>
+                                                            Restoring
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            Restore this version
+                                                            <RotateCcw className="h-4 w-4" />
+                                                        </>
+                                                    )}
+                                                </Button>
                                             ) : null}
                                         </div>
                                     ))}

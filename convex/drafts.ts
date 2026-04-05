@@ -300,6 +300,112 @@ export const update = mutation({
 });
 
 /**
+ * Restore a saved version into the current working draft.
+ */
+export const restoreVersion = mutation({
+    args: {
+        draftId: v.id("drafts"),
+        versionId: v.id("drafts"),
+    },
+    handler: async (ctx, args) => {
+        const user = await requireCurrentUser(ctx);
+
+        const requestedDraft = await ctx.db.get(args.draftId);
+        if (!requestedDraft || requestedDraft.userId !== user._id) {
+            throw new Error("Draft not found");
+        }
+
+        const rootDraft = requestedDraft.parentDraftId
+            ? await ctx.db.get(requestedDraft.parentDraftId)
+            : requestedDraft;
+        if (!rootDraft || rootDraft.userId !== user._id) {
+            throw new Error("Draft not found");
+        }
+
+        const versionDraft = await ctx.db.get(args.versionId);
+        if (!versionDraft || versionDraft.userId !== user._id) {
+            throw new Error("Version not found");
+        }
+
+        const belongsToRoot =
+            versionDraft._id === rootDraft._id || versionDraft.parentDraftId === rootDraft._id;
+        if (!belongsToRoot) {
+            throw new Error("Version does not belong to this draft");
+        }
+
+        if (versionDraft._id === rootDraft._id) {
+            return {
+                success: true,
+                version: rootDraft.version,
+                restoredFromVersion: versionDraft.version,
+            };
+        }
+
+        const now = Date.now();
+        const snapshotId = await ctx.db.insert("drafts", {
+            title: rootDraft.title,
+            documentType: rootDraft.documentType,
+            jurisdiction: rootDraft.jurisdiction,
+            jurisdictionName: rootDraft.jurisdictionName,
+            content: normalizeDraftContent(rootDraft.content),
+            status: rootDraft.status,
+            aiGenerated: rootDraft.aiGenerated,
+            userId: rootDraft.userId,
+            templateId: rootDraft.templateId,
+            version: rootDraft.version,
+            parentDraftId: rootDraft._id,
+            commitMessage: rootDraft.commitMessage,
+            createdAt: now,
+            updatedAt: rootDraft.updatedAt,
+        });
+
+        const historicalReports = await ctx.db
+            .query("complianceReports")
+            .withIndex("by_draft", (q) => q.eq("draftId", rootDraft._id))
+            .collect();
+
+        for (const report of historicalReports) {
+            if (report.draftVersion === rootDraft.version && !report.revisionDraftId) {
+                await ctx.db.patch(report._id, {
+                    revisionDraftId: snapshotId,
+                });
+            }
+        }
+
+        await ctx.db.patch(rootDraft._id, {
+            title: versionDraft.title,
+            content: normalizeDraftContent(versionDraft.content),
+            status: versionDraft.status,
+            aiGenerated: versionDraft.aiGenerated,
+            templateId: versionDraft.templateId,
+            commitMessage: `Restore version v${versionDraft.version}`,
+            version: rootDraft.version + 1,
+            updatedAt: now,
+        });
+
+        await ctx.db.insert("auditLogs", {
+            action: "RESTORE_VERSION",
+            entityType: "drafts",
+            entityId: rootDraft._id,
+            userId: user._id,
+            changes: {
+                restoredFromVersion: versionDraft.version,
+                previousVersion: rootDraft.version,
+                nextVersion: rootDraft.version + 1,
+                snapshotId,
+            },
+            createdAt: now,
+        });
+
+        return {
+            success: true,
+            version: rootDraft.version + 1,
+            restoredFromVersion: versionDraft.version,
+        };
+    },
+});
+
+/**
  * Delete a draft
  */
 export const remove = mutation({
