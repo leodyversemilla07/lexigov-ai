@@ -2,6 +2,12 @@
 
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import {
+    analyzeDeterministicCompliance,
+    buildComplianceResultFromIssues,
+    mergeComplianceIssues,
+    type ComplianceIssue,
+} from "../lib/compliance-analysis";
 
 type AzureOpenAIConfig = {
     apiKey: string;
@@ -10,13 +16,13 @@ type AzureOpenAIConfig = {
     endpoint: string;
 };
 
-async function logMissingIdentity(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }) {
+async function requireIdentity(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }) {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-        console.warn(
-            "Azure AI action invoked without Convex identity. Proceeding because the /ai route is already Clerk-protected.",
-        );
+        throw new Error("Not authenticated");
     }
+
+    return identity;
 }
 
 function getAzureOpenAIConfig(): AzureOpenAIConfig {
@@ -138,7 +144,7 @@ export const generateOrdinance = action({
         documentType: v.string(),
     },
     handler: async (ctx, args) => {
-        await logMissingIdentity(ctx);
+        await requireIdentity(ctx);
 
         const systemPrompt = `You are an expert Philippine legislative drafting assistant specializing in local ordinances.
 Generate ordinances following RA 7160 (Local Government Code of 1991) format.
@@ -179,26 +185,30 @@ export const checkCompliance = action({
         jurisdiction: v.string(),
     },
     handler: async (ctx, args) => {
-        await logMissingIdentity(ctx);
+        await requireIdentity(ctx);
 
-        const systemPrompt = `You are a Philippine legal compliance checker. Analyze local ordinances for compliance with RA 7160 (Local Government Code of 1991).
-Return practical findings for legislative staff and identify structural, legal, and drafting issues.`;
+        if (
+            args.jurisdiction !== "barangay" &&
+            args.jurisdiction !== "municipal" &&
+            args.jurisdiction !== "city" &&
+            args.jurisdiction !== "provincial"
+        ) {
+            throw new Error("Unsupported jurisdiction");
+        }
 
-        const userPrompt = `Check for:
-1. Proper structure (header, preamble, body, final provisions)
-2. Required clauses (separability, repealing, effectivity)
-3. Penalty limits for ${args.jurisdiction} jurisdiction
-4. Due process protections
-5. Legal basis citations
+        const deterministic = analyzeDeterministicCompliance(args.content, args.jurisdiction);
 
-Return only the most important findings.
-Limit the response to the top 8 issues.
+        const systemPrompt = `You are a Philippine legal drafting reviewer.
+You are assisting a deterministic compliance engine, not replacing it.
+Return only additional drafting or legal-risk findings that are not obvious structural checks.
+Do not repeat issues about missing sections, missing clauses, or basic penalty ceilings unless there is a more nuanced concern.`;
+
+        const userPrompt = `Review this ${args.jurisdiction} local ordinance draft and return up to 3 additional findings.
+Focus on legal basis quality, enforceability, ambiguity, overbreadth, missing definitions, and due process.
 Keep each description and suggestion concise, at most 2 sentences.
 
 Respond in JSON format:
 {
-  "overallScore": <0-100>,
-  "isValid": <boolean>,
   "issues": [
     {
       "type": "critical" | "warning" | "suggestion",
@@ -210,49 +220,29 @@ Respond in JSON format:
   ]
 }
 
-Ordinance to check:
+Draft:
 ${args.content}`;
 
-        let result: { model: string; text: string };
-
         try {
-            result = await generateChatCompletion({
-                maxCompletionTokens: 8000,
+            const result = await generateChatCompletion({
+                maxCompletionTokens: 2500,
                 systemPrompt,
                 userPrompt,
             });
-        } catch (error) {
-            return {
-                overallScore: 0,
-                isValid: false,
-                issues: [{
-                    type: "critical",
-                    title: "Analysis Error",
-                    description: error instanceof Error ? error.message : "Could not analyze the ordinance",
-                    suggestion: "Please try again",
-                }],
-            };
-        }
 
-        try {
             const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+            if (!jsonMatch) {
+                return deterministic;
             }
-        } catch {
-            // Return default if parsing fails.
-        }
 
-        return {
-            overallScore: 0,
-            isValid: false,
-            issues: [{
-                type: "critical",
-                title: "Analysis Error",
-                description: "Could not analyze the ordinance",
-                suggestion: "Please try again",
-            }],
-        };
+            const parsed = JSON.parse(jsonMatch[0]) as { issues?: ComplianceIssue[] };
+            const aiIssues = Array.isArray(parsed.issues) ? parsed.issues : [];
+            const mergedIssues = mergeComplianceIssues(deterministic.issues, aiIssues);
+
+            return buildComplianceResultFromIssues(mergedIssues);
+        } catch {
+            return deterministic;
+        }
     },
 });
 
@@ -264,7 +254,7 @@ export const generateSummary = action({
         content: v.string(),
     },
     handler: async (ctx, args) => {
-        await logMissingIdentity(ctx);
+        await requireIdentity(ctx);
 
         const systemPrompt = "You write concise executive summaries for Philippine local government ordinance drafts.";
         const userPrompt = `Generate a concise executive summary (2-3 paragraphs) for this Philippine ordinance.

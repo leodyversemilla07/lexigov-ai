@@ -381,6 +381,22 @@ export default function DraftEditorPage() {
         }
     };
 
+    const saveCurrentDraft = async () => {
+        if (!draft) {
+            throw new Error("Draft not found");
+        }
+
+        return await updateDraft({
+            id: draftId,
+            title,
+            content: updateDraftSectionsContent(
+                draft.content,
+                sections.length > 0 ? sections : buildDraftSectionsFromBody(content),
+            ),
+            status,
+        });
+    };
+
     const handleCheckCompliance = async () => {
         if (!draft) return;
 
@@ -388,6 +404,7 @@ export default function DraftEditorPage() {
         setShowCompliance(true);
 
         try {
+            const saveResult = await saveCurrentDraft();
             const result = await checkCompliance({
                 content,
                 jurisdiction: draft.jurisdiction,
@@ -398,7 +415,7 @@ export default function DraftEditorPage() {
 
             await saveComplianceReport({
                 draftId,
-                draftVersion: draft.version,
+                draftVersion: saveResult.version,
                 overallScore: normalizedResult.overallScore,
                 isValid: normalizedResult.isValid,
                 issues: normalizedResult.issues,

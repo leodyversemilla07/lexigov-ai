@@ -315,6 +315,33 @@ export const remove = mutation({
             throw new Error("Saved revisions cannot be deleted directly");
         }
 
+        const [revisions, complianceReports, exportHistory] = await Promise.all([
+            ctx.db
+                .query("drafts")
+                .withIndex("by_parent_draft", (q) => q.eq("parentDraftId", args.id))
+                .collect(),
+            ctx.db
+                .query("complianceReports")
+                .withIndex("by_draft", (q) => q.eq("draftId", args.id))
+                .collect(),
+            ctx.db
+                .query("exportHistory")
+                .withIndex("by_draft", (q) => q.eq("draftId", args.id))
+                .collect(),
+        ]);
+
+        for (const revision of revisions) {
+            await ctx.db.delete(revision._id);
+        }
+
+        for (const report of complianceReports) {
+            await ctx.db.delete(report._id);
+        }
+
+        for (const exportRecord of exportHistory) {
+            await ctx.db.delete(exportRecord._id);
+        }
+
         await ctx.db.delete(args.id);
 
         await ctx.db.insert("auditLogs", {
@@ -322,6 +349,11 @@ export const remove = mutation({
             entityType: "drafts",
             entityId: args.id,
             userId: user._id,
+            changes: {
+                deletedRevisions: revisions.length,
+                deletedComplianceReports: complianceReports.length,
+                deletedExportRecords: exportHistory.length,
+            },
             createdAt: Date.now(),
         });
 
