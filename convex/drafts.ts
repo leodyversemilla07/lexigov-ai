@@ -1,7 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, requireCurrentUser } from "./lib/currentUser";
-import { extractDraftBody, normalizeDraftContent } from "../lib/draft-content";
+import { extractDraftBody, normalizeDraftContent } from "../src/lib/draft-content";
 
 const documentTypeValidator = v.union(
     v.literal("ORDINANCE"),

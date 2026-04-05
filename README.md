@@ -43,37 +43,55 @@ LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI 
 ## Project Structure
 
 ```
-app/
-├── page.tsx             # Landing page (public) → /
-├── layout.tsx           # Root layout (Clerk, Convex, theme)
-├── (auth)/              # Public auth routes (no layout)
-│   ├── sign-in/         # → /sign-in
-│   └── sign-up/         # → /sign-up
-└── (protected)/         # Route group — shared sidebar layout, Clerk-protected
-    ├── layout.tsx        # Sidebar + header layout (no URL prefix added)
-    ├── dashboard/        # → /dashboard  (overview & stats)
-    ├── drafts/           # → /drafts     (draft list)
-    │   ├── [id]/         # → /drafts/[id] (draft editor)
-    │   └── new/          # → /drafts/new  (create draft)
-    ├── templates/        # → /templates
-    ├── compliance/       # → /compliance
-    ├── export/           # → /export
-    └── settings/         # → /settings
-components/
-├── app-sidebar.tsx       # LexiGov navigation sidebar (shadcn sidebar-07)
-├── header.tsx            # Top header with sidebar trigger, search, user menu
-├── nav-main.tsx          # Flat NavLinks with active-route detection via usePathname
-└── ui/                   # shadcn/ui primitives
+src/
+├── app/
+│   ├── page.tsx             # Landing page (public) → /
+│   ├── layout.tsx           # Root layout (Clerk, Convex, theme)
+│   ├── (auth)/              # Public auth routes (no layout)
+│   │   ├── sign-in/         # → /sign-in
+│   │   └── sign-up/         # → /sign-up
+│   └── (protected)/         # Route group — shared sidebar layout, Clerk-protected
+│       ├── layout.tsx        # Sidebar + header layout (no URL prefix added)
+│       ├── dashboard/        # → /dashboard  (overview & stats)
+│       ├── drafts/           # → /drafts     (draft list)
+│       │   ├── [id]/         # → /drafts/[id] (draft editor)
+│       │   │   ├── _components/  # Route-specific components
+│       │   │   └── page.tsx
+│       │   └── new/          # → /drafts/new  (create draft)
+│       ├── templates/        # → /templates
+│       ├── compliance/       # → /compliance
+│       ├── export/           # → /export
+│       └── settings/         # → /settings
+├── components/
+│   ├── app-sidebar.tsx       # LexiGov navigation sidebar (shadcn sidebar-07)
+│   ├── header.tsx            # Top header with sidebar trigger, search, user menu
+│   ├── nav-main.tsx          # Flat NavLinks with active-route detection via usePathname
+│   └── ui/                   # shadcn/ui primitives
+├── hooks/                    # Custom React hooks
+├── lib/
+│   ├── schemas/              # Shared Zod schemas (enums, draft, template, auth, ai)
+│   ├── draft-content.ts      # Draft parsing and normalization
+│   ├── compliance-analysis.ts # RA 7160 compliance rules
+│   └── utils.ts              # Utility functions
+└── types/                    # Centralized TypeScript type exports
 convex/
-├── schema.ts             # Database schema (users, drafts, templates, complianceReports)
-├── drafts.ts             # Draft queries and mutations
-├── templates.ts          # Template queries and mutations
-├── ai.ts                 # Azure OpenAI actions (generation, compliance, summary)
-└── users.ts              # User sync with Clerk
-lib/
-└── schemas/              # Shared Zod schemas (enums, draft, template, auth, ai)
-proxy.ts                  # Next.js 16 middleware (Clerk auth protection)
+├── schema.ts                 # Database schema (users, drafts, templates, complianceReports)
+├── drafts.ts                 # Draft queries and mutations
+├── templates.ts              # Template queries and mutations
+├── ai.ts                     # Azure OpenAI actions (generation, compliance, summary)
+└── users.ts                  # User sync with Clerk
+public/                       # Static assets
+tests/                        # Test files
 ```
+
+### Code Organization Principles
+
+- **`src/` directory**: All application code lives inside `src/` for clean separation from config files
+- **Private folders** (`_components/`): Route-specific components prefixed with `_` are excluded from routing
+- **Route groups** (`(auth)/`, `(protected)/`): Organize routes without affecting URL structure
+- **Colocation**: Components used by a single route live in that route's `_components/` folder
+- **Shared components**: App-wide components in `src/components/`
+- **Centralized types**: All type exports available from `src/types/index.ts`
 
 ---
 

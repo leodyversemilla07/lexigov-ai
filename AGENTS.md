@@ -134,11 +134,38 @@ AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEPLOYMENT
 
 ## Directory Structure
 ```
-app/                    # Next.js App Router
-  (auth)/              # Public auth routes
-  (protected)/         # Authenticated routes with sidebar
-components/ui/         # shadcn/ui components
-convex/                # Backend (queries, mutations, AI)
-lib/schemas/           # Zod validation schemas
-hooks/                 # Custom React hooks
+src/
+├── app/                          # Next.js App Router
+│   ├── (auth)/                   # Public auth routes
+│   │   ├── sign-in/
+│   │   └── sign-up/
+│   ├── (protected)/              # Authenticated routes with sidebar
+│   │   ├── _components/          # Shared protected components (if needed)
+│   │   ├── dashboard/
+│   │   ├── drafts/
+│   │   │   ├── [id]/
+│   │   │   │   ├── _components/  # Route-specific components
+│   │   │   │   └── page.tsx
+│   │   │   └── new/
+│   │   └── layout.tsx
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/                       # shadcn/ui primitives
+│   └── ...                       # Shared app components
+├── hooks/                        # Custom React hooks
+├── lib/
+│   ├── schemas/                  # Zod validation schemas
+│   └── utils.ts
+└── types/                        # Centralized TypeScript types
+convex/                           # Backend (queries, mutations, AI) - stays at root
+public/                           # Static assets
+tests/                            # Test files
 ```
+
+### File Organization Patterns
+- **Private folders** (`_components/`): Use for route-specific components that shouldn't be routes
+- **Route groups** (`(auth)/`, `(protected)/`): Organize routes without affecting URL structure
+- **Colocation**: Keep route-specific components close to their page in `_components/` folders
+- **Shared components**: Place in `src/components/` for app-wide reuse
+- **Types**: Export from `src/types/index.ts` for centralized type management

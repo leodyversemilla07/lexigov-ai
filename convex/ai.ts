@@ -7,7 +7,7 @@ import {
     buildComplianceResultFromIssues,
     mergeComplianceIssues,
     type ComplianceIssue,
-} from "../lib/compliance-analysis";
+} from "../src/lib/compliance-analysis";
 
 type AzureOpenAIConfig = {
     apiKey: string;
