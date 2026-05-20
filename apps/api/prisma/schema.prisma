@@ -1,0 +1,248 @@
+generator client {
+    provider     = "prisma-client"
+    output       = "../generated/prisma"
+    moduleFormat = "cjs"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────
+// Better Auth Core Models
+// ──────────────────────────────────────────────
+
+model User {
+    id              String    @id @default(cuid())
+    name            String?
+    email           String    @unique
+    emailVerified   Boolean   @default(false)
+    image           String?
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+    role            String    @default("user")
+
+    // Two-factor auth
+    twoFactorEnabled     Boolean  @default(false)
+    twoFactorSecret      String?
+    twoFactorBackupCodes String?
+
+    // Relations
+    sessions        Session[]
+    accounts        Account[]
+    drafts          Draft[]
+    templates       Template[]
+    exportHistory   ExportHistory[]
+    auditLogs       AuditLog[]
+    members         Member[]
+    invitations     Invitation[]
+
+    @@index([email])
+}
+
+model Session {
+    id         String   @id @default(cuid())
+    expiresAt  DateTime
+    token      String   @unique
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+    ipAddress  String?
+    userAgent  String?
+    userId     String
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+}
+
+model Account {
+    id              String  @id @default(cuid())
+    accountId       String
+    providerId      String
+    userId          String
+    accessToken     String?
+    refreshToken    String?
+    idToken         String?
+    accessTokenExpiresAt DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope           String?
+    password        String?
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([providerId, accountId])
+    @@index([userId])
+}
+
+model Verification {
+    id         String   @id @default(cuid())
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@unique([identifier, value])
+}
+
+// ──────────────────────────────────────────────
+// Better Auth Organization Plugin
+// ──────────────────────────────────────────────
+
+model Organization {
+    id          String   @id @default(cuid())
+    name        String
+    slug        String   @unique
+    logo        String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    members     Member[]
+    invitations Invitation[]
+
+    @@index([slug])
+}
+
+model Member {
+    id             String       @id @default(cuid())
+    organizationId String
+    userId         String
+    role           String       @default("member")
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
+
+    organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([organizationId, userId])
+}
+
+model Invitation {
+    id             String       @id @default(cuid())
+    organizationId String
+    email          String
+    role           String
+    status         String       @default("pending")
+    expiresAt      DateTime
+    inviterId      String
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
+
+    organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    inviter       User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+    @@index([organizationId])
+}
+
+// ──────────────────────────────────────────────
+// LexiGov Application Models
+// ──────────────────────────────────────────────
+
+model Draft {
+    id               String   @id @default(cuid())
+    title            String
+    documentType     String
+    jurisdiction     String
+    jurisdictionName String
+    content          Json
+    status           String   @default("DRAFT")
+    aiGenerated      Boolean  @default(false)
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id])
+
+    templateId String?
+
+    version       Int    @default(1)
+    parentDraftId String?
+    parentDraft   Draft?  @relation("DraftVersions", fields: [parentDraftId], references: [id])
+    revisions     Draft[] @relation("DraftVersions")
+
+    commitMessage String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    complianceReports ComplianceReport[]
+    exportHistory     ExportHistory[]
+
+    @@index([userId])
+    @@index([status])
+    @@index([userId, status])
+    @@index([parentDraftId])
+}
+
+model Template {
+    id             String   @id @default(cuid())
+    name           String
+    category       String
+    subcategory    String?
+    jurisdiction   String[]
+    structure      Json
+    exampleContent Json?
+    isPublic       Boolean  @default(true)
+    usageCount     Int      @default(0)
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([category])
+    @@index([isPublic])
+    @@index([userId])
+}
+
+model ComplianceReport {
+    id               String   @id @default(cuid())
+    draftId          String
+    draft            Draft    @relation(fields: [draftId], references: [id])
+    draftVersion     Int
+    revisionDraftId  String?
+
+    overallScore     Int
+    isValid          Boolean
+    issuesCount      Int
+    warningsCount    Int
+    suggestionsCount Int
+    issues           Json
+
+    checkedAt DateTime @default(now())
+
+    @@index([draftId])
+}
+
+model ExportHistory {
+    id        String   @id @default(cuid())
+    draftId   String
+    draft     Draft    @relation(fields: [draftId], references: [id])
+    exportType String
+    fileUrl   String?
+    fileSize  Int?
+    pageCount Int?
+
+    exportedBy   String
+    exportedByUser User @relation(fields: [exportedBy], references: [id])
+
+    createdAt DateTime @default(now())
+
+    @@index([draftId])
+}
+
+model AuditLog {
+    id         String   @id @default(cuid())
+    action     String
+    entityType String
+    entityId   String
+    userId     String
+    user       User     @relation(fields: [userId], references: [id])
+    changes    Json?
+    ipAddress  String?
+
+    createdAt DateTime @default(now())
+
+    @@index([userId])
+    @@index([entityType, entityId])
+}

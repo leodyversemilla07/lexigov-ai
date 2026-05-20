@@ -12,20 +12,21 @@ Guidelines for agentic coding agents working in this repository.
 
 ### Development
 ```bash
-npm run dev          # Start Next.js dev server (Turbopack)
-npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # Run ESLint
+pnpm dev          # Start Next.js dev server (Turbopack)
+pnpm build        # Production build
+pnpm start        # Start production server
+pnpm lint         # Run ESLint
+pnpm test         # Run vitest tests
 ```
 
 ### Convex (Backend)
 ```bash
-npx convex dev       # Start Convex dev server (runs alongside npm run dev)
-npx convex deploy    # Deploy Convex backend to production
+pnpm convex dev       # Start Convex dev server (runs alongside pnpm dev)
+pnpm convex deploy    # Deploy Convex backend to production
 ```
 
 ### Single Test Execution
-This project does not have a dedicated test framework. For manual testing use `npm run dev`.
+Tests use vitest: `pnpm test`
 
 ## Code Style Guidelines
 
