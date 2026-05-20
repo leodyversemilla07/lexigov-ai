@@ -4,15 +4,15 @@ import {
     documentStatusValues,
     documentTypeValues,
     jurisdictionLevelValues,
-} from "../src/lib/schemas/enums";
-import { aiDraftFormSchema } from "../src/lib/schemas/ai";
-import { createDraftSchema, draftComposerSchema, updateDraftSchema } from "../src/lib/schemas/draft";
+} from '@lexigov/shared';
+import { aiDraftFormSchema } from '@lexigov/shared';
+import { createDraftSchema, draftComposerSchema, updateDraftSchema } from '@lexigov/shared';
 import {
     createTemplateSchema,
     templateCategoryValues,
     templateEditorSchema,
     updateTemplateSchema,
-} from "../src/lib/schemas/template";
+} from '@lexigov/shared';
 
 describe("shared schema enums", () => {
     it("exposes the document, jurisdiction, and status contracts used by the app", () => {

@@ -1,27 +1,27 @@
-import { IsString, IsBoolean, IsArray, IsOptional } from "class-validator";
+import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class CreateTemplateDto {
-    @IsString()
-    name!: string;
+  @IsString()
+  name!: string;
 
-    @IsString()
-    category!: string;
+  @IsString()
+  category!: string;
 
-    @IsOptional()
-    @IsString()
-    subcategory?: string;
+  @IsOptional()
+  @IsString()
+  subcategory?: string;
 
-    @IsArray()
-    @IsString({ each: true })
-    jurisdiction!: string[];
+  @IsArray()
+  @IsString({ each: true })
+  jurisdiction!: string[];
 
-    @IsOptional()
-    structure?: any;
+  @IsOptional()
+  structure?: any;
 
-    @IsOptional()
-    exampleContent?: any;
+  @IsOptional()
+  exampleContent?: any;
 
-    @IsOptional()
-    @IsBoolean()
-    isPublic?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }

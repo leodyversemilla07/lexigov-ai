@@ -6,7 +6,7 @@ import {
     getTemplatePrompt,
     getTemplateSections,
     type TemplateData,
-} from "../src/lib/template-utils";
+} from '@lexigov/shared';
 
 const baseTemplate: TemplateData = {
     _id: "template-1",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLineDiff, buildSectionDiff } from "../src/lib/text-diff";
+import { buildLineDiff, buildSectionDiff } from '@lexigov/shared';
 
 describe("buildLineDiff", () => {
     it("emits separate removed and added rows for edited lines", () => {

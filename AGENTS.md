@@ -4,7 +4,7 @@ Guidelines for agentic coding agents working in this repository.
 
 ## Project Overview
 
-- **Type:** Full-stack SaaS web application (Next.js + Convex)
+- **Type:** Full-stack SaaS web application (Next.js + NestJS)
 - **Purpose:** AI-powered platform for drafting Philippine local government ordinances (RA 7160 compliant)
 - **Language:** TypeScript
 
@@ -12,17 +12,11 @@ Guidelines for agentic coding agents working in this repository.
 
 ### Development
 ```bash
-pnpm dev          # Start Next.js dev server (Turbopack)
+pnpm dev          # Start Next.js dev server + NestJS API (Turbopack)
 pnpm build        # Production build
 pnpm start        # Start production server
 pnpm lint         # Run ESLint
 pnpm test         # Run vitest tests
-```
-
-### Convex (Backend)
-```bash
-pnpm convex dev       # Start Convex dev server (runs alongside pnpm dev)
-pnpm convex deploy    # Deploy Convex backend to production
 ```
 
 ### Single Test Execution
@@ -38,18 +32,17 @@ Tests use vitest: `pnpm test`
 
 ### Imports (Order matters)
 1. React/Next imports
-2. External libraries (`@clerk/nextjs`, `convex/react`)
-3. Internal imports (Convex API, utilities)
+2. External libraries (`better-auth/react`, `@lexigov/ui`)
+3. Internal imports (API client, utilities)
 4. Component imports (`@/components/ui/...`)
 5. Type imports
 
 ### File Naming
 - Components: `PascalCase` (`AppSidebar.tsx`, `NewDraftForm.tsx`)
 - Utilities/hooks: `camelCase` (`useAuth.ts`, `utils.ts`)
-- Convex functions: `camelCase` (`drafts.ts`, `users.ts`)
 
 ### Components
-Use `"use client"` for: React hooks, Convex hooks, event handlers.
+Use `"use client"` for: React hooks, event handlers.
 
 ```typescript
 "use client";
@@ -90,34 +83,21 @@ export type CreateDraftInput = z.infer<typeof createDraftSchema>
 ### Error Handling
 ```typescript
 // Components - try/catch with user feedback
-try { await createDraft(formData); router.push(`/drafts/${draftId}`); }
+try { await api.post('/drafts', formData); router.push(`/drafts/${draftId}`); }
 catch (error) { console.error("Failed to create draft:", error); alert("Failed to create draft."); }
 finally { setIsSubmitting(false); }
 
-// Convex - throw descriptive errors
-if (!draft || draft.userId !== user._id) throw new Error("Draft not found");
+// API - throw descriptive errors
+if (!draft || draft.userId !== user.id) throw new Error("Draft not found");
 ```
 
 ### Tailwind CSS
 Use `cn()` for conditional classes: `import { cn } from "@/lib/utils";`
 
-### Convex (Backend)
-**Queries** - read-only, **Mutations** - write operations.
-
-```typescript
-export const list = query({
-    args: { status: v.optional(v.string()) },
-    handler: async (ctx, args) => {
-        const user = await getCurrentUser(ctx);
-        if (!user) return [];
-    },
-});
-```
-
 ### Authentication
-- Clerk for authentication
-- `UserBootstrap` component syncs users to Convex
-- `requireCurrentUser()` for protected, `getCurrentUser()` for optional
+- Better Auth for authentication
+- `auth.ts` and `auth-client.ts` in `src/lib/` for server and client auth
+- API client sends session token automatically from the `better-auth.session_token` cookie
 
 ### UI Components (shadcn/ui)
 - Import from `@/components/ui/[component-name]`
@@ -126,12 +106,16 @@ export const list = query({
 
 ### Environment Variables
 ```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY
-NEXT_PUBLIC_CLERK_SIGN_IN_URL, NEXT_PUBLIC_CLERK_SIGN_UP_URL
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL, NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL
-NEXT_PUBLIC_CONVEX_URL, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY
+AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY
 AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEPLOYMENT
+NEXT_PUBLIC_API_URL
+DATABASE_URL, AUTH_SECRET, AUTH_BETTER_CALL_DEV
 ```
+
+## Packages
+
+- `@lexigov/shared` (`packages/shared/`) — shared types, Zod schemas, utilities (`cn()`, `extractDraftSections`, etc.)
+- `@lexigov/ui` (`packages/ui/`) — shadcn/ui component primitives, exported barrel from `src/index.ts`
 
 ## Directory Structure
 ```
@@ -151,17 +135,27 @@ src/
 │   │   └── layout.tsx
 │   ├── layout.tsx
 │   └── page.tsx
-├── components/
-│   ├── ui/                       # shadcn/ui primitives
-│   └── ...                       # Shared app components
+├── components/                   # Shared app components
 ├── hooks/                        # Custom React hooks
 ├── lib/
 │   ├── schemas/                  # Zod validation schemas
 │   └── utils.ts
 └── types/                        # Centralized TypeScript types
-convex/                           # Backend (queries, mutations, AI) - stays at root
+apps/
+├── api/                          # NestJS backend (controllers, services, modules)
+├── web/                          # Next.js frontend
 public/                           # Static assets
 tests/                            # Test files
+packages/
+├── shared/                       # @lexigov/shared (types, schemas, utilities)
+└── ui/                           # @lexigov/ui (shadcn primitives, hooks)
+```
+
+## Importing UI Components
+
+Import from `@lexigov/ui`:
+```typescript
+import { Button, Card, CardContent, Input } from '@lexigov/ui';
 ```
 
 ### File Organization Patterns

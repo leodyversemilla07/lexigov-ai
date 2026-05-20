@@ -1,0 +1,13 @@
+{
+    "extends": "@lexigov/typescript-config/react-library.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@lexigov/ui/*": ["./src/*"]
+        },
+        "outDir": "./dist",
+        "rootDir": "./src"
+    },
+    "include": ["src"],
+    "exclude": ["node_modules", "dist"]
+}

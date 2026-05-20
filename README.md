@@ -16,8 +16,8 @@ LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI 
 |---|---|
 | Framework | [Next.js 16](https://nextjs.org) (App Router, Turbopack) |
 | Language | TypeScript |
-| Auth | [Clerk](https://clerk.com) |
-| Database / Backend | [Convex](https://convex.dev) (real-time, serverless) |
+| Auth | [Better Auth](https://better-auth.com) |
+| Database / Backend | [NestJS](https://nestjs.com) + [PostgreSQL](https://postgresql.org) |
 | AI | [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/overview) via `openai` |
 | UI Components | [shadcn/ui](https://ui.shadcn.com) + [Radix UI](https://radix-ui.com) |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com) |
@@ -72,14 +72,13 @@ src/
 │   ├── schemas/              # Shared Zod schemas (enums, draft, template, auth, ai)
 │   ├── draft-content.ts      # Draft parsing and normalization
 │   ├── compliance-analysis.ts # RA 7160 compliance rules
+│   ├── api-client.ts         # Typed fetch wrapper for NestJS API
+│   ├── api-hooks.ts          # useApiQuery / useApiMutation hooks
 │   └── utils.ts              # Utility functions
 └── types/                    # Centralized TypeScript type exports
-convex/
-├── schema.ts                 # Database schema (users, drafts, templates, complianceReports)
-├── drafts.ts                 # Draft queries and mutations
-├── templates.ts              # Template queries and mutations
-├── ai.ts                     # Azure OpenAI actions (generation, compliance, summary)
-└── users.ts                  # User sync with Clerk
+apps/
+├── api/                      # NestJS backend (controllers, services, modules)
+└── web/                      # Next.js frontend
 public/                       # Static assets
 tests/                        # Test files
 ```
@@ -100,9 +99,8 @@ tests/                        # Test files
 ### Prerequisites
 
 - Node.js 20+
-- A [Clerk](https://clerk.com) account
-- A [Convex](https://convex.dev) account
 - An Azure OpenAI resource with a deployed chat model
+- PostgreSQL (for NestJS API)
 
 ### Installation
 
@@ -117,16 +115,12 @@ npm install
 Create a `.env.local` file in the project root:
 
 ```env
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-CLERK_SECRET_KEY=sk_...
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+# Auth (Better Auth)
+AUTH_SECRET=...
+AUTH_BETTER_CALL_DEV=true
 
-# Convex
-NEXT_PUBLIC_CONVEX_URL=https://...convex.cloud
+# API
+NEXT_PUBLIC_API_URL=http://localhost:4000/api
 
 # Azure OpenAI
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
@@ -138,14 +132,10 @@ AZURE_OPENAI_DEPLOYMENT=...
 ### Run the Development Server
 
 ```bash
-# Terminal 1 — Next.js
-npm run dev
-
-# Terminal 2 — Convex backend
-npx convex dev
+pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+This starts both Next.js (web) and NestJS (API) concurrently. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Current MVP Boundaries
 
@@ -161,12 +151,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Script | Description |
 |---|---|
-| `npm run dev` | Start Next.js dev server (Turbopack) |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npx convex dev` | Start Convex backend in watch mode |
-| `npx convex deploy` | Deploy Convex functions to production |
+| `pnpm dev` | Start Next.js + NestJS dev servers (Turbopack) |
+| `pnpm build` | Production build |
+| `pnpm lint` | Run ESLint |
+| `pnpm test` | Run vitest tests |
 
 ---
 
@@ -178,10 +166,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 2. Add all environment variables from `.env.local` to the Vercel project settings
 3. Deploy — Vercel auto-detects Next.js
 
-### Convex
+### NestJS
+
+Build and start the API server independently:
 
 ```bash
-npx convex deploy
+cd apps/api
+pnpm build
+pnpm start:prod
 ```
-
-Set `CONVEX_DEPLOY_KEY` in your CI/CD environment for automated deployments.

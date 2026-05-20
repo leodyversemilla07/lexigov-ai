@@ -1,84 +1,76 @@
 // Schemas
-export * from "./schemas/enums";
-export * from "./schemas/auth";
-export * from "./schemas/draft";
-export * from "./schemas/template";
-export * from "./schemas/ai";
 
-// Types (re-exports from schemas)
 export type {
-    DraftContentInput,
-    JurisdictionDetailsInput,
-    CreateDraftInput,
-    DraftComposerInput,
-    UpdateDraftInput,
-    DraftQueryInput,
-} from "./schemas/draft";
-export type {
-    TemplateCategory,
-    TemplateVisibility,
-    CreateTemplateInput,
-    TemplateEditorInput,
-    UpdateTemplateInput,
-    TemplateQueryInput,
-} from "./schemas/template";
-export type {
-    AIDraftFormInput,
-} from "./schemas/ai";
-
-// Draft content utilities
-export {
-    buildDraftSectionsFromBody,
-    composeDraftBodyFromSections,
-    createDraftSection,
-    extractDraftBody,
-    extractDraftSections,
-    buildDraftSummary,
-    normalizeDraftContent,
-    updateDraftBodyContent,
-    updateDraftSectionsContent,
-} from "./draft-content";
-export type {
-    DraftSection,
-    StructuredDraftContent,
-} from "./draft-content";
-
+  ComplianceIssue,
+  ComplianceIssueType,
+  ComplianceResult,
+} from './compliance-analysis';
 // Compliance analysis
 export {
-    analyzeDeterministicCompliance,
-    buildComplianceResultFromIssues,
-    mergeComplianceIssues,
-} from "./compliance-analysis";
+  analyzeDeterministicCompliance,
+  buildComplianceResultFromIssues,
+  mergeComplianceIssues,
+} from './compliance-analysis';
 export type {
-    ComplianceIssue,
-    ComplianceIssueType,
-    ComplianceResult,
-} from "./compliance-analysis";
-
+  DraftSection,
+  StructuredDraftContent,
+} from './draft-content';
+// Draft content utilities
+export {
+  buildDraftSectionsFromBody,
+  buildDraftSummary,
+  composeDraftBodyFromSections,
+  createDraftSection,
+  extractDraftBody,
+  extractDraftSections,
+  normalizeDraftContent,
+  updateDraftBodyContent,
+  updateDraftSectionsContent,
+} from './draft-content';
+export type { AIDraftFormInput } from './schemas/ai';
+export * from './schemas/ai';
+export * from './schemas/auth';
+// Types (re-exports from schemas)
+export type {
+  CreateDraftInput,
+  DraftComposerInput,
+  DraftContentInput,
+  DraftQueryInput,
+  JurisdictionDetailsInput,
+  UpdateDraftInput,
+} from './schemas/draft';
+export * from './schemas/draft';
+export * from './schemas/enums';
+export type {
+  CreateTemplateInput,
+  TemplateCategory,
+  TemplateEditorInput,
+  TemplateQueryInput,
+  TemplateVisibility,
+  UpdateTemplateInput,
+} from './schemas/template';
+export * from './schemas/template';
+export type { TemplateData } from './template-utils';
 // Template utilities
 export {
-    getTemplateDescription,
-    getTemplateDocumentType,
-    getTemplateJurisdiction,
-    getTemplatePrompt,
-    getTemplateBody,
-    getTemplateSections,
-} from "./template-utils";
+  getTemplateBody,
+  getTemplateDescription,
+  getTemplateDocumentType,
+  getTemplateJurisdiction,
+  getTemplatePrompt,
+  getTemplateSections,
+} from './template-utils';
 export type {
-    TemplateData,
-} from "./template-utils";
-
+  DiffRow,
+  DiffRowType,
+  SectionDiffRow,
+  SectionDiffType,
+} from './text-diff';
 // Text diff utilities
 export {
-    buildLineDiff,
-    buildSectionDiff,
-} from "./text-diff";
-export type {
-    DiffRow,
-    DiffRowType,
-    SectionDiffRow,
-    SectionDiffType,
-} from "./text-diff";
+  buildLineDiff,
+  buildSectionDiff,
+} from './text-diff';
 
 // Utils
-export { cn } from "./utils";
+export { cn } from './utils';

@@ -3,7 +3,7 @@ import {
     buildDraftSectionsFromBody,
     normalizeDraftContent,
     updateDraftSectionsContent,
-} from "../src/lib/draft-content";
+} from '@lexigov/shared';
 
 describe("buildDraftSectionsFromBody", () => {
     it("parses formal section headings into structured sections", () => {

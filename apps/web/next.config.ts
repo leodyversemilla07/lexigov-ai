@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
     images: {
         unoptimized: true,
     },
+    transpilePackages: ['@lexigov/ui'],
 };
 
 export default nextConfig;

@@ -1,27 +1,27 @@
-import { IsString, IsOptional, IsBoolean, MinLength } from "class-validator";
+import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateDraftDto {
-    @IsString()
-    @MinLength(5)
-    title!: string;
+  @IsString()
+  @MinLength(5)
+  title!: string;
 
-    @IsString()
-    documentType!: string;
+  @IsString()
+  documentType!: string;
 
-    @IsString()
-    jurisdiction!: string;
+  @IsString()
+  jurisdiction!: string;
 
-    @IsString()
-    jurisdictionName!: string;
+  @IsString()
+  jurisdictionName!: string;
 
-    @IsOptional()
-    content?: any;
+  @IsOptional()
+  content?: any;
 
-    @IsOptional()
-    @IsBoolean()
-    aiGenerated?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  aiGenerated?: boolean;
 
-    @IsOptional()
-    @IsString()
-    templateId?: string;
+  @IsOptional()
+  @IsString()
+  templateId?: string;
 }

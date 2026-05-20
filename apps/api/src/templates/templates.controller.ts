@@ -1,55 +1,41 @@
-import {
-    Controller,
-    Get,
-    Post,
-    Body,
-    Param,
-    Delete,
-    Query,
-    UseGuards,
-    Req,
-} from "@nestjs/common";
-import { TemplatesService } from "./templates.service";
-import { CreateTemplateDto } from "./dto/create-template.dto";
-import { UpdateTemplateDto } from "./dto/update-template.dto";
-import { AuthGuard } from "../auth/auth.guard";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/auth.guard';
+import type { CreateTemplateDto } from './dto/create-template.dto';
+import type { UpdateTemplateDto } from './dto/update-template.dto';
+import type { TemplatesService } from './templates.service';
 
-@Controller("templates")
+@Controller('templates')
 @UseGuards(AuthGuard)
 export class TemplatesController {
-    constructor(private readonly templatesService: TemplatesService) {}
+  constructor(private readonly templatesService: TemplatesService) {}
 
-    @Post()
-    create(@Body() dto: CreateTemplateDto, @Req() req: any) {
-        return this.templatesService.create(dto, req.user.userId);
-    }
+  @Post()
+  create(@Body() dto: CreateTemplateDto, @Req() req: any) {
+    return this.templatesService.create(dto, req.user.userId);
+  }
 
-    @Get()
-    findAll(@Query("category") category?: string) {
-        return this.templatesService.findAll(category);
-    }
+  @Get()
+  findAll(@Query('category') category?: string, @Query('publicOnly') publicOnly?: string) {
+    return this.templatesService.findAll(category, publicOnly === 'true');
+  }
 
-    @Get(":id")
-    findOne(@Param("id") id: string, @Req() req: any) {
-        return this.templatesService.findOne(id, req.user?.userId);
-    }
+  @Get(':id')
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.templatesService.findOne(id, req.user?.userId);
+  }
 
-    @Post(":id")
-    update(
-        @Param("id") id: string,
-        @Body() dto: UpdateTemplateDto,
-        @Req() req: any,
-    ) {
-        return this.templatesService.update(id, dto, req.user.userId);
-    }
+  @Post(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateTemplateDto, @Req() req: any) {
+    return this.templatesService.update(id, dto, req.user.userId);
+  }
 
-    @Delete(":id")
-    remove(@Param("id") id: string, @Req() req: any) {
-        return this.templatesService.remove(id, req.user.userId);
-    }
+  @Delete(':id')
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.templatesService.remove(id, req.user.userId);
+  }
 
-    @Post(":id/usage")
-    incrementUsage(@Param("id") id: string) {
-        return this.templatesService.incrementUsage(id);
-    }
+  @Post(':id/usage')
+  incrementUsage(@Param('id') id: string) {
+    return this.templatesService.incrementUsage(id);
+  }
 }

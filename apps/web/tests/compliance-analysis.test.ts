@@ -3,7 +3,7 @@ import {
     analyzeDeterministicCompliance,
     buildComplianceResultFromIssues,
     mergeComplianceIssues,
-} from "../src/lib/compliance-analysis";
+} from '@lexigov/shared';
 
 describe("analyzeDeterministicCompliance", () => {
     it("flags missing core ordinance structure", () => {
