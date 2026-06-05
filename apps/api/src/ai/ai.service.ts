@@ -57,16 +57,24 @@ export class AiService {
   }
 
   async checkCompliance(content: string, jurisdiction: string) {
-    const deterministic = analyzeDeterministicCompliance(content, jurisdiction as any);
+    // For unknown jurisdictions, skip the AI augmentation path entirely. The
+    // shared deterministic analyzer only knows about the four RA 7160 levels
+    // and would otherwise crash trying to look up penalty rules for an
+    // arbitrary string.
+    const isKnownJurisdiction =
+      jurisdiction === 'barangay' ||
+      jurisdiction === 'municipal' ||
+      jurisdiction === 'city' ||
+      jurisdiction === 'provincial';
 
-    if (
-      jurisdiction !== 'barangay' &&
-      jurisdiction !== 'municipal' &&
-      jurisdiction !== 'city' &&
-      jurisdiction !== 'provincial'
-    ) {
-      return deterministic;
+    if (!isKnownJurisdiction) {
+      // Skip the deterministic analyzer too — it requires a known jurisdiction
+      // to compute penalty rule lookups. Return an empty compliance result
+      // so callers can still proceed without throwing.
+      return { overallScore: 0, isValid: false, issues: [] };
     }
+
+    const deterministic = analyzeDeterministicCompliance(content, jurisdiction as any);
 
     const config = this.getConfig();
     const { AzureOpenAI } = await import('openai');

@@ -1,12 +1,18 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '../auth/auth.guard';
 import type { AiService } from './ai.service';
 import type { CheckComplianceDto } from './dto/check-compliance.dto';
 import type { GenerateOrdinanceDto } from './dto/generate-ordinance.dto';
 import type { GenerateSummaryDto } from './dto/generate-summary.dto';
 
+/**
+ * AI endpoints hit Azure OpenAI and are billed per token.
+ * The 'ai' tier is configured globally in AppModule (10 req/min/user).
+ */
 @Controller('ai')
 @UseGuards(AuthGuard)
+@Throttle({ ai: { limit: 10, ttl: 60_000 } })
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
