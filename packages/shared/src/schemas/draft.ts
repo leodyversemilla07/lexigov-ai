@@ -1,6 +1,6 @@
 /**
  * Draft Zod Schemas
- * Validation for creating and updating Convex-backed ordinance drafts
+ * Validation for creating and updating ordinance drafts
  */
 import { z } from 'zod';
 import { documentStatusSchema, documentTypeSchema, jurisdictionLevelSchema } from './enums';

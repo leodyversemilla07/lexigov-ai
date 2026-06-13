@@ -11,6 +11,10 @@
     "format": "biome format --write",
     "lint:turbo": "turbo lint",
     "test": "turbo test",
+    "db:generate": "pnpm --filter @lexigov/api db:generate",
+    "db:migrate": "pnpm --filter @lexigov/api db:migrate",
+    "db:seed": "pnpm --filter @lexigov/api db:seed",
+    "db:studio": "pnpm --filter @lexigov/api db:studio",
     "dev:web": "turbo dev --filter=@lexigov/web",
     "dev:api": "turbo dev --filter=@lexigov/api",
     "clean": "turbo clean"

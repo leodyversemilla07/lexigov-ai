@@ -1,6 +1,5 @@
-import type * as React from 'react';
-
 import { cn } from '@lexigov/shared';
+import type * as React from 'react';
 
 function Card({ className, ...props }: React.ComponentProps<'div'>) {
   return (

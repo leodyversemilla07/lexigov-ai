@@ -76,7 +76,10 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className='flex items-center gap-3 rounded-md px-2 py-2 w-full hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center'>
+        <button
+          type='button'
+          className='flex items-center gap-3 rounded-md px-2 py-2 w-full hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center'
+        >
           <Avatar className='size-9'>
             <AvatarImage src={user.image ?? undefined} alt={user.name ?? 'User'} />
             <AvatarFallback className='text-xs'>{initials}</AvatarFallback>

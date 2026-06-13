@@ -142,11 +142,16 @@ function buildPrismaDouble() {
     ),
   };
 
-  return {
+  const tx = {
     draft,
     complianceReport,
     exportHistory: exportHistoryModel,
     auditLog,
+  };
+
+  return {
+    ...tx,
+    $transaction: jest.fn(async <T>(callback: (transaction: typeof tx) => Promise<T>) => callback(tx)),
     _state: { drafts, auditLogs, exportHistory },
   };
 }
@@ -164,6 +169,14 @@ function buildService() {
   const prisma = buildPrismaDouble();
   const service = new DraftsService(prisma as unknown as ConstructorParameters<typeof DraftsService>[0]);
   return { service, prisma };
+}
+
+function expectDefined<T>(value: T | undefined, message = 'Expected value to be defined'): T {
+  expect(value).toBeDefined();
+  if (value === undefined) {
+    throw new Error(message);
+  }
+  return value;
 }
 
 describe('DraftsService.create', () => {
@@ -194,10 +207,10 @@ describe('DraftsService.findAll', () => {
     const a = await service.create({ ...baseCreateInput, title: 'A' }, userId);
     const b = await service.create({ ...baseCreateInput, title: 'B' }, userId);
     // Make A newer so the order is deterministic
-    prisma._state.drafts.get(a.id)!.updatedAt = new Date(Date.now() + 1000);
+    expectDefined(prisma._state.drafts.get(a.id)).updatedAt = new Date(Date.now() + 1000);
     // Plant a revision row that should NOT appear (parentDraftId set)
     prisma._state.drafts.set('rev_only', {
-      ...prisma._state.drafts.get(b.id)!,
+      ...expectDefined(prisma._state.drafts.get(b.id)),
       id: 'rev_only',
       parentDraftId: b.id,
     });
@@ -211,7 +224,7 @@ describe('DraftsService.findAll', () => {
   it('filters by status when provided', async () => {
     const { service, prisma } = buildService();
     const draft = await service.create(baseCreateInput, userId);
-    prisma._state.drafts.get(draft.id)!.status = 'REVIEW';
+    expectDefined(prisma._state.drafts.get(draft.id)).status = 'REVIEW';
 
     const results = await service.findAll(userId, 'REVIEW');
     expect(results.map((d) => d.id)).toEqual([draft.id]);
@@ -301,8 +314,12 @@ describe('DraftsService.remove', () => {
     expect(result).toEqual({ success: true });
     expect(prisma._state.drafts.has(draft.id)).toBe(false);
     expect(prisma._state.drafts.has('draft_revision_1')).toBe(false);
-    expect(prisma.complianceReport.deleteMany).toHaveBeenCalledWith({ where: { draftId: draft.id } });
-    expect(prisma.exportHistory.deleteMany).toHaveBeenCalledWith({ where: { draftId: draft.id } });
+    expect(prisma.complianceReport.deleteMany).toHaveBeenCalledWith({
+      where: { draftId: { in: [draft.id, 'draft_revision_1'] } },
+    });
+    expect(prisma.exportHistory.deleteMany).toHaveBeenCalledWith({
+      where: { draftId: { in: [draft.id, 'draft_revision_1'] } },
+    });
     expect(prisma._state.auditLogs.find((l) => l.action === 'DELETE')).toBeDefined();
   });
 
@@ -401,10 +418,11 @@ describe('DraftsService.restoreVersion', () => {
     expect(snapshot).toBeDefined();
 
     // Restore from the snapshot
-    const result = await service.restoreVersion(root.id, snapshot!.id, userId);
+    const snapshotRecord = expectDefined(snapshot);
+    const result = await service.restoreVersion(root.id, snapshotRecord.id, userId);
 
     expect(result.success).toBe(true);
-    expect(result.restoredFromVersion).toBe(snapshot!.version);
+    expect(result.restoredFromVersion).toBe(snapshotRecord.version);
 
     // The current draft should now have the snapshot's title (the original)
     const afterRestore = await service.findOne(root.id, userId);
@@ -448,6 +466,9 @@ describe('DraftsService.restoreVersion', () => {
     const snapshot = Array.from(prisma._state.drafts.values()).find((d) => d.parentDraftId === root.id);
 
     // Try to restore on the snapshot (which is itself a revision)
-    await expect(service.restoreVersion(snapshot!.id, snapshot!.id, userId)).rejects.toBeInstanceOf(NotFoundException);
+    const snapshotRecord = expectDefined(snapshot);
+    await expect(service.restoreVersion(snapshotRecord.id, snapshotRecord.id, userId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

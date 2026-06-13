@@ -1,9 +1,8 @@
 'use client';
 
+import { cn } from '@lexigov/shared';
 import { ScrollArea as ScrollAreaPrimitive } from 'radix-ui';
 import type * as React from 'react';
-
-import { cn } from '@lexigov/shared';
 
 function ScrollArea({ className, children, ...props }: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
   return (

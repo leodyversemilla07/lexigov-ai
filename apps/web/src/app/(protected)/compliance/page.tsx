@@ -37,6 +37,17 @@ interface Draft {
   content: unknown;
 }
 
+interface ComplianceReportHistoryItem {
+  id: string;
+  draftVersion: number;
+  overallScore: number;
+  isValid: boolean;
+  issuesCount: number;
+  warningsCount: number;
+  suggestionsCount: number;
+  checkedAt: string;
+}
+
 function CompliancePageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
@@ -48,7 +59,9 @@ function CompliancePageContent() {
   const [result, setResult] = useState<ComplianceResult | null>(null);
 
   const selectedDraft = drafts?.find((d: Draft) => d.id === selectedDraftId);
-  const { data: reportHistory } = useApiQuery<unknown[]>(selectedDraftId ? `/compliance/${selectedDraftId}` : null);
+  const { data: reportHistory } = useApiQuery<ComplianceReportHistoryItem[]>(
+    selectedDraftId ? `/compliance/${selectedDraftId}` : null,
+  );
 
   const getContent = (draft: Draft): string => {
     return extractDraftBody(draft.content);
@@ -200,7 +213,7 @@ function CompliancePageContent() {
                 <CardDescription>Latest saved compliance reports for this draft</CardDescription>
               </CardHeader>
               <CardContent className='space-y-3 text-sm'>
-                {reportHistory.map((report: any) => (
+                {reportHistory.map((report) => (
                   <div key={report.id} className='rounded-lg border p-3'>
                     <div className='flex items-center justify-between gap-3'>
                       <span className='font-medium'>
@@ -307,9 +320,9 @@ function CompliancePageContent() {
                   </div>
                 ) : (
                   <div className='space-y-4'>
-                    {result.issues.map((issue, i) => (
+                    {result.issues.map((issue) => (
                       <div
-                        key={i}
+                        key={`${issue.type}-${issue.section ?? 'general'}-${issue.title}`}
                         className={cn(
                           'rounded-lg border p-4',
                           issue.type === 'critical'

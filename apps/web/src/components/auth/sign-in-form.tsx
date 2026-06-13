@@ -5,12 +5,16 @@ import { Input } from '@lexigov/ui/components/input';
 import { Label } from '@lexigov/ui/components/label';
 import { Loader2, Scale } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { signIn } from '@/lib/auth-client';
 
 export function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawCallbackUrl = searchParams.get('callbackURL');
+  const callbackURL =
+    rawCallbackUrl?.startsWith('/') && !rawCallbackUrl.startsWith('//') ? rawCallbackUrl : '/dashboard';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -24,14 +28,14 @@ export function SignInForm() {
     const { error: signInError } = await signIn.email({
       email,
       password,
-      callbackURL: '/dashboard',
+      callbackURL,
     });
 
     if (signInError) {
       setError(signInError.message || 'Invalid credentials');
       setLoading(false);
     } else {
-      router.push('/dashboard');
+      router.push(callbackURL);
     }
   };
 

@@ -18,17 +18,29 @@ export interface SectionDiffRow {
   rightBody: string;
 }
 
+function matrixValue(matrix: number[][], row: number, col: number) {
+  return matrix[row]?.[col] ?? 0;
+}
+
 function buildLcsMatrix(leftLines: string[], rightLines: string[]) {
-  const matrix = Array.from({ length: leftLines.length + 1 }, () =>
+  const matrix: number[][] = Array.from({ length: leftLines.length + 1 }, () =>
     Array.from({ length: rightLines.length + 1 }, () => 0),
   );
 
   for (let leftIndex = leftLines.length - 1; leftIndex >= 0; leftIndex -= 1) {
+    const matrixRow = matrix[leftIndex];
+    if (!matrixRow) {
+      continue;
+    }
+
     for (let rightIndex = rightLines.length - 1; rightIndex >= 0; rightIndex -= 1) {
       if (leftLines[leftIndex] === rightLines[rightIndex]) {
-        matrix[leftIndex][rightIndex] = matrix[leftIndex + 1][rightIndex + 1] + 1;
+        matrixRow[rightIndex] = matrixValue(matrix, leftIndex + 1, rightIndex + 1) + 1;
       } else {
-        matrix[leftIndex][rightIndex] = Math.max(matrix[leftIndex + 1][rightIndex], matrix[leftIndex][rightIndex + 1]);
+        matrixRow[rightIndex] = Math.max(
+          matrixValue(matrix, leftIndex + 1, rightIndex),
+          matrixValue(matrix, leftIndex, rightIndex + 1),
+        );
       }
     }
   }
@@ -47,7 +59,7 @@ function extractCommonSequence(leftLines: string[], rightLines: string[]) {
       sequence.push({ leftIndex, rightIndex });
       leftIndex += 1;
       rightIndex += 1;
-    } else if (matrix[leftIndex + 1][rightIndex] >= matrix[leftIndex][rightIndex + 1]) {
+    } else if (matrixValue(matrix, leftIndex + 1, rightIndex) >= matrixValue(matrix, leftIndex, rightIndex + 1)) {
       leftIndex += 1;
     } else {
       rightIndex += 1;
@@ -70,7 +82,7 @@ export function buildLineDiff(leftText: string, rightText: string) {
     while (leftCursor < match.leftIndex) {
       rows.push({
         leftLineNumber: leftCursor + 1,
-        leftText: leftLines[leftCursor],
+        leftText: leftLines[leftCursor] ?? '',
         rightText: '',
         type: 'removed',
       });
@@ -81,7 +93,7 @@ export function buildLineDiff(leftText: string, rightText: string) {
       rows.push({
         rightLineNumber: rightCursor + 1,
         leftText: '',
-        rightText: rightLines[rightCursor],
+        rightText: rightLines[rightCursor] ?? '',
         type: 'added',
       });
       rightCursor += 1;
@@ -90,8 +102,8 @@ export function buildLineDiff(leftText: string, rightText: string) {
     rows.push({
       leftLineNumber: match.leftIndex + 1,
       rightLineNumber: match.rightIndex + 1,
-      leftText: leftLines[match.leftIndex],
-      rightText: rightLines[match.rightIndex],
+      leftText: leftLines[match.leftIndex] ?? '',
+      rightText: rightLines[match.rightIndex] ?? '',
       type: 'same',
     });
     leftCursor = match.leftIndex + 1;
@@ -101,7 +113,7 @@ export function buildLineDiff(leftText: string, rightText: string) {
   while (leftCursor < leftLines.length) {
     rows.push({
       leftLineNumber: leftCursor + 1,
-      leftText: leftLines[leftCursor],
+      leftText: leftLines[leftCursor] ?? '',
       rightText: '',
       type: 'removed',
     });
@@ -112,7 +124,7 @@ export function buildLineDiff(leftText: string, rightText: string) {
     rows.push({
       rightLineNumber: rightCursor + 1,
       leftText: '',
-      rightText: rightLines[rightCursor],
+      rightText: rightLines[rightCursor] ?? '',
       type: 'added',
     });
     rightCursor += 1;

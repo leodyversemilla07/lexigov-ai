@@ -15,7 +15,7 @@ Guidelines for agentic coding agents working in this repository.
 pnpm dev          # Start Next.js dev server + NestJS API (Turbopack)
 pnpm build        # Production build
 pnpm start        # Start production server
-pnpm lint         # Run ESLint
+pnpm lint         # Run Biome checks
 pnpm test         # Run vitest tests
 ```
 
@@ -109,7 +109,7 @@ Use `cn()` for conditional classes: `import { cn } from "@/lib/utils";`
 AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY
 AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEPLOYMENT
 NEXT_PUBLIC_API_URL
-DATABASE_URL, AUTH_SECRET, AUTH_BETTER_CALL_DEV
+DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, BETTER_AUTH_TRUSTED_ORIGINS
 ```
 
 ## Packages

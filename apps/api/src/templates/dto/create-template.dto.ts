@@ -1,25 +1,46 @@
-import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
+import {
+  type JurisdictionLevel,
+  jurisdictionLevelValues,
+  type TemplateCategory,
+  templateCategoryValues,
+} from '@lexigov/shared';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class CreateTemplateDto {
   @IsString()
+  @MinLength(3)
+  @MaxLength(200)
   name!: string;
 
-  @IsString()
-  category!: string;
+  @IsIn([...templateCategoryValues])
+  category!: TemplateCategory;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   subcategory?: string;
 
   @IsArray()
-  @IsString({ each: true })
-  jurisdiction!: string[];
+  @ArrayMinSize(1)
+  @IsIn([...jurisdictionLevelValues], { each: true })
+  jurisdiction!: JurisdictionLevel[];
+
+  @IsObject()
+  structure!: Record<string, unknown>;
 
   @IsOptional()
-  structure?: any;
-
-  @IsOptional()
-  exampleContent?: any;
+  @IsObject()
+  exampleContent?: Record<string, unknown>;
 
   @IsOptional()
   @IsBoolean()

@@ -150,13 +150,13 @@ model Draft {
     aiGenerated      Boolean  @default(false)
 
     userId String
-    user   User   @relation(fields: [userId], references: [id])
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     templateId String?
 
     version       Int    @default(1)
     parentDraftId String?
-    parentDraft   Draft?  @relation("DraftVersions", fields: [parentDraftId], references: [id])
+    parentDraft   Draft?  @relation("DraftVersions", fields: [parentDraftId], references: [id], onDelete: Cascade)
     revisions     Draft[] @relation("DraftVersions")
 
     commitMessage String?
@@ -185,7 +185,7 @@ model Template {
     usageCount     Int      @default(0)
 
     userId String
-    user   User   @relation(fields: [userId], references: [id])
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -198,7 +198,7 @@ model Template {
 model ComplianceReport {
     id               String   @id @default(cuid())
     draftId          String
-    draft            Draft    @relation(fields: [draftId], references: [id])
+    draft            Draft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
     draftVersion     Int
     revisionDraftId  String?
 
@@ -217,14 +217,14 @@ model ComplianceReport {
 model ExportHistory {
     id        String   @id @default(cuid())
     draftId   String
-    draft     Draft    @relation(fields: [draftId], references: [id])
+    draft     Draft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
     exportType String
     fileUrl   String?
     fileSize  Int?
     pageCount Int?
 
     exportedBy   String
-    exportedByUser User @relation(fields: [exportedBy], references: [id])
+    exportedByUser User @relation(fields: [exportedBy], references: [id], onDelete: Cascade)
 
     createdAt DateTime @default(now())
 
@@ -237,7 +237,7 @@ model AuditLog {
     entityType String
     entityId   String
     userId     String
-    user       User     @relation(fields: [userId], references: [id])
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     changes    Json?
     ipAddress  String?
 

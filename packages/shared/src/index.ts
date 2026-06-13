@@ -9,6 +9,7 @@ export type {
 export {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
+  jurisdictionPenaltyGuidance,
   mergeComplianceIssues,
 } from './compliance-analysis';
 export type {

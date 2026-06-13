@@ -6,7 +6,16 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const prismaClientSingleton = () => {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  const databaseUrl = process.env.DATABASE_URL;
+
+  // During build time, skip Prisma initialization if DATABASE_URL is not set
+  if (!databaseUrl) {
+    // Return a mock client for build-time usage
+    // This allows the build to succeed without a real database connection
+    return {} as PrismaClient;
+  }
+
+  const adapter = new PrismaPg({ connectionString: databaseUrl });
   return new PrismaClient({ adapter });
 };
 

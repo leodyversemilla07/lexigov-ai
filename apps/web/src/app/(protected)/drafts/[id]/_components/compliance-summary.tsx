@@ -65,9 +65,9 @@ export function ComplianceSummary({
             No issues were found in this pass.
           </div>
         ) : (
-          complianceResult.issues.map((issue, index) => (
+          complianceResult.issues.map((issue) => (
             <div
-              key={`${issue.title}-${index}`}
+              key={`${issue.type}-${issue.section ?? 'general'}-${issue.title}`}
               className={cn(
                 'rounded-2xl border p-4 shadow-sm',
                 issue.type === 'critical' && 'border-red-200 bg-red-50/80',

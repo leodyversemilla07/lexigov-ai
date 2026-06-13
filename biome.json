@@ -10,7 +10,9 @@
     "includes": [
       "apps/web/src/**",
       "apps/api/src/**",
+      "apps/api/prisma/**/*.ts",
       "packages/shared/src/**",
+      "packages/ui/src/**",
 
       "scripts/**",
       "turbo.json",

@@ -491,7 +491,7 @@ function ExportPageContent() {
                       <SelectValue placeholder='Select a version' />
                     </SelectTrigger>
                     <SelectContent>
-                      {versionHistory.map((version) => (
+                      {(versionHistory ?? []).map((version) => (
                         <SelectItem key={version.id} value={version.id}>
                           v{version.version} {version.isCurrent ? '(Current)' : ''}
                         </SelectItem>

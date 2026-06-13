@@ -15,8 +15,8 @@ export class TemplatesController {
   }
 
   @Get()
-  findAll(@Query('category') category?: string, @Query('publicOnly') publicOnly?: string) {
-    return this.templatesService.findAll(category, publicOnly === 'true');
+  findAll(@Req() req: any, @Query('category') category?: string, @Query('publicOnly') publicOnly?: string) {
+    return this.templatesService.findAll(req.user.userId, category, publicOnly === 'true');
   }
 
   @Get(':id')
@@ -35,7 +35,7 @@ export class TemplatesController {
   }
 
   @Post(':id/usage')
-  incrementUsage(@Param('id') id: string) {
-    return this.templatesService.incrementUsage(id);
+  incrementUsage(@Param('id') id: string, @Req() req: any) {
+    return this.templatesService.incrementUsage(id, req.user.userId);
   }
 }

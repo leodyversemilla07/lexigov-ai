@@ -9,6 +9,7 @@ import {
   getTemplateJurisdiction,
   getTemplatePrompt,
   getTemplateSections,
+  jurisdictionPenaltyGuidance,
   normalizeDraftContent,
   type TemplateData,
 } from '@lexigov/shared';
@@ -47,10 +48,10 @@ const documentTypes = [
 ];
 
 const jurisdictions = [
-  { value: 'barangay', label: 'Barangay', penalty: 'Fine up to ₱1,000 or community service' },
-  { value: 'municipal', label: 'Municipal', penalty: 'Fine up to ₱5,000' },
-  { value: 'city', label: 'City', penalty: 'Fine up to ₱10,000' },
-  { value: 'provincial', label: 'Provincial', penalty: 'Fine up to ₱20,000' },
+  { value: 'barangay', label: 'Barangay', penalty: jurisdictionPenaltyGuidance.barangay },
+  { value: 'municipal', label: 'Municipal', penalty: jurisdictionPenaltyGuidance.municipal },
+  { value: 'city', label: 'City', penalty: jurisdictionPenaltyGuidance.city },
+  { value: 'provincial', label: 'Provincial', penalty: jurisdictionPenaltyGuidance.provincial },
 ];
 
 const promptTemplates = [

@@ -1,6 +1,6 @@
 /**
  * Shared Zod Enums
- * Matches the current Clerk + Convex application contracts
+ * Shared application contracts for web forms and API DTOs
  */
 import { z } from 'zod';
 
@@ -9,7 +9,7 @@ export const jurisdictionLevelValues = ['barangay', 'city', 'municipal', 'provin
 export const jurisdictionLevelSchema = z.enum(jurisdictionLevelValues);
 export type JurisdictionLevel = z.infer<typeof jurisdictionLevelSchema>;
 
-// Document types stored in Convex
+// Document types stored for drafts and templates
 export const documentTypeValues = ['ORDINANCE', 'RESOLUTION', 'MEMORANDUM', 'POLICY'] as const;
 export const documentTypeSchema = z.enum(documentTypeValues);
 export type DocumentType = z.infer<typeof documentTypeSchema>;

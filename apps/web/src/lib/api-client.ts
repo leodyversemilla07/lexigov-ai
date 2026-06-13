@@ -2,8 +2,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 function getSessionToken(): string | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/better-auth\.session_token=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  const match = document.cookie.match(/(?:__Secure-)?better-auth\.session_token=([^;]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
 export class ApiError extends Error {
@@ -17,15 +17,21 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+interface RequestOptions {
+  signal?: AbortSignal;
+}
+
+async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
   const token = getSessionToken();
   const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers,
+    credentials: 'include',
+    signal: options.signal,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
@@ -48,7 +54,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
 };

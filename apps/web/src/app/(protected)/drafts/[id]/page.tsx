@@ -208,7 +208,7 @@ export default function DraftEditorPage() {
   }
 
   // Not found state
-  if (!draft && !draftLoading) {
+  if (!draft) {
     return (
       <div className='space-y-6'>
         <div className='flex items-center gap-4'>
@@ -378,10 +378,13 @@ export default function DraftEditorPage() {
         <div className='space-y-6'>
           <WorkflowPanel draft={draft} status={status} onStatusChange={setStatus} />
 
-          <CompliancePulsePanel latestCompliance={latestCompliance} complianceHistory={complianceHistory} />
+          <CompliancePulsePanel
+            latestCompliance={latestCompliance}
+            complianceHistory={complianceHistory ?? undefined}
+          />
 
           <VersionTrailPanel
-            versionHistory={versionHistory}
+            versionHistory={versionHistory ?? undefined}
             isRestoringVersionId={isRestoringVersionId}
             onRestoreVersion={handleRestoreVersion}
           />

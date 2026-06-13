@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import type { DraftsService } from './drafts.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
+import type { LogExportDto } from './dto/log-export.dto';
 import type { RestoreVersionDto } from './dto/restore-version.dto';
 import type { UpdateDraftDto } from './dto/update-draft.dto';
 
@@ -46,7 +47,16 @@ export class DraftsController {
   }
 
   @Get(':id/export')
-  exportDraft(@Param('id') id: string, @Req() req: any, @Query('format') format: 'txt' | 'md' = 'txt') {
+  exportDraft(@Param('id') id: string, @Req() req: any, @Query('format') format: string = 'txt') {
+    if (format !== 'txt' && format !== 'md') {
+      throw new BadRequestException('Export format must be txt or md');
+    }
+
     return this.draftsService.exportDraft(id, req.user.userId, format);
+  }
+
+  @Post(':id/export')
+  logExport(@Param('id') id: string, @Req() req: any, @Body() dto: LogExportDto) {
+    return this.draftsService.logExport(id, req.user.userId, dto);
   }
 }

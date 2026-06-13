@@ -46,11 +46,11 @@ LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI 
 src/
 ├── app/
 │   ├── page.tsx             # Landing page (public) → /
-│   ├── layout.tsx           # Root layout (Clerk, Convex, theme)
+│   ├── layout.tsx           # Root layout (Better Auth, theme)
 │   ├── (auth)/              # Public auth routes (no layout)
 │   │   ├── sign-in/         # → /sign-in
 │   │   └── sign-up/         # → /sign-up
-│   └── (protected)/         # Route group — shared sidebar layout, Clerk-protected
+│   └── (protected)/         # Route group — shared sidebar layout, protected by Next proxy + API auth
 │       ├── layout.tsx        # Sidebar + header layout (no URL prefix added)
 │       ├── dashboard/        # → /dashboard  (overview & stats)
 │       ├── drafts/           # → /drafts     (draft list)
@@ -66,15 +66,15 @@ src/
 │   ├── app-sidebar.tsx       # LexiGov navigation sidebar (shadcn sidebar-07)
 │   ├── header.tsx            # Top header with sidebar trigger, search, user menu
 │   ├── nav-main.tsx          # Flat NavLinks with active-route detection via usePathname
-│   └── ui/                   # shadcn/ui primitives
+│   └── auth/                 # Auth forms and auth-aware actions
 ├── hooks/                    # Custom React hooks
 ├── lib/
-│   ├── schemas/              # Shared Zod schemas (enums, draft, template, auth, ai)
-│   ├── draft-content.ts      # Draft parsing and normalization
-│   ├── compliance-analysis.ts # RA 7160 compliance rules
+│   ├── auth.ts               # Better Auth server configuration
+│   ├── auth-client.ts        # Better Auth browser client
 │   ├── api-client.ts         # Typed fetch wrapper for NestJS API
 │   ├── api-hooks.ts          # useApiQuery / useApiMutation hooks
-│   └── utils.ts              # Utility functions
+│   ├── email/                # Email providers and templates
+│   └── prisma.ts             # Prisma adapter client for Better Auth
 └── types/                    # Centralized TypeScript type exports
 apps/
 ├── api/                      # NestJS backend (controllers, services, modules)
@@ -107,27 +107,45 @@ tests/                        # Test files
 ```bash
 git clone https://github.com/leodyversemilla07/lexigov-ai.git
 cd lexigov-ai
-npm install
+pnpm install
 ```
 
 ### Environment Variables
 
-Create a `.env.local` file in the project root:
+Create `apps/web/.env` and `apps/api/.env` with the relevant variables below:
 
 ```env
 # Auth (Better Auth)
-AUTH_SECRET=...
-AUTH_BETTER_CALL_DEV=true
+BETTER_AUTH_SECRET=generate-with-openssl-rand-base64-32
+BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000
+
+# Database
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lexigov?schema=public
 
 # API
 NEXT_PUBLIC_API_URL=http://localhost:4000/api
+API_PORT=4000
+CORS_ORIGIN=http://localhost:3000
 
 # Azure OpenAI
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_API_VERSION=...
-AZURE_OPENAI_DEPLOYMENT=...
+AZURE_OPENAI_API_VERSION=2024-10-21
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
 ```
+
+### Database Setup
+
+After PostgreSQL is running and `DATABASE_URL` is set in `apps/api/.env` and `apps/web/.env`:
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
+```
+
+The seed step creates a system template-library user and starter public ordinance/resolution templates.
 
 ### Run the Development Server
 
@@ -153,8 +171,12 @@ This starts both Next.js (web) and NestJS (API) concurrently. Open [http://local
 |---|---|
 | `pnpm dev` | Start Next.js + NestJS dev servers (Turbopack) |
 | `pnpm build` | Production build |
-| `pnpm lint` | Run ESLint |
-| `pnpm test` | Run vitest tests |
+| `pnpm lint` | Run Biome checks |
+| `pnpm test` | Run web Vitest tests and API Jest tests |
+| `pnpm db:generate` | Generate the Prisma client for the API |
+| `pnpm db:migrate` | Run Prisma migrations against `apps/api/.env` |
+| `pnpm db:seed` | Seed starter public templates |
+| `pnpm db:studio` | Open Prisma Studio |
 
 ---
 
@@ -163,7 +185,7 @@ This starts both Next.js (web) and NestJS (API) concurrently. Open [http://local
 ### Vercel (Recommended)
 
 1. Push to GitHub and import the repository at [vercel.com/new](https://vercel.com/new)
-2. Add all environment variables from `.env.local` to the Vercel project settings
+2. Add all required environment variables to the Vercel project settings
 3. Deploy — Vercel auto-detects Next.js
 
 ### NestJS

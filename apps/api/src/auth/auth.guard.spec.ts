@@ -67,6 +67,17 @@ describe('AuthGuard', () => {
     expect(authService.verifySession).toHaveBeenCalledWith('cookie_token_123');
   });
 
+  it('falls back to the secure better-auth session cookie name in production', async () => {
+    authService.verifySession.mockResolvedValue({ userId: 'user_3', email: 'secure@example.com' });
+    const req: HttpRequest = {
+      headers: { cookie: '__Secure-better-auth.session_token=secure_cookie_token; other=foo' },
+    };
+
+    await guard.canActivate(buildContext(req));
+
+    expect(authService.verifySession).toHaveBeenCalledWith('secure_cookie_token');
+  });
+
   it('URL-decodes the cookie token before delegating to the auth service', async () => {
     authService.verifySession.mockResolvedValue({ userId: 'u', email: 'e@e.com' });
     const req: HttpRequest = {

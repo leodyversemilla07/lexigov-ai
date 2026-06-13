@@ -29,6 +29,7 @@ interface PrismaDouble {
     findMany: jest.Mock;
   };
   auditLog: { create: jest.Mock };
+  $transaction: jest.Mock;
   state: {
     drafts: Map<string, DraftRecord>;
     reports: ComplianceReportRecord[];
@@ -93,10 +94,11 @@ function buildPrismaDouble(): PrismaDouble {
     ),
   };
 
+  const tx = { draft, complianceReport, auditLog };
+
   return {
-    draft,
-    complianceReport,
-    auditLog,
+    ...tx,
+    $transaction: jest.fn(async <T>(callback: (transaction: typeof tx) => Promise<T>) => callback(tx)),
     state: { drafts, reports, auditLogs },
   };
 }

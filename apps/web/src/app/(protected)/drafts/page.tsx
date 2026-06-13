@@ -56,6 +56,13 @@ export default function DraftsPage() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
+  const stats = {
+    total: drafts?.length ?? 0,
+    draft: (drafts ?? []).filter((draft) => draft.status === 'DRAFT').length,
+    review: (drafts ?? []).filter((draft) => draft.status === 'REVIEW').length,
+    final: (drafts ?? []).filter((draft) => draft.status === 'FINAL').length,
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
@@ -191,11 +198,11 @@ export default function DraftsPage() {
         <CardContent className='p-0'>
           {isLoading ? (
             <div className='p-6 space-y-4'>
-              {Array(5)
-                .fill(0)
-                .map((_, i) => (
-                  <Skeleton key={i} className='h-20' />
-                ))}
+              {['draft-skeleton-1', 'draft-skeleton-2', 'draft-skeleton-3', 'draft-skeleton-4', 'draft-skeleton-5'].map(
+                (skeletonKey) => (
+                  <Skeleton key={skeletonKey} className='h-20' />
+                ),
+              )}
             </div>
           ) : !filteredDrafts || filteredDrafts.length === 0 ? (
             <div className='p-12 text-center'>

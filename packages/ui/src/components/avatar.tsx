@@ -1,9 +1,8 @@
 'use client';
 
+import { cn } from '@lexigov/shared';
 import { Avatar as AvatarPrimitive } from 'radix-ui';
 import type * as React from 'react';
-
-import { cn } from '@lexigov/shared';
 
 function Avatar({
   className,

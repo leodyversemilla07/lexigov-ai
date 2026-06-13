@@ -20,7 +20,7 @@ export type ComplianceSummaryData = {
   issuesCount: number;
   warningsCount: number;
   suggestionsCount: number;
-  checkedAt: number;
+  checkedAt: number | string;
 };
 
 export type DraftVersion = {

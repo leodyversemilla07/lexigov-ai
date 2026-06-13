@@ -26,8 +26,8 @@ export class AuthGuard implements CanActivate {
 
     const cookie = request.headers.cookie;
     if (cookie) {
-      const match = cookie.match(/better-auth\.session_token=([^;]+)/);
-      if (match) return decodeURIComponent(match[1]);
+      const match = cookie.match(/(?:__Secure-)?better-auth\.session_token=([^;]+)/);
+      if (match?.[1]) return decodeURIComponent(match[1]);
     }
 
     return null;

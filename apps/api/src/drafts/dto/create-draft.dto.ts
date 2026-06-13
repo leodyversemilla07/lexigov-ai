@@ -1,21 +1,31 @@
-import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  type DocumentType,
+  type DraftContentInput,
+  documentTypeValues,
+  type JurisdictionLevel,
+  jurisdictionLevelValues,
+} from '@lexigov/shared';
+import { IsBoolean, IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateDraftDto {
   @IsString()
   @MinLength(5)
+  @MaxLength(500)
   title!: string;
 
-  @IsString()
-  documentType!: string;
+  @IsIn([...documentTypeValues])
+  documentType!: DocumentType;
+
+  @IsIn([...jurisdictionLevelValues])
+  jurisdiction!: JurisdictionLevel;
 
   @IsString()
-  jurisdiction!: string;
-
-  @IsString()
+  @MinLength(1)
   jurisdictionName!: string;
 
   @IsOptional()
-  content?: any;
+  @IsObject()
+  content?: DraftContentInput;
 
   @IsOptional()
   @IsBoolean()

@@ -7,7 +7,8 @@ type TemplateRecord = Record<string, unknown>;
 type TemplateSection = { id: string; heading: string; body: string };
 
 export interface TemplateData {
-  _id: string;
+  id: string;
+  _id?: string;
   name: string;
   category: string;
   subcategory?: string;

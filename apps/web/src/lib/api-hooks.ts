@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type ApiError, api } from './api-client';
+import { ApiError, api } from './api-client';
 
 type QueryStatus = 'loading' | 'success' | 'error';
 
@@ -28,7 +28,7 @@ export function useApiQuery<T>(path: string | null) {
     setError(null);
 
     api
-      .get<T>(path)
+      .get<T>(path, { signal: controller.signal })
       .then((result) => {
         if (!controller.signal.aborted) {
           setData(result);
@@ -82,7 +82,7 @@ export function useApiMutation<TResponse, TBody = void>(method: 'POST' | 'DELETE
         setIsLoading(false);
       }
     },
-    [pathTemplate],
+    [method, pathTemplate],
   );
 
   return [mutate, { isLoading, error }] as const;

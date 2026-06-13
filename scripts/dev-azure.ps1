@@ -45,4 +45,4 @@ Write-Host "Deployment: $DeploymentName" -ForegroundColor Cyan
 Write-Host "Endpoint: $($env:AZURE_OPENAI_ENDPOINT)" -ForegroundColor Cyan
 Write-Host "API version: $ApiVersion" -ForegroundColor Cyan
 
-npm run dev:all
+pnpm dev

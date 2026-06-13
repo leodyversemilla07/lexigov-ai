@@ -2,6 +2,7 @@ import { extractDraftBody, normalizeDraftContent } from '@lexigov/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
+import type { LogExportDto } from './dto/log-export.dto';
 import type { UpdateDraftDto } from './dto/update-draft.dto';
 
 @Injectable()
@@ -10,34 +11,37 @@ export class DraftsService {
 
   async create(dto: CreateDraftDto, userId: string) {
     const now = new Date();
-    const draft = await this.prisma.draft.create({
-      data: {
-        title: dto.title,
-        documentType: dto.documentType,
-        jurisdiction: dto.jurisdiction,
-        jurisdictionName: dto.jurisdictionName,
-        content: normalizeDraftContent(dto.content ?? {}),
-        status: 'DRAFT',
-        aiGenerated: dto.aiGenerated ?? false,
-        userId,
-        templateId: dto.templateId,
-        version: 1,
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
 
-    await this.prisma.auditLog.create({
-      data: {
-        action: 'CREATE',
-        entityType: 'drafts',
-        entityId: draft.id,
-        userId,
-        createdAt: now,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const draft = await tx.draft.create({
+        data: {
+          title: dto.title,
+          documentType: dto.documentType,
+          jurisdiction: dto.jurisdiction,
+          jurisdictionName: dto.jurisdictionName,
+          content: normalizeDraftContent(dto.content ?? {}),
+          status: 'DRAFT',
+          aiGenerated: dto.aiGenerated ?? false,
+          userId,
+          templateId: dto.templateId,
+          version: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
 
-    return draft;
+      await tx.auditLog.create({
+        data: {
+          action: 'CREATE',
+          entityType: 'drafts',
+          entityId: draft.id,
+          userId,
+          createdAt: now,
+        },
+      });
+
+      return draft;
+    });
   }
 
   async findAll(userId: string, status?: string) {
@@ -60,95 +64,110 @@ export class DraftsService {
   }
 
   async update(id: string, dto: UpdateDraftDto, userId: string) {
-    const draft = await this.findOne(id, userId);
-    if (draft.parentDraftId) {
-      throw new NotFoundException('Saved revisions are read-only');
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const draft = await tx.draft.findFirst({
+        where: { id, userId },
+      });
+      if (!draft) throw new NotFoundException('Draft not found');
+      if (draft.parentDraftId) {
+        throw new NotFoundException('Saved revisions are read-only');
+      }
 
-    const now = new Date();
-    const nextTitle = dto.title ?? draft.title;
-    const nextContent = normalizeDraftContent(dto.content ?? draft.content);
-    const nextStatus = dto.status ?? draft.status;
+      const now = new Date();
+      const nextTitle = dto.title ?? draft.title;
+      const nextContent = normalizeDraftContent(dto.content ?? draft.content);
+      const nextStatus = dto.status ?? draft.status;
 
-    const hasChange =
-      nextTitle !== draft.title ||
-      nextStatus !== draft.status ||
-      JSON.stringify(nextContent) !== JSON.stringify(draft.content);
+      const hasChange =
+        nextTitle !== draft.title ||
+        nextStatus !== draft.status ||
+        JSON.stringify(nextContent) !== JSON.stringify(draft.content);
 
-    if (!hasChange) {
-      return { ...draft, version: draft.version };
-    }
+      if (!hasChange) {
+        return { ...draft, version: draft.version };
+      }
 
-    await this.prisma.draft.create({
-      data: {
-        title: draft.title,
-        documentType: draft.documentType,
-        jurisdiction: draft.jurisdiction,
-        jurisdictionName: draft.jurisdictionName,
-        content: draft.content as any,
-        status: draft.status,
-        aiGenerated: draft.aiGenerated,
-        userId: draft.userId,
-        templateId: draft.templateId,
-        version: draft.version,
-        parentDraftId: draft.id,
-        commitMessage: draft.commitMessage,
-        createdAt: now,
-        updatedAt: draft.updatedAt,
-      },
-    });
-
-    const updated = await this.prisma.draft.update({
-      where: { id },
-      data: {
-        title: nextTitle,
-        content: nextContent as any,
-        status: nextStatus,
-        commitMessage: dto.commitMessage,
-        version: draft.version + 1,
-        updatedAt: now,
-      },
-    });
-
-    await this.prisma.auditLog.create({
-      data: {
-        action: 'UPDATE',
-        entityType: 'drafts',
-        entityId: id,
-        userId,
-        changes: {
-          previousVersion: draft.version,
-          nextVersion: draft.version + 1,
+      await tx.draft.create({
+        data: {
+          title: draft.title,
+          documentType: draft.documentType,
+          jurisdiction: draft.jurisdiction,
+          jurisdictionName: draft.jurisdictionName,
+          content: draft.content as any,
+          status: draft.status,
+          aiGenerated: draft.aiGenerated,
+          userId: draft.userId,
+          templateId: draft.templateId,
+          version: draft.version,
+          parentDraftId: draft.id,
+          commitMessage: draft.commitMessage,
+          createdAt: now,
+          updatedAt: draft.updatedAt,
         },
-        createdAt: now,
-      },
-    });
+      });
 
-    return updated;
+      const updated = await tx.draft.update({
+        where: { id },
+        data: {
+          title: nextTitle,
+          content: nextContent as any,
+          status: nextStatus,
+          commitMessage: dto.commitMessage,
+          version: draft.version + 1,
+          updatedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'UPDATE',
+          entityType: 'drafts',
+          entityId: id,
+          userId,
+          changes: {
+            previousVersion: draft.version,
+            nextVersion: draft.version + 1,
+          },
+          createdAt: now,
+        },
+      });
+
+      return updated;
+    });
   }
 
   async remove(id: string, userId: string) {
-    const draft = await this.findOne(id, userId);
-    if (draft.parentDraftId) {
-      throw new NotFoundException('Saved revisions cannot be deleted directly');
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const draft = await tx.draft.findFirst({
+        where: { id, userId },
+      });
+      if (!draft) throw new NotFoundException('Draft not found');
+      if (draft.parentDraftId) {
+        throw new NotFoundException('Saved revisions cannot be deleted directly');
+      }
 
-    await this.prisma.draft.deleteMany({ where: { parentDraftId: id } });
-    await this.prisma.complianceReport.deleteMany({ where: { draftId: id } });
-    await this.prisma.exportHistory.deleteMany({ where: { draftId: id } });
-    await this.prisma.draft.delete({ where: { id } });
+      const revisions = await tx.draft.findMany({
+        where: { parentDraftId: id },
+      });
+      const relatedDraftIds = [id, ...revisions.map((revision) => revision.id)];
 
-    await this.prisma.auditLog.create({
-      data: {
-        action: 'DELETE',
-        entityType: 'drafts',
-        entityId: id,
-        userId,
-        createdAt: new Date(),
-      },
+      await tx.complianceReport.deleteMany({ where: { draftId: { in: relatedDraftIds } } });
+      await tx.exportHistory.deleteMany({ where: { draftId: { in: relatedDraftIds } } });
+      await tx.draft.deleteMany({ where: { parentDraftId: id } });
+      await tx.draft.delete({ where: { id } });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'DELETE',
+          entityType: 'drafts',
+          entityId: id,
+          userId,
+          createdAt: new Date(),
+        },
+      });
+
+      return { success: true };
     });
-
-    return { success: true };
   }
 
   async listVersions(draftId: string, userId: string) {
@@ -178,71 +197,76 @@ export class DraftsService {
   }
 
   async restoreVersion(draftId: string, versionId: string, userId: string) {
-    const draft = await this.findOne(draftId, userId);
-    if (draft.parentDraftId) {
-      throw new NotFoundException('Saved revisions cannot be restored directly');
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const draft = await tx.draft.findFirst({
+        where: { id: draftId, userId },
+      });
+      if (!draft) throw new NotFoundException('Draft not found');
+      if (draft.parentDraftId) {
+        throw new NotFoundException('Saved revisions cannot be restored directly');
+      }
 
-    const versionDraft = await this.prisma.draft.findFirst({
-      where: { id: versionId, OR: [{ id: draftId }, { parentDraftId: draftId }] },
-    });
-    if (!versionDraft) {
-      throw new NotFoundException('Version not found');
-    }
+      const versionDraft = await tx.draft.findFirst({
+        where: { id: versionId, OR: [{ id: draftId }, { parentDraftId: draftId }] },
+      });
+      if (!versionDraft) {
+        throw new NotFoundException('Version not found');
+      }
 
-    if (versionDraft.id === draftId) {
-      return { success: true, version: draft.version };
-    }
+      if (versionDraft.id === draftId) {
+        return { success: true, version: draft.version };
+      }
 
-    const now = new Date();
+      const now = new Date();
 
-    await this.prisma.draft.create({
-      data: {
-        title: draft.title,
-        documentType: draft.documentType,
-        jurisdiction: draft.jurisdiction,
-        jurisdictionName: draft.jurisdictionName,
-        content: draft.content as any,
-        status: draft.status,
-        aiGenerated: draft.aiGenerated,
-        userId: draft.userId,
-        templateId: draft.templateId,
-        version: draft.version,
-        parentDraftId: draft.id,
-        commitMessage: draft.commitMessage,
-        createdAt: now,
-        updatedAt: draft.updatedAt,
-      },
-    });
-
-    const updated = await this.prisma.draft.update({
-      where: { id: draftId },
-      data: {
-        title: versionDraft.title,
-        content: versionDraft.content as any,
-        status: versionDraft.status,
-        commitMessage: `Restore version v${versionDraft.version}`,
-        version: draft.version + 1,
-        updatedAt: now,
-      },
-    });
-
-    await this.prisma.auditLog.create({
-      data: {
-        action: 'RESTORE_VERSION',
-        entityType: 'drafts',
-        entityId: draftId,
-        userId,
-        changes: {
-          previousVersion: draft.version,
-          nextVersion: draft.version + 1,
-          restoredFromVersion: versionDraft.version,
+      await tx.draft.create({
+        data: {
+          title: draft.title,
+          documentType: draft.documentType,
+          jurisdiction: draft.jurisdiction,
+          jurisdictionName: draft.jurisdictionName,
+          content: draft.content as any,
+          status: draft.status,
+          aiGenerated: draft.aiGenerated,
+          userId: draft.userId,
+          templateId: draft.templateId,
+          version: draft.version,
+          parentDraftId: draft.id,
+          commitMessage: draft.commitMessage,
+          createdAt: now,
+          updatedAt: draft.updatedAt,
         },
-        createdAt: now,
-      },
-    });
+      });
 
-    return { success: true, version: updated.version, restoredFromVersion: versionDraft.version };
+      const updated = await tx.draft.update({
+        where: { id: draftId },
+        data: {
+          title: versionDraft.title,
+          content: versionDraft.content as any,
+          status: versionDraft.status,
+          commitMessage: `Restore version v${versionDraft.version}`,
+          version: draft.version + 1,
+          updatedAt: now,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'RESTORE_VERSION',
+          entityType: 'drafts',
+          entityId: draftId,
+          userId,
+          changes: {
+            previousVersion: draft.version,
+            nextVersion: draft.version + 1,
+            restoredFromVersion: versionDraft.version,
+          },
+          createdAt: now,
+        },
+      });
+
+      return { success: true, version: updated.version, restoredFromVersion: versionDraft.version };
+    });
   }
 
   async exportDraft(id: string, userId: string, format: 'txt' | 'md') {
@@ -269,5 +293,22 @@ export class DraftsService {
       content: formatted,
       mimeType: format === 'md' ? 'text/markdown' : 'text/plain',
     };
+  }
+
+  async logExport(id: string, userId: string, dto: LogExportDto) {
+    const draft = await this.findOne(id, userId);
+
+    await this.prisma.exportHistory.create({
+      data: {
+        draftId: draft.id,
+        exportType: dto.format.toUpperCase(),
+        fileSize: dto.fileSize,
+        pageCount: dto.pageCount,
+        exportedBy: userId,
+        createdAt: new Date(),
+      },
+    });
+
+    return { success: true };
   }
 }

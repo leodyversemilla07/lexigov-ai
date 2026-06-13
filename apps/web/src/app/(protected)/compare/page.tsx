@@ -43,19 +43,24 @@ function ComparePageContent() {
   const [leftVersionId, setLeftVersionId] = useState('');
   const [rightVersionId, setRightVersionId] = useState('');
 
-  const selectedDraft = drafts?.find((draft: DraftSummary) => draft.id === selectedDraftId);
-  const currentVersion = versions?.find((version) => version.isCurrent) ?? versions?.[0];
-  const previousVersion = versions?.find((version) => !version.isCurrent) ?? versions?.[versions.length - 1];
+  const draftOptions = drafts ?? [];
+  const versionOptions = versions ?? [];
+  const versionsLoading = Boolean(selectedDraftId) && versions === undefined;
+
+  const selectedDraft = draftOptions.find((draft: DraftSummary) => draft.id === selectedDraftId);
+  const currentVersion = versionOptions.find((version) => version.isCurrent) ?? versionOptions[0];
+  const previousVersion =
+    versionOptions.find((version) => !version.isCurrent) ?? versionOptions[versionOptions.length - 1];
   const resolvedLeftVersionId =
-    leftVersionId && versions?.some((version) => version.id === leftVersionId)
+    leftVersionId && versionOptions.some((version) => version.id === leftVersionId)
       ? leftVersionId
       : (previousVersion?.id ?? '');
   const resolvedRightVersionId =
-    rightVersionId && versions?.some((version) => version.id === rightVersionId)
+    rightVersionId && versionOptions.some((version) => version.id === rightVersionId)
       ? rightVersionId
       : (currentVersion?.id ?? '');
-  const leftVersion = versions?.find((version) => version.id === resolvedLeftVersionId);
-  const rightVersion = versions?.find((version) => version.id === resolvedRightVersionId);
+  const leftVersion = versionOptions.find((version) => version.id === resolvedLeftVersionId);
+  const rightVersion = versionOptions.find((version) => version.id === resolvedRightVersionId);
   const diffRows = leftVersion && rightVersion ? buildLineDiff(leftVersion.body, rightVersion.body) : [];
   const leftSections = leftVersion ? extractDraftSections({ body: leftVersion.body }) : [];
   const rightSections = rightVersion ? extractDraftSections({ body: rightVersion.body }) : [];
@@ -95,8 +100,8 @@ function ComparePageContent() {
                     <SelectValue placeholder='Select a draft' />
                   </SelectTrigger>
                   <SelectContent>
-                    {drafts.map((draft: DraftSummary) => (
-                      <SelectItem key={draft._id} value={draft._id}>
+                    {draftOptions.map((draft: DraftSummary) => (
+                      <SelectItem key={draft.id} value={draft.id}>
                         {draft.title}
                       </SelectItem>
                     ))}
@@ -106,7 +111,7 @@ function ComparePageContent() {
             </CardContent>
           </Card>
 
-          {selectedDraft && versions && versions.length > 0 && (
+          {selectedDraft && versionOptions.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Version Picks</CardTitle>
@@ -120,8 +125,8 @@ function ComparePageContent() {
                       <SelectValue placeholder='Select version A' />
                     </SelectTrigger>
                     <SelectContent>
-                      {versions.map((version) => (
-                        <SelectItem key={version._id} value={version._id}>
+                      {versionOptions.map((version) => (
+                        <SelectItem key={version.id} value={version.id}>
                           v{version.version} {version.isCurrent ? '(Current)' : ''}
                         </SelectItem>
                       ))}
@@ -135,8 +140,8 @@ function ComparePageContent() {
                       <SelectValue placeholder='Select version B' />
                     </SelectTrigger>
                     <SelectContent>
-                      {versions.map((version) => (
-                        <SelectItem key={version._id} value={version._id}>
+                      {versionOptions.map((version) => (
+                        <SelectItem key={version.id} value={version.id}>
                           v{version.version} {version.isCurrent ? '(Current)' : ''}
                         </SelectItem>
                       ))}
@@ -156,13 +161,13 @@ function ComparePageContent() {
                 <p className='font-medium'>Select a draft to compare its versions</p>
               </CardContent>
             </Card>
-          ) : versions === undefined ? (
+          ) : versionsLoading ? (
             <Card>
               <CardContent className='py-12'>
                 <Skeleton className='h-64' />
               </CardContent>
             </Card>
-          ) : versions.length < 2 ? (
+          ) : versionOptions.length < 2 ? (
             <Card>
               <CardContent className='py-12 text-center'>
                 <GitCompareArrows className='h-10 w-10 mx-auto mb-3 text-muted-foreground' />
@@ -219,7 +224,7 @@ function ComparePageContent() {
 
               <div className='grid gap-4 md:grid-cols-2'>
                 {[leftVersion, rightVersion].map((version, index) => (
-                  <Card key={version._id}>
+                  <Card key={version.id}>
                     <CardHeader>
                       <CardTitle className='text-base'>
                         {index === 0 ? 'Left' : 'Right'}: v{version.version} {version.isCurrent ? '(Current)' : ''}
@@ -307,9 +312,9 @@ function ComparePageContent() {
                         </tr>
                       </thead>
                       <tbody>
-                        {diffRows.map((row, index) => (
+                        {diffRows.map((row) => (
                           <tr
-                            key={`${row.leftLineNumber ?? 'l'}-${row.rightLineNumber ?? 'r'}-${index}`}
+                            key={`${row.type}-${row.leftLineNumber ?? 'l'}-${row.rightLineNumber ?? 'r'}-${row.leftText}-${row.rightText}`}
                             className={cn(
                               'align-top',
                               row.type === 'added' && 'bg-emerald-50',

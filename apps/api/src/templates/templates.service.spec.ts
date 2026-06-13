@@ -27,6 +27,7 @@ interface PrismaDouble {
     delete: jest.Mock;
   };
   auditLog: { create: jest.Mock };
+  $transaction: jest.Mock;
   state: {
     templates: Map<string, TemplateRecord>;
     auditLogs: Array<{ action: string; entityType: string; entityId: string; userId: string; changes?: unknown }>;
@@ -126,7 +127,13 @@ function buildPrismaDouble(): PrismaDouble {
     ),
   };
 
-  return { template, auditLog, state: { templates, auditLogs } };
+  const tx = { template, auditLog };
+
+  return {
+    ...tx,
+    $transaction: jest.fn(async <T>(callback: (transaction: typeof tx) => Promise<T>) => callback(tx)),
+    state: { templates, auditLogs },
+  };
 }
 
 function buildService() {
@@ -311,7 +318,7 @@ describe('TemplatesService.findOne', () => {
 
 describe('TemplatesService.update', () => {
   it('updates an owned template', async () => {
-    const { service } = buildService();
+    const { service, prisma } = buildService();
     const created = await service.create(
       { name: 'Original', category: 'Health', jurisdiction: ['barangay'], structure: {} },
       'user_1',
@@ -321,6 +328,9 @@ describe('TemplatesService.update', () => {
     const updated = await service.update(created.id, dto, 'user_1');
 
     expect(updated.name).toBe('Renamed');
+    expect(prisma.state.auditLogs.find((log) => log.action === 'UPDATE')).toEqual(
+      expect.objectContaining({ entityType: 'templates', entityId: created.id, userId: 'user_1' }),
+    );
   });
 
   it('refuses to update a template owned by another user', async () => {
@@ -368,9 +378,31 @@ describe('TemplatesService.incrementUsage', () => {
     );
     expect(created.usageCount).toBe(0);
 
-    await service.incrementUsage(created.id);
-    await service.incrementUsage(created.id);
+    await service.incrementUsage(created.id, 'user_2');
+    await service.incrementUsage(created.id, 'user_3');
 
     expect(prisma.state.templates.get(created.id)?.usageCount).toBe(2);
+  });
+
+  it('allows the owner to increment a private template', async () => {
+    const { service, prisma } = buildService();
+    const created = await service.create(
+      { name: 'Private Counted', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: false },
+      'user_1',
+    );
+
+    await service.incrementUsage(created.id, 'user_1');
+
+    expect(prisma.state.templates.get(created.id)?.usageCount).toBe(1);
+  });
+
+  it('refuses to increment a private template owned by another user', async () => {
+    const { service } = buildService();
+    const created = await service.create(
+      { name: 'Private Counted', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: false },
+      'user_1',
+    );
+
+    await expect(service.incrementUsage(created.id, 'user_2')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

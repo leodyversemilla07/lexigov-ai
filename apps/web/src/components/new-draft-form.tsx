@@ -6,6 +6,7 @@ import {
   getTemplateDescription,
   getTemplateDocumentType,
   getTemplateJurisdiction,
+  jurisdictionPenaltyGuidance,
   normalizeDraftContent,
   type TemplateData,
 } from '@lexigov/shared';
@@ -32,10 +33,10 @@ const documentTypes = [
 ];
 
 const jurisdictions = [
-  { value: 'barangay', label: 'Barangay', penalty: 'Fine up to P1,000 or community service' },
-  { value: 'city', label: 'City', penalty: 'Fine up to P10,000' },
-  { value: 'municipal', label: 'Municipal', penalty: 'Fine up to P5,000' },
-  { value: 'provincial', label: 'Provincial', penalty: 'Fine up to P20,000' },
+  { value: 'barangay', label: 'Barangay', penalty: jurisdictionPenaltyGuidance.barangay },
+  { value: 'city', label: 'City', penalty: jurisdictionPenaltyGuidance.city },
+  { value: 'municipal', label: 'Municipal', penalty: jurisdictionPenaltyGuidance.municipal },
+  { value: 'provincial', label: 'Provincial', penalty: jurisdictionPenaltyGuidance.provincial },
 ];
 
 type DraftComposerFormProps = {

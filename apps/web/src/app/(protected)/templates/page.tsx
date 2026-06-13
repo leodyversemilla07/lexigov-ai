@@ -440,8 +440,8 @@ function TemplatesPageContent() {
         </div>
         {isLoading ? (
           <div className='grid gap-4 md:grid-cols-2'>
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className='h-64' />
+            {['my-template-1', 'my-template-2', 'my-template-3', 'my-template-4'].map((skeletonKey) => (
+              <Skeleton key={skeletonKey} className='h-64' />
             ))}
           </div>
         ) : myTemplates.length === 0 ? (
@@ -480,8 +480,15 @@ function TemplatesPageContent() {
         </div>
         {isLoading ? (
           <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className='h-64' />
+            {[
+              'public-template-1',
+              'public-template-2',
+              'public-template-3',
+              'public-template-4',
+              'public-template-5',
+              'public-template-6',
+            ].map((skeletonKey) => (
+              <Skeleton key={skeletonKey} className='h-64' />
             ))}
           </div>
         ) : publicTemplates.length === 0 ? (
@@ -781,13 +788,18 @@ function TemplatesLoading() {
         <Skeleton className='h-5 w-96' />
       </div>
       <div className='grid gap-4 md:grid-cols-3'>
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className='h-32' />
+        {['templates-loading-stat-1', 'templates-loading-stat-2', 'templates-loading-stat-3'].map((skeletonKey) => (
+          <Skeleton key={skeletonKey} className='h-32' />
         ))}
       </div>
       <div className='grid gap-4 md:grid-cols-2'>
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className='h-64' />
+        {[
+          'templates-loading-card-1',
+          'templates-loading-card-2',
+          'templates-loading-card-3',
+          'templates-loading-card-4',
+        ].map((skeletonKey) => (
+          <Skeleton key={skeletonKey} className='h-64' />
         ))}
       </div>
     </div>

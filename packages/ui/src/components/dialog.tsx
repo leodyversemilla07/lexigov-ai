@@ -1,10 +1,10 @@
 'use client';
 
+import { cn } from '@lexigov/shared';
 import { XIcon } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import type * as React from 'react';
 import { Button } from './button';
-import { cn } from '@lexigov/shared';
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot='dialog' {...props} />;

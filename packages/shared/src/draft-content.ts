@@ -83,8 +83,10 @@ export function buildDraftSectionsFromBody(body: string): DraftSection[] {
 
   if (matches.length > 0) {
     return matches.map((match, index) => {
-      const heading = buildSectionHeading(match[1], index);
-      const sectionBody = match[2].trim();
+      const rawHeading = match[1] ?? '';
+      const rawBody = match[2] ?? '';
+      const heading = buildSectionHeading(rawHeading, index);
+      const sectionBody = rawBody.trim();
 
       return {
         id: `${slugify(heading)}-${index + 1}`,
@@ -100,7 +102,7 @@ export function buildDraftSectionsFromBody(body: string): DraftSection[] {
     .filter(Boolean);
 
   return paragraphs.map((paragraph, index) => {
-    const [firstLine, ...rest] = paragraph.split('\n');
+    const [firstLine = '', ...rest] = paragraph.split('\n');
     const looksLikeHeading =
       /^#{1,6}\s+/.test(firstLine) ||
       /^[A-Z][A-Z\s]{4,}$/.test(firstLine.trim()) ||

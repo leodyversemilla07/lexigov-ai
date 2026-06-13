@@ -16,6 +16,13 @@ export interface ComplianceResult {
 
 type JurisdictionLevel = 'barangay' | 'municipal' | 'city' | 'provincial';
 
+export const jurisdictionPenaltyGuidance: Record<JurisdictionLevel, string> = {
+  barangay: 'Fine up to ₱1,000; barangay ordinances generally should not impose imprisonment',
+  municipal: 'Fine up to ₱2,500 and imprisonment up to 6 months',
+  city: 'Fine up to ₱5,000 and imprisonment up to 1 year',
+  provincial: 'Fine up to ₱5,000 and imprisonment up to 1 year',
+};
+
 type PenaltyRule = {
   fineLimit?: number;
   imprisonmentMonthsLimit?: number;
@@ -64,7 +71,14 @@ function readFineAmounts(content: string) {
   );
 
   return matches
-    .map((match) => Number.parseFloat(normalizeCurrency(match[1])))
+    .map((match) => {
+      const amount = match[1];
+      if (!amount) {
+        return Number.NaN;
+      }
+
+      return Number.parseFloat(normalizeCurrency(amount));
+    })
     .filter((value) => Number.isFinite(value));
 }
 
@@ -77,8 +91,14 @@ function readImprisonmentMonths(content: string) {
 
   return matches
     .map((match) => {
-      const quantity = Number.parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
+      const quantityText = match[1];
+      const unitText = match[2];
+      if (!quantityText || !unitText) {
+        return Number.NaN;
+      }
+
+      const quantity = Number.parseInt(quantityText, 10);
+      const unit = unitText.toLowerCase();
 
       if (unit.startsWith('day')) {
         return quantity / 30;
@@ -105,6 +125,8 @@ function computeScore(issues: ComplianceIssue[]) {
         return total + 10;
       case 'suggestion':
         return total + 4;
+      default:
+        return total;
     }
   }, 0);
 

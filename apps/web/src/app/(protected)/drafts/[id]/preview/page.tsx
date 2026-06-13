@@ -99,13 +99,16 @@ function SectionBody({ text }: { text: string }) {
 
   return (
     <div className='space-y-4'>
-      {blocks.map((block, blockIndex) => {
+      {blocks.map((block) => {
         if (block.type === 'clauses') {
           return (
-            <div key={blockIndex} className='space-y-3'>
-              {block.items.map((item, itemIndex) => (
+            <div
+              key={`clauses-${block.items.map((item) => `${item.marker}:${item.text}`).join('|')}`}
+              className='space-y-3'
+            >
+              {block.items.map((item) => (
                 <div
-                  key={`${blockIndex}-${itemIndex}`}
+                  key={`${item.marker}-${item.text}`}
                   className={cn(
                     'grid gap-3 text-base leading-8 text-foreground/90',
                     isLetterMarker(item.marker)
@@ -122,7 +125,7 @@ function SectionBody({ text }: { text: string }) {
         }
 
         return (
-          <p key={blockIndex} className='text-base leading-8 text-foreground/90'>
+          <p key={`paragraph-${block.text}`} className='text-base leading-8 text-foreground/90'>
             {block.text}
           </p>
         );
@@ -272,8 +275,8 @@ export default function DraftPreviewPage() {
               </div>
             ) : introParagraphs.length > 0 ? (
               <div className='space-y-5'>
-                {introParagraphs.map((paragraph, index) => (
-                  <p key={index} className='text-base leading-8 text-foreground/90'>
+                {introParagraphs.map((paragraph) => (
+                  <p key={paragraph} className='text-base leading-8 text-foreground/90'>
                     {paragraph}
                   </p>
                 ))}
