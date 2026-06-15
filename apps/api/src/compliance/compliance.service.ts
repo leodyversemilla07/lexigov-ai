@@ -1,17 +1,18 @@
-import { analyzeDeterministicCompliance, extractDraftBody } from '@lexigov/shared';
-import { Injectable } from '@nestjs/common';
-import type { PrismaService } from '../prisma/prisma.service';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { analyzeDeterministicCompliance } from '../../../../packages/shared/src/compliance-analysis';
+import { extractDraftBody } from '../../../../packages/shared/src/draft-content';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ComplianceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async checkDraft(draftId: string, userId: string) {
     const draft = await this.prisma.draft.findFirst({
       where: { id: draftId, userId },
     });
     if (!draft) {
-      return { error: 'Draft not found' };
+      throw new NotFoundException('Draft not found');
     }
 
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);

@@ -1,10 +1,10 @@
-import type { ComplianceIssue } from '@lexigov/shared';
+import { Injectable } from '@nestjs/common';
+import type { ComplianceIssue } from '../../../../packages/shared/src/compliance-analysis';
 import {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
   mergeComplianceIssues,
-} from '@lexigov/shared';
-import { Injectable } from '@nestjs/common';
+} from '../../../../packages/shared/src/compliance-analysis';
 
 interface AzureConfig {
   apiKey: string;

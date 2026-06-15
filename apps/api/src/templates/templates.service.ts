@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { PrismaService } from '../prisma/prisma.service';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import type { CreateTemplateDto } from './dto/create-template.dto';
 import type { UpdateTemplateDto } from './dto/update-template.dto';
 
 @Injectable()
 export class TemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async create(dto: CreateTemplateDto, userId: string) {
     return this.prisma.$transaction(async (tx) => {

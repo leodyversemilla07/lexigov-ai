@@ -1,7 +1,7 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '../auth/auth.guard';
-import type { AiService } from './ai.service';
+import { AiService } from './ai.service';
 import type { CheckComplianceDto } from './dto/check-compliance.dto';
 import type { GenerateOrdinanceDto } from './dto/generate-ordinance.dto';
 import type { GenerateSummaryDto } from './dto/generate-summary.dto';
@@ -14,7 +14,7 @@ import type { GenerateSummaryDto } from './dto/generate-summary.dto';
 @UseGuards(AuthGuard)
 @Throttle({ ai: { limit: 10, ttl: 60_000 } })
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(@Inject(AiService) private readonly aiService: AiService) {}
 
   @Post('generate-ordinance')
   generateOrdinance(@Body() dto: GenerateOrdinanceDto) {

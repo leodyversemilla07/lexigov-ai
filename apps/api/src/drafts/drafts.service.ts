@@ -1,13 +1,13 @@
-import { extractDraftBody, normalizeDraftContent } from '@lexigov/shared';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { PrismaService } from '../prisma/prisma.service';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { extractDraftBody, normalizeDraftContent } from '../../../../packages/shared/src/draft-content';
+import { PrismaService } from '../prisma/prisma.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { LogExportDto } from './dto/log-export.dto';
 import type { UpdateDraftDto } from './dto/update-draft.dto';
 
 @Injectable()
 export class DraftsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async create(dto: CreateDraftDto, userId: string) {
     const now = new Date();

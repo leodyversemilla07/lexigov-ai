@@ -1,5 +1,5 @@
-import { type JurisdictionLevel, jurisdictionLevelValues } from '@lexigov/shared';
 import { IsIn, IsString, MinLength } from 'class-validator';
+import { type JurisdictionLevel, jurisdictionLevelValues } from '../../common/contracts';
 
 export class CheckComplianceDto {
   @IsString()

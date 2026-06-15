@@ -11,7 +11,7 @@ export function useApiQuery<T>(path: string | null) {
   const [status, setStatus] = useState<QueryStatus>('loading');
   const abortRef = useRef<AbortController | null>(null);
 
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback(async () => {
     if (abortRef.current) abortRef.current.abort();
 
     if (path === null) {
@@ -27,31 +27,32 @@ export function useApiQuery<T>(path: string | null) {
     setStatus('loading');
     setError(null);
 
-    api
-      .get<T>(path, { signal: controller.signal })
-      .then((result) => {
-        if (!controller.signal.aborted) {
-          setData(result);
-          setStatus('success');
-        }
-      })
-      .catch((err: unknown) => {
-        if (!controller.signal.aborted) {
-          if (err instanceof ApiError && err.status === 404) {
-            setData(null);
-            setStatus('success');
-          } else {
-            const errorObj = err instanceof Error ? err : new Error(String(err));
-            setError(errorObj);
-            setStatus('error');
-            setData(undefined);
-          }
-        }
-      });
+    try {
+      const result = await api.get<T>(path, { signal: controller.signal });
+      if (!controller.signal.aborted) {
+        setData(result);
+        setStatus('success');
+      }
+    } catch (err: unknown) {
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      if (err instanceof ApiError && err.status === 404) {
+        setData(null);
+        setStatus('success');
+        return;
+      }
+
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      setStatus('error');
+      setData(undefined);
+    }
   }, [path]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };

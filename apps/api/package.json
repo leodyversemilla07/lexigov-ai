@@ -7,10 +7,11 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "nest start --watch",
+    "prebuild": "prisma generate",
     "build": "nest build",
     "start": "nest start",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/apps/api/src/main.js",
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "format": "biome format --write",

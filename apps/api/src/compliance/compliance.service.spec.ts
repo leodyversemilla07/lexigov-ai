@@ -109,14 +109,10 @@ function buildService() {
   return { service, prisma };
 }
 
-/**
- * Type-guard helper: the service returns either a ComplianceResult or an
- * error sentinel. Tests that exercise the happy path use this to narrow.
- */
-function expectSuccess(result: ComplianceResult | { error: string }): asserts result is ComplianceResult {
-  if ('error' in result) {
-    throw new Error(`Expected successful ComplianceResult, got error: ${result.error}`);
-  }
+function expectSuccess(result: ComplianceResult): asserts result is ComplianceResult {
+  expect(result).toHaveProperty('overallScore');
+  expect(result).toHaveProperty('isValid');
+  expect(result).toHaveProperty('issues');
 }
 
 const wellFormedBarangay = [
@@ -138,7 +134,7 @@ const wellFormedBarangay = [
 ].join('\n');
 
 describe('ComplianceService.checkDraft', () => {
-  it('returns an error result when the draft does not exist or does not belong to the user', async () => {
+  it('throws NotFoundException when the draft does not exist or does not belong to the user', async () => {
     const { service, prisma } = buildService();
     prisma.state.drafts.set('draft_other_user', {
       id: 'draft_other_user',
@@ -148,22 +144,19 @@ describe('ComplianceService.checkDraft', () => {
       version: 1,
     });
 
-    const result = await service.checkDraft('draft_other_user', 'user_1');
-
-    expect(result).toEqual({ error: 'Draft not found' });
+    await expect(service.checkDraft('draft_other_user', 'user_1')).rejects.toThrow('Draft not found');
     expect(prisma.state.reports).toHaveLength(0);
     expect(prisma.state.auditLogs).toHaveLength(0);
   });
 
-  it('returns an error result when the draft id is not in the database at all', async () => {
+  it('throws NotFoundException when the draft id is not in the database at all', async () => {
     const { service, prisma } = buildService();
-    // No draft seeded at all
-    const result = await service.checkDraft('nonexistent', 'user_1');
-    expect(result).toEqual({ error: 'Draft not found' });
+
+    await expect(service.checkDraft('nonexistent', 'user_1')).rejects.toThrow('Draft not found');
     expect(prisma.state.reports).toHaveLength(0);
   });
 
-  it('returns an error result when the draft belongs to a different user', async () => {
+  it('throws NotFoundException when the draft belongs to a different user', async () => {
     const { service, prisma } = buildService();
     prisma.state.drafts.set('draft_other_user', {
       id: 'draft_other_user',
@@ -172,8 +165,8 @@ describe('ComplianceService.checkDraft', () => {
       content: { body: 'irrelevant' },
       version: 1,
     });
-    const result = await service.checkDraft('draft_other_user', 'user_1');
-    expect(result).toEqual({ error: 'Draft not found' });
+
+    await expect(service.checkDraft('draft_other_user', 'user_1')).rejects.toThrow('Draft not found');
     expect(prisma.state.auditLogs).toHaveLength(0);
   });
 

@@ -1,13 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import type { CreateTemplateDto } from './dto/create-template.dto';
 import type { UpdateTemplateDto } from './dto/update-template.dto';
-import type { TemplatesService } from './templates.service';
+import { TemplatesService } from './templates.service';
 
 @Controller('templates')
 @UseGuards(AuthGuard)
 export class TemplatesController {
-  constructor(private readonly templatesService: TemplatesService) {}
+  constructor(@Inject(TemplatesService) private readonly templatesService: TemplatesService) {}
 
   @Post()
   create(@Body() dto: CreateTemplateDto, @Req() req: any) {

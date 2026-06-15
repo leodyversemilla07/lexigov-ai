@@ -45,9 +45,11 @@ export default function DraftEditorPage() {
   const draftId = params.id as string;
 
   // API queries
-  const { data: draft, isLoading: draftLoading } = useApiQuery<Draft>(`/drafts/${draftId}`);
-  const { data: versionHistory } = useApiQuery<DraftVersion[]>(`/drafts/${draftId}/versions`);
-  const { data: complianceHistory } = useApiQuery<ComplianceReport[]>(`/compliance/${draftId}`);
+  const { data: draft, isLoading: draftLoading, refetch: refetchDraft } = useApiQuery<Draft>(`/drafts/${draftId}`);
+  const { data: versionHistory, refetch: refetchVersions } = useApiQuery<DraftVersion[]>(`/drafts/${draftId}/versions`);
+  const { data: complianceHistory, refetch: refetchComplianceHistory } = useApiQuery<ComplianceReport[]>(
+    `/compliance/${draftId}`,
+  );
 
   // Local state
   const [title, setTitle] = useState('');
@@ -149,6 +151,7 @@ export default function DraftEditorPage() {
     setSaveSuccess(false);
     try {
       await saveCurrentDraft();
+      await Promise.all([refetchDraft(), refetchVersions()]);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
       toast.success('Draft saved.');
@@ -168,6 +171,7 @@ export default function DraftEditorPage() {
       await saveCurrentDraft();
       const result = await api.post<ComplianceResult>(`/compliance/${draftId}/check`);
       setComplianceResult(result);
+      await Promise.all([refetchDraft(), refetchVersions(), refetchComplianceHistory()]);
       toast.success('Compliance check complete.');
     } catch (error) {
       console.error('Failed to check compliance:', error);
@@ -183,6 +187,7 @@ export default function DraftEditorPage() {
     try {
       await saveCurrentDraft();
       await api.post(`/drafts/${draftId}/restore`, { versionId });
+      await Promise.all([refetchDraft(), refetchVersions(), refetchComplianceHistory()]);
       setShowCompliance(false);
       setComplianceResult(null);
       toast.success(`Restored version v${versionNumber}.`);

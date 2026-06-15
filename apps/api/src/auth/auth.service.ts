@@ -1,5 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import type { PrismaService } from '../prisma/prisma.service';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface AuthenticatedUser {
   userId: string;
@@ -9,7 +9,7 @@ export interface AuthenticatedUser {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async verifySession(sessionToken: string): Promise<AuthenticatedUser> {
     const session = await this.prisma.session.findUnique({

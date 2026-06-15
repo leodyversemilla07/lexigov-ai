@@ -1,11 +1,11 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
-import type { ComplianceService } from './compliance.service';
+import { ComplianceService } from './compliance.service';
 
 @Controller('compliance')
 @UseGuards(AuthGuard)
 export class ComplianceController {
-  constructor(private readonly complianceService: ComplianceService) {}
+  constructor(@Inject(ComplianceService) private readonly complianceService: ComplianceService) {}
 
   @Post(':draftId/check')
   checkDraft(@Param('draftId') draftId: string, @Req() req: any) {

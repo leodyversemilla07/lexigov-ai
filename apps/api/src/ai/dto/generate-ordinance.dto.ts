@@ -1,10 +1,10 @@
+import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 import {
   type DocumentType,
   documentTypeValues,
   type JurisdictionLevel,
   jurisdictionLevelValues,
-} from '@lexigov/shared';
-import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
+} from '../../common/contracts';
 
 export class GenerateOrdinanceDto {
   @IsString()

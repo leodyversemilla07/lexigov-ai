@@ -1,6 +1,18 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
-import type { DraftsService } from './drafts.service';
+import { DraftsService } from './drafts.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { LogExportDto } from './dto/log-export.dto';
 import type { RestoreVersionDto } from './dto/restore-version.dto';
@@ -9,7 +21,7 @@ import type { UpdateDraftDto } from './dto/update-draft.dto';
 @Controller('drafts')
 @UseGuards(AuthGuard)
 export class DraftsController {
-  constructor(private readonly draftsService: DraftsService) {}
+  constructor(@Inject(DraftsService) private readonly draftsService: DraftsService) {}
 
   @Post()
   create(@Body() dto: CreateDraftDto, @Req() req: any) {

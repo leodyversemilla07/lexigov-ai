@@ -1,11 +1,12 @@
+import { IsBoolean, IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import {
   type DocumentType,
-  type DraftContentInput,
   documentTypeValues,
   type JurisdictionLevel,
   jurisdictionLevelValues,
-} from '@lexigov/shared';
-import { IsBoolean, IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+} from '../../common/contracts';
+
+type DraftContentInput = Record<string, unknown>;
 
 export class CreateDraftDto {
   @IsString()

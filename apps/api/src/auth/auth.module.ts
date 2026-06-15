@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
+@Global()
 @Module({
   imports: [PrismaModule],
   providers: [AuthService, AuthGuard],

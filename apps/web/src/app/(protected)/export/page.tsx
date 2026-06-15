@@ -357,13 +357,14 @@ function ExportPageContent() {
         await api.post(`/drafts/${selectedDraft.id}/export`, { format: 'pdf', fileSize: blob.size });
         toast.success(`Exported ${filename}`);
       } else {
-        const result = await api.get<{ content: string; filename: string; mimeType: string }>(
-          `/drafts/${selectedDraft.id}/export?format=${selectedFormat}`,
-        );
+        const content = buildTextExportContent(selectedDraft, selectedVersion, selectedFormat);
+        const mimeType = selectedFormat === 'md' ? 'text/markdown' : 'text/plain';
+        const filename = `${sanitizeFilename(selectedDraft.title)}_v${selectedVersion.version}.${selectedFormat}`;
+        const blob = new Blob([content], { type: mimeType });
+        downloadBlob(blob, filename);
 
-        const blob = new Blob([result.content], { type: result.mimeType });
-        downloadBlob(blob, result.filename);
-        toast.success(`Exported ${result.filename}`);
+        await api.post(`/drafts/${selectedDraft.id}/export`, { format: selectedFormat, fileSize: blob.size });
+        toast.success(`Exported ${filename}`);
       }
 
       setExportSuccess(true);

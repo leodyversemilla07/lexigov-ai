@@ -1,10 +1,4 @@
 import {
-  type JurisdictionLevel,
-  jurisdictionLevelValues,
-  type TemplateCategory,
-  templateCategoryValues,
-} from '@lexigov/shared';
-import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
@@ -15,6 +9,12 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import {
+  type JurisdictionLevel,
+  jurisdictionLevelValues,
+  type TemplateCategory,
+  templateCategoryValues,
+} from '../../common/contracts';
 
 export class CreateTemplateDto {
   @IsString()
