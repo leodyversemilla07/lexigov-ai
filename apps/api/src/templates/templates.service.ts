@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '../../generated/prisma/client';
 import { buildPaginatedResult } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateTemplateDto } from './dto/create-template.dto';
@@ -17,8 +18,8 @@ export class TemplatesService {
           category: dto.category,
           subcategory: dto.subcategory,
           jurisdiction: dto.jurisdiction,
-          structure: dto.structure as any,
-          exampleContent: dto.exampleContent as any,
+          structure: dto.structure as Prisma.InputJsonValue,
+          exampleContent: dto.exampleContent as Prisma.InputJsonValue,
           isPublic: dto.isPublic ?? true,
           usageCount: 0,
           userId,
@@ -66,12 +67,12 @@ export class TemplatesService {
 
     const [data, total] = await Promise.all([
       this.prisma.template.findMany({
-        where: where as any,
+        where: where as Prisma.TemplateWhereInput,
         orderBy: { usageCount: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.template.count({ where: where as any }),
+      this.prisma.template.count({ where: where as Prisma.TemplateWhereInput }),
     ]);
 
     return buildPaginatedResult(data, page, limit, total);
@@ -94,7 +95,7 @@ export class TemplatesService {
 
       const updated = await tx.template.update({
         where: { id },
-        data: dto as any,
+        data: dto as unknown as Prisma.TemplateUpdateInput,
       });
 
       await tx.auditLog.create({
@@ -103,7 +104,7 @@ export class TemplatesService {
           entityType: 'templates',
           entityId: id,
           userId,
-          changes: dto as any,
+          changes: dto as unknown as Prisma.InputJsonValue,
         },
       });
 

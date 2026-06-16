@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { extractDraftBody, normalizeDraftContent } from '../../../../packages/shared/src/draft-content';
+import type { Prisma } from '../../generated/prisma/client';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
@@ -64,12 +65,12 @@ export class DraftsService {
 
     const [data, total] = await Promise.all([
       this.prisma.draft.findMany({
-        where: where as any,
+        where: where as Prisma.DraftWhereInput,
         orderBy: { updatedAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.draft.count({ where: where as any }),
+      this.prisma.draft.count({ where: where as Prisma.DraftWhereInput }),
     ]);
 
     return buildPaginatedResult(data, page, limit, total);
@@ -113,7 +114,7 @@ export class DraftsService {
           documentType: draft.documentType,
           jurisdiction: draft.jurisdiction,
           jurisdictionName: draft.jurisdictionName,
-          content: draft.content as any,
+          content: draft.content as Prisma.InputJsonValue,
           status: draft.status,
           aiGenerated: draft.aiGenerated,
           userId: draft.userId,
@@ -130,7 +131,7 @@ export class DraftsService {
         where: { id },
         data: {
           title: nextTitle,
-          content: nextContent as any,
+          content: nextContent as Prisma.InputJsonValue,
           status: nextStatus,
           commitMessage: dto.commitMessage,
           version: draft.version + 1,
@@ -245,7 +246,7 @@ export class DraftsService {
           documentType: draft.documentType,
           jurisdiction: draft.jurisdiction,
           jurisdictionName: draft.jurisdictionName,
-          content: draft.content as any,
+          content: draft.content as Prisma.InputJsonValue,
           status: draft.status,
           aiGenerated: draft.aiGenerated,
           userId: draft.userId,
@@ -262,7 +263,7 @@ export class DraftsService {
         where: { id: draftId },
         data: {
           title: versionDraft.title,
-          content: versionDraft.content as any,
+          content: versionDraft.content as Prisma.InputJsonValue,
           status: versionDraft.status,
           commitMessage: `Restore version v${versionDraft.version}`,
           version: draft.version + 1,
