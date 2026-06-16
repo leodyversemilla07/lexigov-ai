@@ -196,6 +196,10 @@ describe('TemplatesService.findAll', () => {
       { name: 'Private B', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: false },
       'user_B',
     );
+    await service.create(
+      { name: 'Private C (caller)', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: false },
+      'user_A',
+    );
 
     const results = await service.findAll('user_A', undefined, true);
 

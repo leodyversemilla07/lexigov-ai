@@ -38,11 +38,11 @@ export class TemplatesService {
     });
   }
 
-  async findAll(userId: string, queryOrCategory: ListTemplatesDto | string = {}, publicOnly?: boolean) {
+  async findAll(userId: string, queryOrCategory?: ListTemplatesDto | string, publicOnly?: boolean) {
     const query: ListTemplatesDto =
       typeof queryOrCategory === 'string'
         ? ({ category: queryOrCategory, publicOnly: publicOnly ?? false } as ListTemplatesDto)
-        : queryOrCategory;
+        : ({ ...(queryOrCategory ?? {}), publicOnly: publicOnly ?? queryOrCategory?.publicOnly } as ListTemplatesDto);
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
     const where: Record<string, unknown> = {
