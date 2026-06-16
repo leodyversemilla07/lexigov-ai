@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
+import type { AuthenticatedUser } from '../auth/auth.service';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { ListTemplatesDto } from './dto/list-templates.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
@@ -11,32 +13,32 @@ export class TemplatesController {
   constructor(@Inject(TemplatesService) private readonly templatesService: TemplatesService) {}
 
   @Post()
-  create(@Body() dto: CreateTemplateDto, @Req() req: any) {
-    return this.templatesService.create(dto, req.user.userId);
+  create(@Body() dto: CreateTemplateDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.templatesService.create(dto, user.userId);
   }
 
   @Get()
-  findAll(@Req() req: any, @Query() query: ListTemplatesDto) {
-    return this.templatesService.findAll(req.user.userId, query);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: ListTemplatesDto) {
+    return this.templatesService.findAll(user.userId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: any) {
-    return this.templatesService.findOne(id, req.user?.userId);
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.templatesService.findOne(id, user.userId);
   }
 
   @Post(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTemplateDto, @Req() req: any) {
-    return this.templatesService.update(id, dto, req.user.userId);
+  update(@Param('id') id: string, @Body() dto: UpdateTemplateDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.templatesService.update(id, dto, user.userId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: any) {
-    return this.templatesService.remove(id, req.user.userId);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.templatesService.remove(id, user.userId);
   }
 
   @Post(':id/usage')
-  incrementUsage(@Param('id') id: string, @Req() req: any) {
-    return this.templatesService.incrementUsage(id, req.user.userId);
+  incrementUsage(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.templatesService.incrementUsage(id, user.userId);
   }
 }

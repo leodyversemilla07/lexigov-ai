@@ -8,10 +8,11 @@ import {
   Param,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
+import type { AuthenticatedUser } from '../auth/auth.service';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { DraftsService } from './drafts.service';
 import { CreateDraftDto } from './dto/create-draft.dto';
 import { ListDraftsDto } from './dto/list-drafts.dto';
@@ -25,51 +26,55 @@ export class DraftsController {
   constructor(@Inject(DraftsService) private readonly draftsService: DraftsService) {}
 
   @Post()
-  create(@Body() dto: CreateDraftDto, @Req() req: any) {
-    return this.draftsService.create(dto, req.user.userId);
+  create(@Body() dto: CreateDraftDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.draftsService.create(dto, user.userId);
   }
 
   @Get()
-  findAll(@Req() req: any, @Query() query: ListDraftsDto) {
-    return this.draftsService.findAll(req.user.userId, query);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: ListDraftsDto) {
+    return this.draftsService.findAll(user.userId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: any) {
-    return this.draftsService.findOne(id, req.user.userId);
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.draftsService.findOne(id, user.userId);
   }
 
   @Post(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateDraftDto, @Req() req: any) {
-    return this.draftsService.update(id, dto, req.user.userId);
+  update(@Param('id') id: string, @Body() dto: UpdateDraftDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.draftsService.update(id, dto, user.userId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: any) {
-    return this.draftsService.remove(id, req.user.userId);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.draftsService.remove(id, user.userId);
   }
 
   @Get(':id/versions')
-  listVersions(@Param('id') id: string, @Req() req: any) {
-    return this.draftsService.listVersions(id, req.user.userId);
+  listVersions(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.draftsService.listVersions(id, user.userId);
   }
 
   @Post(':id/restore')
-  restoreVersion(@Param('id') id: string, @Body() dto: RestoreVersionDto, @Req() req: any) {
-    return this.draftsService.restoreVersion(id, dto.versionId, req.user.userId);
+  restoreVersion(@Param('id') id: string, @Body() dto: RestoreVersionDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.draftsService.restoreVersion(id, dto.versionId, user.userId);
   }
 
   @Get(':id/export')
-  exportDraft(@Param('id') id: string, @Req() req: any, @Query('format') format: string = 'txt') {
+  exportDraft(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('format') format: string = 'txt',
+  ) {
     if (format !== 'txt' && format !== 'md') {
       throw new BadRequestException('Export format must be txt or md');
     }
 
-    return this.draftsService.exportDraft(id, req.user.userId, format);
+    return this.draftsService.exportDraft(id, user.userId, format);
   }
 
   @Post(':id/export')
-  logExport(@Param('id') id: string, @Req() req: any, @Body() dto: LogExportDto) {
-    return this.draftsService.logExport(id, req.user.userId, dto);
+  logExport(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Body() dto: LogExportDto) {
+    return this.draftsService.logExport(id, user.userId, dto);
   }
 }
