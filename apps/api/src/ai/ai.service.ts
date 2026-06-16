@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { ComplianceIssue } from '../../../../packages/shared/src/compliance-analysis';
 import {
   analyzeDeterministicCompliance,
@@ -22,7 +22,7 @@ export class AiService {
     const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
     if (!apiKey || !endpoint || !apiVersion || !deployment) {
-      throw new Error('Azure OpenAI not configured');
+      throw new ServiceUnavailableException('Azure OpenAI not configured');
     }
 
     return { apiKey, apiVersion, deployment, endpoint };
