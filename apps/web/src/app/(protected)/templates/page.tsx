@@ -51,6 +51,7 @@ import { useZodForm } from '@/hooks/use-zod-form';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
 import { useSession } from '@/lib/auth-client';
+import type { PaginatedResponse } from '@/types';
 
 type EditableTemplate = TemplateData & {
   id: string;
@@ -253,7 +254,7 @@ function TemplateCard({
 
 function TemplatesPageContent() {
   const { data: session } = useSession();
-  const { data: templatesQuery, isLoading } = useApiQuery<EditableTemplate[]>('/templates');
+  const { data: templatesPage, isLoading } = useApiQuery<PaginatedResponse<EditableTemplate>>('/templates');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -276,7 +277,7 @@ function TemplatesPageContent() {
   } = templateForm;
   const form = watch();
 
-  const templates = (templatesQuery ?? []) as EditableTemplate[];
+  const templates = templatesPage?.data ?? [];
   const currentUserId = session?.user?.id;
   const categories = [...new Set(templates.map((template) => template.category))].sort();
 

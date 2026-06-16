@@ -13,6 +13,7 @@ import { Suspense, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
+import type { PaginatedResponse } from '@/types';
 
 type ComplianceResult = {
   overallScore: number;
@@ -52,7 +53,8 @@ function CompliancePageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: drafts } = useApiQuery<Draft[]>('/drafts');
+  const { data: draftsPage } = useApiQuery<PaginatedResponse<Draft>>('/drafts');
+  const drafts = draftsPage?.data;
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [isChecking, setIsChecking] = useState(false);
@@ -110,7 +112,7 @@ function CompliancePageContent() {
       }
     : { critical: 0, warning: 0, suggestion: 0 };
 
-  const isLoading = drafts === undefined;
+  const isLoading = draftsPage === undefined;
 
   return (
     <div className='space-y-6'>

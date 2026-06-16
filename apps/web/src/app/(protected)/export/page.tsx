@@ -15,6 +15,7 @@ import { Suspense, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
+import type { PaginatedResponse } from '@/types';
 
 type ExportFormat = 'txt' | 'md' | 'docx' | 'pdf';
 
@@ -297,7 +298,8 @@ function ExportPageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: drafts, isLoading } = useApiQuery<Draft[]>('/drafts');
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<Draft>>('/drafts');
+  const drafts = draftsPage?.data;
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [selectedVersionId, setSelectedVersionId] = useState('');

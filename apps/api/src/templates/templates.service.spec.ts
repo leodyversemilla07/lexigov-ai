@@ -60,7 +60,17 @@ function buildPrismaDouble(): PrismaDouble {
       return record;
     }),
     findMany: jest.fn(
-      async ({ where, orderBy }: { where?: Record<string, unknown>; orderBy?: { usageCount?: 'asc' | 'desc' } }) => {
+      async ({
+        where,
+        orderBy,
+        skip,
+        take,
+      }: {
+        where?: Record<string, unknown>;
+        orderBy?: { usageCount?: 'asc' | 'desc' };
+        skip?: number;
+        take?: number;
+      }) => {
         let results = Array.from(templates.values());
         if (where) {
           if ('isPublic' in where) {
@@ -83,9 +93,16 @@ function buildPrismaDouble(): PrismaDouble {
             orderBy.usageCount === 'desc' ? b.usageCount - a.usageCount : a.usageCount - b.usageCount,
           );
         }
-        return results;
+        const offset = skip ?? 0;
+        const paged = results.slice(offset);
+        return take ? paged.slice(0, take) : paged;
       },
     ),
+    count: jest.fn(async ({ where }: { where?: Record<string, unknown> }) => {
+      if (!where) return templates.size;
+      const results = await template.findMany({ where });
+      return results.length;
+    }),
     findUnique: jest.fn(async ({ where }: { where: { id: string } }) => templates.get(where.id) ?? null),
     update: jest.fn(
       async ({
@@ -203,8 +220,8 @@ describe('TemplatesService.findAll', () => {
 
     const results = await service.findAll('user_A', undefined, true);
 
-    expect(results).toHaveLength(1);
-    expect(results[0]?.name).toBe('Public A');
+    expect(results.data).toHaveLength(1);
+    expect(results.data[0]?.name).toBe('Public A');
   });
 
   it("returns public templates plus the caller's private templates when publicOnly=false", async () => {
@@ -230,7 +247,7 @@ describe('TemplatesService.findAll', () => {
 
     const results = await service.findAll('user_A', undefined, false);
 
-    const names = results.map((t) => t.name);
+    const names = results.data.map((t) => t.name);
     expect(names).toEqual(expect.arrayContaining(['Public A', 'Private C (caller)']));
     expect(names).not.toContain('Private B (other user)');
   });
@@ -248,13 +265,13 @@ describe('TemplatesService.findAll', () => {
 
     const results = await service.findAll('user_1', 'Health', true);
 
-    expect(results.map((t) => t.name)).toEqual(['Health Template']);
+    expect(results.data.map((t) => t.name)).toEqual(['Health Template']);
   });
 
   it('returns an empty array when no templates match', async () => {
     const { service } = buildService();
     const results = await service.findAll('user_1', undefined, true);
-    expect(results).toEqual([]);
+    expect(results.data).toEqual([]);
   });
 
   it('orders results by usageCount descending', async () => {
@@ -274,7 +291,7 @@ describe('TemplatesService.findAll', () => {
 
     const results = await service.findAll('user_1', undefined, true);
 
-    expect(results.map((t) => t.name)).toEqual(['High', 'Low']);
+    expect(results.data.map((t) => t.name)).toEqual(['High', 'Low']);
   });
 
   it('builds paginated jurisdiction and search filters', async () => {
@@ -289,7 +306,7 @@ describe('TemplatesService.findAll', () => {
       search: 'waste',
     });
 
-    expect(prisma.template.findMany).toHaveBeenLastCalledWith({
+    expect(prisma.template.findMany).toHaveBeenNthCalledWith(1, {
       where: {
         isPublic: true,
         category: 'Health',

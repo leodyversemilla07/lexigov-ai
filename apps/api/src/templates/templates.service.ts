@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { buildPaginatedResult } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateTemplateDto } from './dto/create-template.dto';
 import type { ListTemplatesDto } from './dto/list-templates.dto';
@@ -63,12 +64,17 @@ export class TemplatesService {
       where.AND = [{ OR: searchFilters }];
     }
 
-    return this.prisma.template.findMany({
-      where: where as any,
-      orderBy: { usageCount: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const [data, total] = await Promise.all([
+      this.prisma.template.findMany({
+        where: where as any,
+        orderBy: { usageCount: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.template.count({ where: where as any }),
+    ]);
+
+    return buildPaginatedResult(data, page, limit, total);
   }
 
   async findOne(id: string, userId?: string) {

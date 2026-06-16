@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { useApiQuery } from '@/lib/api-hooks';
+import type { PaginatedResponse } from '@/types';
 
 interface DraftSummary {
   id: string;
@@ -34,7 +35,7 @@ interface DraftVersion {
 
 function ComparePageContent() {
   const searchParams = useSearchParams();
-  const { data: drafts } = useApiQuery<DraftSummary[]>('/drafts');
+  const { data: draftsPage } = useApiQuery<PaginatedResponse<DraftSummary>>('/drafts');
   const initialDraftId = searchParams.get('draft') ?? '';
   const [selectedDraftId, setSelectedDraftId] = useState(initialDraftId);
   const { data: versions } = useApiQuery<DraftVersion[]>(
@@ -43,7 +44,7 @@ function ComparePageContent() {
   const [leftVersionId, setLeftVersionId] = useState('');
   const [rightVersionId, setRightVersionId] = useState('');
 
-  const draftOptions = drafts ?? [];
+  const draftOptions = draftsPage?.data ?? [];
   const versionOptions = versions ?? [];
   const versionsLoading = Boolean(selectedDraftId) && versions === undefined;
 
@@ -85,7 +86,7 @@ function ComparePageContent() {
               <CardDescription>Choose the draft whose saved versions you want to compare.</CardDescription>
             </CardHeader>
             <CardContent>
-              {drafts === undefined ? (
+              {draftsPage === undefined ? (
                 <Skeleton className='h-10' />
               ) : (
                 <Select

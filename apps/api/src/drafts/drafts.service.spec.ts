@@ -59,10 +59,12 @@ function buildPrismaDouble() {
       async ({
         where,
         orderBy,
+        skip,
         take,
       }: {
         where?: Record<string, unknown>;
         orderBy?: { updatedAt?: 'asc' | 'desc'; version?: 'asc' | 'desc' };
+        skip?: number;
         take?: number;
       }) => {
         let results = Array.from(drafts.values());
@@ -80,9 +82,20 @@ function buildPrismaDouble() {
         } else if (orderBy?.version) {
           results.sort((a, b) => (orderBy.version === 'desc' ? b.version - a.version : a.version - b.version));
         }
-        return take ? results.slice(0, take) : results;
+        const offset = skip ?? 0;
+        const paged = results.slice(offset);
+        return take ? paged.slice(0, take) : paged;
       },
     ),
+    count: jest.fn(async ({ where }: { where?: Record<string, unknown> }) => {
+      if (!where) return drafts.size;
+      return Array.from(drafts.values()).filter((d) =>
+        Object.entries(where).every(([k, v]) => {
+          if (k === 'OR') return true;
+          return (d as unknown as Record<string, unknown>)[k] === v;
+        }),
+      ).length;
+    }),
     findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
       // Supports an optional `OR` clause: any branch can match. Each branch
       // is treated as a separate set of equality constraints against the row.
@@ -217,8 +230,9 @@ describe('DraftsService.findAll', () => {
 
     const results = await service.findAll(userId);
 
-    expect(results.map((d) => d.id)).toEqual([a.id, b.id]);
-    expect(results.find((d) => d.id === 'rev_only')).toBeUndefined();
+    expect(results.data.map((d) => d.id)).toEqual([a.id, b.id]);
+    expect(results.data.find((d) => d.id === 'rev_only')).toBeUndefined();
+    expect(results.total).toBe(2);
   });
 
   it('filters by status when provided', async () => {
@@ -227,10 +241,10 @@ describe('DraftsService.findAll', () => {
     expectDefined(prisma._state.drafts.get(draft.id)).status = 'REVIEW';
 
     const results = await service.findAll(userId, 'REVIEW');
-    expect(results.map((d) => d.id)).toEqual([draft.id]);
+    expect(results.data.map((d) => d.id)).toEqual([draft.id]);
 
     const empty = await service.findAll(userId, 'FINAL');
-    expect(empty).toEqual([]);
+    expect(empty.data).toEqual([]);
   });
 
   it("does not return another user's drafts", async () => {
@@ -239,8 +253,8 @@ describe('DraftsService.findAll', () => {
     const mine = await service.create({ ...baseCreateInput, title: 'mine' }, 'user_1');
 
     const results = await service.findAll('user_1');
-    expect(results).toHaveLength(1);
-    expect(results[0]?.id).toBe(mine.id);
+    expect(results.data).toHaveLength(1);
+    expect(results.data[0]?.id).toBe(mine.id);
   });
 
   it('builds paginated document type and search filters', async () => {

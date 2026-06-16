@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { extractDraftBody, normalizeDraftContent } from '../../../../packages/shared/src/draft-content';
 import type { DocumentStatus } from '../common/contracts';
+import { buildPaginatedResult } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { ListDraftsDto } from './dto/list-drafts.dto';
@@ -61,12 +62,17 @@ export class DraftsService {
       ];
     }
 
-    return this.prisma.draft.findMany({
-      where: where as any,
-      orderBy: { updatedAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const [data, total] = await Promise.all([
+      this.prisma.draft.findMany({
+        where: where as any,
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.draft.count({ where: where as any }),
+    ]);
+
+    return buildPaginatedResult(data, page, limit, total);
   }
 
   async findOne(id: string, userId: string) {

@@ -7,6 +7,7 @@ import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { ArrowRight, CheckCircle, FileText, LayoutTemplate, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useApiQuery } from '@/lib/api-hooks';
+import type { PaginatedResponse } from '@/types';
 
 interface Draft {
   id: string;
@@ -18,16 +19,18 @@ interface Draft {
 }
 
 export default function DashboardPage() {
-  const { data: drafts, isLoading } = useApiQuery<Draft[]>('/drafts?limit=5');
-  const { data: templates } = useApiQuery<unknown[]>('/templates?publicOnly=true');
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<Draft>>('/drafts?limit=5');
+  const { data: templatesPage } = useApiQuery<PaginatedResponse<unknown>>('/templates?publicOnly=true');
+  const drafts = draftsPage?.data ?? [];
+  const templates = templatesPage?.data ?? [];
 
   const stats = {
-    total: drafts?.length ?? 0,
-    aiGenerated: (drafts ?? []).filter((d: Draft) => d.aiGenerated).length,
-    templates: templates?.length ?? 0,
+    total: draftsPage?.total ?? drafts.length,
+    aiGenerated: drafts.filter((d: Draft) => d.aiGenerated).length,
+    templates: templatesPage?.total ?? templates.length,
   };
 
-  const recentDrafts = drafts?.slice(0, 5) ?? [];
+  const recentDrafts = drafts.slice(0, 5);
 
   const getStatusColor = (status: string) => {
     switch (status) {

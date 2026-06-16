@@ -28,6 +28,7 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { useApiQuery } from '@/lib/api-hooks';
+import type { PaginatedResponse } from '@/types';
 
 interface Draft {
   id: string;
@@ -42,12 +43,13 @@ interface Draft {
 }
 
 export default function DraftsPage() {
-  const { data: drafts, isLoading } = useApiQuery<Draft[]>('/drafts');
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<Draft>>('/drafts');
+  const drafts = draftsPage?.data ?? [];
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
 
-  const filteredDrafts = (drafts ?? []).filter((draft: Draft) => {
+  const filteredDrafts = drafts.filter((draft: Draft) => {
     const matchesSearch =
       draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       draft.jurisdictionName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -57,10 +59,10 @@ export default function DraftsPage() {
   });
 
   const stats = {
-    total: drafts?.length ?? 0,
-    draft: (drafts ?? []).filter((draft) => draft.status === 'DRAFT').length,
-    review: (drafts ?? []).filter((draft) => draft.status === 'REVIEW').length,
-    final: (drafts ?? []).filter((draft) => draft.status === 'FINAL').length,
+    total: draftsPage?.total ?? drafts.length,
+    draft: drafts.filter((draft) => draft.status === 'DRAFT').length,
+    review: drafts.filter((draft) => draft.status === 'REVIEW').length,
+    final: drafts.filter((draft) => draft.status === 'FINAL').length,
   };
 
   const getStatusColor = (status: string) => {

@@ -37,3 +37,4 @@ export type {
   UpdateTemplateInput,
   UserRole,
 } from '@lexigov/shared';
+export type { PaginatedResponse } from './api';
