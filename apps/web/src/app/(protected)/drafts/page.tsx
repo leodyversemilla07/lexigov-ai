@@ -28,28 +28,16 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { PaginatedResponse } from '@/types';
-
-interface Draft {
-  id: string;
-  title: string;
-  documentType: string;
-  jurisdiction: string;
-  jurisdictionName: string;
-  status: string;
-  aiGenerated: boolean;
-  version: number;
-  updatedAt: string;
-}
+import type { ApiDraft, PaginatedResponse } from '@/types';
 
 export default function DraftsPage() {
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<Draft>>('/drafts');
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
   const drafts = draftsPage?.data ?? [];
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
 
-  const filteredDrafts = drafts.filter((draft: Draft) => {
+  const filteredDrafts = drafts.filter((draft: ApiDraft) => {
     const matchesSearch =
       draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       draft.jurisdictionName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -234,7 +222,7 @@ export default function DraftsPage() {
             </div>
           ) : (
             <div className='divide-y'>
-              {filteredDrafts.map((draft: Draft) => (
+              {filteredDrafts.map((draft: ApiDraft) => (
                 <div key={draft.id} className='p-4 hover:bg-muted/50 transition-colors'>
                   <div className='flex items-center justify-between gap-4'>
                     <div className='flex items-center gap-4 flex-1 min-w-0'>

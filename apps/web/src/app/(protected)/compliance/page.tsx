@@ -13,59 +13,25 @@ import { Suspense, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { PaginatedResponse } from '@/types';
-
-type ComplianceResult = {
-  overallScore: number;
-  isValid: boolean;
-  issues: Array<{
-    type: 'critical' | 'warning' | 'suggestion';
-    section?: string;
-    title: string;
-    description: string;
-    suggestion: string;
-  }>;
-};
-
-interface Draft {
-  id: string;
-  title: string;
-  documentType: string;
-  jurisdiction: string;
-  jurisdictionName: string;
-  status: string;
-  version: number;
-  content: unknown;
-}
-
-interface ComplianceReportHistoryItem {
-  id: string;
-  draftVersion: number;
-  overallScore: number;
-  isValid: boolean;
-  issuesCount: number;
-  warningsCount: number;
-  suggestionsCount: number;
-  checkedAt: string;
-}
+import type { ApiComplianceReport, ApiComplianceResult, ApiDraft, PaginatedResponse } from '@/types';
 
 function CompliancePageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: draftsPage } = useApiQuery<PaginatedResponse<Draft>>('/drafts');
+  const { data: draftsPage } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
   const drafts = draftsPage?.data;
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [isChecking, setIsChecking] = useState(false);
-  const [result, setResult] = useState<ComplianceResult | null>(null);
+  const [result, setResult] = useState<ApiComplianceResult | null>(null);
 
-  const selectedDraft = drafts?.find((d: Draft) => d.id === selectedDraftId);
-  const { data: reportHistory } = useApiQuery<ComplianceReportHistoryItem[]>(
+  const selectedDraft = drafts?.find((d: ApiDraft) => d.id === selectedDraftId);
+  const { data: reportHistory } = useApiQuery<ApiComplianceReport[]>(
     selectedDraftId ? `/compliance/${selectedDraftId}` : null,
   );
 
-  const getContent = (draft: Draft): string => {
+  const getContent = (draft: ApiDraft): string => {
     return extractDraftBody(draft.content);
   };
 
@@ -76,7 +42,7 @@ function CompliancePageContent() {
     setResult(null);
 
     try {
-      const complianceResult = await api.post<ComplianceResult>(`/compliance/${selectedDraft.id}/check`);
+      const complianceResult = await api.post<ApiComplianceResult>(`/compliance/${selectedDraft.id}/check`);
       setResult(complianceResult);
       toast.success('Compliance check complete.');
     } catch (error) {
@@ -150,7 +116,7 @@ function CompliancePageContent() {
                     <SelectValue placeholder='Select a draft' />
                   </SelectTrigger>
                   <SelectContent>
-                    {drafts.map((draft: Draft) => (
+                    {drafts.map((draft: ApiDraft) => (
                       <SelectItem key={draft.id} value={draft.id}>
                         <div className='truncate'>
                           <div className='font-medium truncate'>{draft.title}</div>

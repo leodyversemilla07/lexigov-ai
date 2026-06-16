@@ -15,7 +15,7 @@ import { Suspense, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { PaginatedResponse } from '@/types';
+import type { ApiDraft, ApiDraftVersion, PaginatedResponse } from '@/types';
 
 type ExportFormat = 'txt' | 'md' | 'docx' | 'pdf';
 
@@ -51,36 +51,12 @@ const exportFormats: Array<{
   },
 ];
 
-interface Draft {
-  id: string;
-  title: string;
-  documentType: string;
-  jurisdiction: string;
-  jurisdictionName: string;
-  status: string;
-  version: number;
-  content: unknown;
-  updatedAt: string;
-}
-
-interface DraftVersion {
-  id: string;
-  title: string;
-  status: string;
-  version: number;
-  updatedAt: string;
-  createdAt: string;
-  commitMessage?: string;
-  isCurrent: boolean;
-  body: string;
-}
-
 interface ExportSection {
   heading: string;
   body: string;
 }
 
-function getDraftContent(draft: Draft): string {
+function getDraftContent(draft: ApiDraft): string {
   return extractDraftBody(draft.content);
 }
 
@@ -88,7 +64,7 @@ function sanitizeFilename(value: string) {
   return value.replace(/[^a-z0-9]/gi, '_');
 }
 
-function buildTextExportContent(draft: Draft, version: DraftVersion, format: 'txt' | 'md') {
+function buildTextExportContent(draft: ApiDraft, version: ApiDraftVersion, format: 'txt' | 'md') {
   const sections = extractDraftSections({ body: version.body });
   const structuredContent =
     sections.length > 0
@@ -106,7 +82,7 @@ function buildTextExportContent(draft: Draft, version: DraftVersion, format: 'tx
   return `${draft.documentType.toUpperCase()}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()})\nVersion: ${version.version}\nStatus: ${version.status}\n${'='.repeat(50)}\n\n${structuredContent}`;
 }
 
-async function buildDocxBlob(draft: Draft, version: DraftVersion) {
+async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
   const sections = extractDraftSections({ body: version.body });
   const bodyParagraphs = buildDocxSectionParagraphs(sections);
 
@@ -159,7 +135,7 @@ async function buildDocxBlob(draft: Draft, version: DraftVersion) {
   return Packer.toBlob(document);
 }
 
-async function buildPdfBlob(draft: Draft, version: DraftVersion) {
+async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   const sections = extractDraftSections({ body: version.body });
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -298,7 +274,7 @@ function ExportPageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<Draft>>('/drafts');
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
   const drafts = draftsPage?.data;
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
@@ -309,12 +285,12 @@ function ExportPageContent() {
   const [previewContent, setPreviewContent] = useState<string>('');
   const [showPreview, setShowPreview] = useState(false);
 
-  const { data: versionHistory } = useApiQuery<DraftVersion[]>(
+  const { data: versionHistory } = useApiQuery<ApiDraftVersion[]>(
     selectedDraftId ? `/drafts/${selectedDraftId}/versions` : null,
   );
 
-  const selectedDraft = drafts?.find((draft: Draft) => draft.id === selectedDraftId);
-  const fallbackVersion: DraftVersion | undefined = selectedDraft
+  const selectedDraft = drafts?.find((draft: ApiDraft) => draft.id === selectedDraftId);
+  const fallbackVersion: ApiDraftVersion | undefined = selectedDraft
     ? {
         id: selectedDraft.id,
         title: selectedDraft.title,
@@ -328,7 +304,7 @@ function ExportPageContent() {
       }
     : undefined;
 
-  const currentVersion = versionHistory?.find((version) => version.isCurrent) ?? fallbackVersion;
+  const currentVersion = versionHistory?.find((version: ApiDraftVersion) => version.isCurrent) ?? fallbackVersion;
   const resolvedVersionId =
     selectedVersionId && versionHistory?.some((version) => version.id === selectedVersionId)
       ? selectedVersionId
@@ -428,7 +404,7 @@ function ExportPageContent() {
                     <SelectValue placeholder='Select a draft' />
                   </SelectTrigger>
                   <SelectContent>
-                    {drafts.map((draft: Draft) => (
+                    {drafts.map((draft: ApiDraft) => (
                       <SelectItem key={draft.id} value={draft.id}>
                         <div className='truncate'>
                           <div className='font-medium truncate'>{draft.title}</div>

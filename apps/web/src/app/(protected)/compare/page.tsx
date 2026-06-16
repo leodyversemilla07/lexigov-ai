@@ -10,35 +10,14 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { PaginatedResponse } from '@/types';
-
-interface DraftSummary {
-  id: string;
-  title: string;
-  documentType: string;
-  jurisdictionName: string;
-  version: number;
-  updatedAt: string;
-}
-
-interface DraftVersion {
-  id: string;
-  title: string;
-  status: string;
-  version: number;
-  updatedAt: string;
-  createdAt: string;
-  commitMessage?: string;
-  isCurrent: boolean;
-  body: string;
-}
+import type { ApiDraft, ApiDraftVersion, PaginatedResponse } from '@/types';
 
 function ComparePageContent() {
   const searchParams = useSearchParams();
-  const { data: draftsPage } = useApiQuery<PaginatedResponse<DraftSummary>>('/drafts');
+  const { data: draftsPage } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
   const initialDraftId = searchParams.get('draft') ?? '';
   const [selectedDraftId, setSelectedDraftId] = useState(initialDraftId);
-  const { data: versions } = useApiQuery<DraftVersion[]>(
+  const { data: versions } = useApiQuery<ApiDraftVersion[]>(
     selectedDraftId ? `/drafts/${selectedDraftId}/versions` : null,
   );
   const [leftVersionId, setLeftVersionId] = useState('');
@@ -48,7 +27,7 @@ function ComparePageContent() {
   const versionOptions = versions ?? [];
   const versionsLoading = Boolean(selectedDraftId) && versions === undefined;
 
-  const selectedDraft = draftOptions.find((draft: DraftSummary) => draft.id === selectedDraftId);
+  const selectedDraft = draftOptions.find((draft: ApiDraft) => draft.id === selectedDraftId);
   const currentVersion = versionOptions.find((version) => version.isCurrent) ?? versionOptions[0];
   const previousVersion =
     versionOptions.find((version) => !version.isCurrent) ?? versionOptions[versionOptions.length - 1];
@@ -101,7 +80,7 @@ function ComparePageContent() {
                     <SelectValue placeholder='Select a draft' />
                   </SelectTrigger>
                   <SelectContent>
-                    {draftOptions.map((draft: DraftSummary) => (
+                    {draftOptions.map((draft: ApiDraft) => (
                       <SelectItem key={draft.id} value={draft.id}>
                         {draft.title}
                       </SelectItem>

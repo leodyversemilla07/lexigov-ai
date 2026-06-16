@@ -7,26 +7,17 @@ import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { ArrowRight, CheckCircle, FileText, LayoutTemplate, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { PaginatedResponse } from '@/types';
-
-interface Draft {
-  id: string;
-  title: string;
-  documentType: string;
-  jurisdictionName: string;
-  status: string;
-  aiGenerated: boolean;
-}
+import type { ApiDraft, PaginatedResponse } from '@/types';
 
 export default function DashboardPage() {
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<Draft>>('/drafts?limit=5');
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts?limit=5');
   const { data: templatesPage } = useApiQuery<PaginatedResponse<unknown>>('/templates?publicOnly=true');
   const drafts = draftsPage?.data ?? [];
   const templates = templatesPage?.data ?? [];
 
   const stats = {
     total: draftsPage?.total ?? drafts.length,
-    aiGenerated: drafts.filter((d: Draft) => d.aiGenerated).length,
+    aiGenerated: drafts.filter((d: ApiDraft) => d.aiGenerated).length,
     templates: templatesPage?.total ?? templates.length,
   };
 
@@ -136,7 +127,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className='space-y-3'>
-                {recentDrafts.map((draft: Draft) => (
+                {recentDrafts.map((draft: ApiDraft) => (
                   <div
                     key={draft.id}
                     className='flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors'

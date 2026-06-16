@@ -37,4 +37,11 @@ export type {
   UpdateTemplateInput,
   UserRole,
 } from '@lexigov/shared';
-export type { PaginatedResponse } from './api';
+export type {
+  ApiComplianceIssue,
+  ApiComplianceReport,
+  ApiComplianceResult,
+  ApiDraft,
+  ApiDraftVersion,
+  PaginatedResponse,
+} from './api';
