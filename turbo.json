@@ -5,6 +5,13 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "dist/**"]
     },
+    "@lexigov/web#build": {
+      "dependsOn": ["@lexigov/api#db:generate", "^build"],
+      "outputs": [".next/**"]
+    },
+    "db:generate": {
+      "outputs": ["generated/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
