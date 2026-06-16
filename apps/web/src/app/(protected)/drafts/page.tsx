@@ -27,31 +27,33 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { Pagination } from '@/components/pagination';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useApiQuery } from '@/lib/api-hooks';
 import type { ApiDraft, PaginatedResponse } from '@/types';
 
+const PAGE_SIZE = 20;
+
 export default function DraftsPage() {
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
-  const drafts = draftsPage?.data ?? [];
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
 
-  const filteredDrafts = drafts.filter((draft: ApiDraft) => {
-    const matchesSearch =
-      draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      draft.jurisdictionName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || draft.status === statusFilter;
-    const matchesType = typeFilter === 'ALL' || draft.documentType === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const stats = {
-    total: draftsPage?.total ?? drafts.length,
-    draft: drafts.filter((draft) => draft.status === 'DRAFT').length,
-    review: drafts.filter((draft) => draft.status === 'REVIEW').length,
-    final: drafts.filter((draft) => draft.status === 'FINAL').length,
-  };
+  const queryParams = new URLSearchParams({
+    page: String(currentPage),
+    limit: String(PAGE_SIZE),
+  });
+  if (debouncedSearch) queryParams.set('search', debouncedSearch);
+  if (statusFilter !== 'ALL') queryParams.set('status', statusFilter);
+  if (typeFilter !== 'ALL') queryParams.set('documentType', typeFilter);
+
+  const apiPath = `/drafts?${queryParams.toString()}`;
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(apiPath);
+  const drafts = draftsPage?.data ?? [];
+  const totalCount = draftsPage?.total ?? 0;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -100,41 +102,8 @@ export default function DraftsPage() {
               <FileText className='h-5 w-5 text-primary' />
             </div>
             <div>
-              <div className='text-2xl font-bold'>{stats.total}</div>
+              <div className='text-2xl font-bold'>{totalCount}</div>
               <div className='text-sm text-muted-foreground'>Total Drafts</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className='p-4 flex items-center gap-4'>
-            <div className='p-2 bg-yellow-100 rounded-lg'>
-              <FileText className='h-5 w-5 text-yellow-600' />
-            </div>
-            <div>
-              <div className='text-2xl font-bold'>{stats.draft}</div>
-              <div className='text-sm text-muted-foreground'>In Draft</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className='p-4 flex items-center gap-4'>
-            <div className='p-2 bg-blue-100 rounded-lg'>
-              <FileText className='h-5 w-5 text-blue-600' />
-            </div>
-            <div>
-              <div className='text-2xl font-bold'>{stats.review}</div>
-              <div className='text-sm text-muted-foreground'>In Review</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className='p-4 flex items-center gap-4'>
-            <div className='p-2 bg-green-100 rounded-lg'>
-              <FileText className='h-5 w-5 text-green-600' />
-            </div>
-            <div>
-              <div className='text-2xl font-bold'>{stats.final}</div>
-              <div className='text-sm text-muted-foreground'>Final</div>
             </div>
           </CardContent>
         </Card>
@@ -149,13 +118,22 @@ export default function DraftsPage() {
               type='text'
               placeholder='Search drafts...'
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               className='pl-9'
             />
           </div>
           <div className='flex items-center gap-2'>
             <Filter className='w-4 h-4 text-muted-foreground' />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className='w-[140px]'>
                 <SelectValue placeholder='All Status' />
               </SelectTrigger>
@@ -167,7 +145,13 @@ export default function DraftsPage() {
                 <SelectItem value='ARCHIVED'>Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select
+              value={typeFilter}
+              onValueChange={(v) => {
+                setTypeFilter(v);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className='w-[140px]'>
                 <SelectValue placeholder='All Types' />
               </SelectTrigger>
@@ -194,7 +178,7 @@ export default function DraftsPage() {
                 ),
               )}
             </div>
-          ) : !filteredDrafts || filteredDrafts.length === 0 ? (
+          ) : !drafts || drafts.length === 0 ? (
             <div className='p-12 text-center'>
               <FileText className='w-16 h-16 mx-auto mb-4 text-muted' />
               <h3 className='text-lg font-medium mb-2'>No drafts found</h3>
@@ -222,7 +206,7 @@ export default function DraftsPage() {
             </div>
           ) : (
             <div className='divide-y'>
-              {filteredDrafts.map((draft: ApiDraft) => (
+              {drafts.map((draft: ApiDraft) => (
                 <div key={draft.id} className='p-4 hover:bg-muted/50 transition-colors'>
                   <div className='flex items-center justify-between gap-4'>
                     <div className='flex items-center gap-4 flex-1 min-w-0'>
@@ -305,6 +289,15 @@ export default function DraftsPage() {
           )}
         </CardContent>
       </Card>
+
+      {draftsPage && (
+        <Pagination
+          page={draftsPage.page}
+          totalPages={draftsPage.totalPages}
+          total={draftsPage.total}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </div>
   );
 }
