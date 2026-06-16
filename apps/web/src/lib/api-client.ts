@@ -1,3 +1,5 @@
+import type { ZodSchema } from 'zod';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 function getSessionToken(): string | null {
@@ -55,6 +57,22 @@ async function request<T>(method: string, path: string, body?: unknown, options:
 
 export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
+  /** GET and validate the response against a Zod schema. */
+  getValidated: <T>(path: string, schema: ZodSchema<T>, options?: RequestOptions) =>
+    request<unknown>('GET', path, undefined, options).then((data) => validateResponse(data, schema)),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
   delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
 };
+
+/**
+ * Wrap an API response with Zod validation.
+ * Throws an ApiError with status 500 if validation fails.
+ */
+export function validateResponse<T>(data: unknown, schema: ZodSchema<T>): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    console.error('API response validation failed:', result.error.format());
+    throw new ApiError(500, `Response validation failed: ${result.error.issues.length} issue(s)`);
+  }
+  return result.data;
+}
