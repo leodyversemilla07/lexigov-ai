@@ -272,6 +272,38 @@ describe('TemplatesService.findAll', () => {
 
     expect(results.map((t) => t.name)).toEqual(['High', 'Low']);
   });
+
+  it('builds paginated jurisdiction and search filters', async () => {
+    const { service, prisma } = buildService();
+
+    await service.findAll('user_1', {
+      page: 3,
+      limit: 5,
+      category: 'Health',
+      jurisdiction: 'city',
+      publicOnly: true,
+      search: 'waste',
+    });
+
+    expect(prisma.template.findMany).toHaveBeenLastCalledWith({
+      where: {
+        isPublic: true,
+        category: 'Health',
+        jurisdiction: { has: 'city' },
+        AND: [
+          {
+            OR: [
+              { name: { contains: 'waste', mode: 'insensitive' } },
+              { subcategory: { contains: 'waste', mode: 'insensitive' } },
+            ],
+          },
+        ],
+      },
+      orderBy: { usageCount: 'desc' },
+      skip: 10,
+      take: 5,
+    });
+  });
 });
 
 describe('TemplatesService.findOne', () => {

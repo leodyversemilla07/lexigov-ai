@@ -242,6 +242,32 @@ describe('DraftsService.findAll', () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.id).toBe(mine.id);
   });
+
+  it('builds paginated document type and search filters', async () => {
+    const { service, prisma } = buildService();
+
+    await service.findAll('user_1', {
+      page: 2,
+      limit: 10,
+      documentType: 'RESOLUTION',
+      search: 'curfew',
+    });
+
+    expect(prisma.draft.findMany).toHaveBeenLastCalledWith({
+      where: {
+        userId: 'user_1',
+        parentDraftId: null,
+        documentType: 'RESOLUTION',
+        OR: [
+          { title: { contains: 'curfew', mode: 'insensitive' } },
+          { jurisdictionName: { contains: 'curfew', mode: 'insensitive' } },
+        ],
+      },
+      orderBy: { updatedAt: 'desc' },
+      skip: 10,
+      take: 10,
+    });
+  });
 });
 
 describe('DraftsService.update', () => {
