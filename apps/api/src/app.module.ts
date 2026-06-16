@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { ThrottlerBehindAuthGuard } from './common/throttler-behind-auth.guard';
 import { ComplianceModule } from './compliance/compliance.module';
 import { DraftsModule } from './drafts/drafts.module';
+import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TemplatesModule } from './templates/templates.module';
 
@@ -29,6 +30,7 @@ import { TemplatesModule } from './templates/templates.module';
     TemplatesModule,
     ComplianceModule,
     AiModule,
+    HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerBehindAuthGuard }],
 })
