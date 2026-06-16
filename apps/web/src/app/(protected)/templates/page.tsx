@@ -47,6 +47,8 @@ import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { Controller } from 'react-hook-form';
 import { toast } from 'sonner';
+import { Pagination } from '@/components/pagination';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useZodForm } from '@/hooks/use-zod-form';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
@@ -252,11 +254,23 @@ function TemplateCard({
   );
 }
 
+const PAGE_SIZE = 20;
+
 function TemplatesPageContent() {
   const { data: session } = useSession();
-  const { data: templatesPage, isLoading } = useApiQuery<PaginatedResponse<EditableTemplate>>('/templates');
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  const queryParams = new URLSearchParams({ page: String(currentPage), limit: String(PAGE_SIZE) });
+  if (debouncedSearch) queryParams.set('search', debouncedSearch);
+  if (categoryFilter !== 'ALL') queryParams.set('category', categoryFilter);
+
+  const { data: templatesPage, isLoading } = useApiQuery<PaginatedResponse<EditableTemplate>>(
+    `/templates?${queryParams.toString()}`,
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const templateForm = useZodForm({
@@ -281,21 +295,8 @@ function TemplatesPageContent() {
   const currentUserId = session?.user?.id;
   const categories = [...new Set(templates.map((template) => template.category))].sort();
 
-  const matchesFilters = (template: EditableTemplate) => {
-    const search = searchQuery.toLowerCase();
-    const description = getTemplateDescription(template).toLowerCase();
-    const matchesSearch =
-      template.name.toLowerCase().includes(search) ||
-      template.category.toLowerCase().includes(search) ||
-      description.includes(search);
-    const matchesCategory = categoryFilter === 'ALL' || template.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  };
-
-  const myTemplates = templates.filter((template) => template.userId === currentUserId && matchesFilters(template));
-  const publicTemplates = templates.filter(
-    (template) => template.isPublic && template.userId !== currentUserId && matchesFilters(template),
-  );
+  const myTemplates = templates.filter((template) => template.userId === currentUserId);
+  const publicTemplates = templates.filter((template) => template.isPublic && template.userId !== currentUserId);
 
   const openCreateDialog = () => {
     setEditingTemplateId(null);
@@ -415,10 +416,19 @@ function TemplatesPageContent() {
               placeholder='Search templates...'
               className='pl-9'
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <Select
+            value={categoryFilter}
+            onValueChange={(v) => {
+              setCategoryFilter(v);
+              setCurrentPage(1);
+            }}
+          >
             <SelectTrigger className='w-[220px]'>
               <SelectValue placeholder='All Categories' />
             </SelectTrigger>
@@ -552,6 +562,15 @@ function TemplatesPageContent() {
           </div>
         </CardContent>
       </Card>
+
+      {templatesPage && (
+        <Pagination
+          page={templatesPage.page}
+          totalPages={templatesPage.totalPages}
+          total={templatesPage.total}
+          onPageChange={setCurrentPage}
+        />
+      )}
 
       <Dialog
         open={dialogOpen}
