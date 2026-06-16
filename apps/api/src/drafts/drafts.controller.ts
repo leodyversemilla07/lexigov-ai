@@ -13,11 +13,11 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { DraftsService } from './drafts.service';
-import type { CreateDraftDto } from './dto/create-draft.dto';
-import type { ListDraftsDto } from './dto/list-drafts.dto';
-import type { LogExportDto } from './dto/log-export.dto';
-import type { RestoreVersionDto } from './dto/restore-version.dto';
-import type { UpdateDraftDto } from './dto/update-draft.dto';
+import { CreateDraftDto } from './dto/create-draft.dto';
+import { ListDraftsDto } from './dto/list-drafts.dto';
+import { LogExportDto } from './dto/log-export.dto';
+import { RestoreVersionDto } from './dto/restore-version.dto';
+import { UpdateDraftDto } from './dto/update-draft.dto';
 
 @Controller('drafts')
 @UseGuards(AuthGuard)

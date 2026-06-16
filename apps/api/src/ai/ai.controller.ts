@@ -2,9 +2,9 @@ import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '../auth/auth.guard';
 import { AiService } from './ai.service';
-import type { CheckComplianceDto } from './dto/check-compliance.dto';
-import type { GenerateOrdinanceDto } from './dto/generate-ordinance.dto';
-import type { GenerateSummaryDto } from './dto/generate-summary.dto';
+import { CheckComplianceDto } from './dto/check-compliance.dto';
+import { GenerateOrdinanceDto } from './dto/generate-ordinance.dto';
+import { GenerateSummaryDto } from './dto/generate-summary.dto';
 
 /**
  * AI endpoints hit Azure OpenAI and are billed per token.
