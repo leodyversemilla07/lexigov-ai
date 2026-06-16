@@ -1,7 +1,9 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { extractDraftBody, normalizeDraftContent } from '../../../../packages/shared/src/draft-content';
+import type { DocumentStatus } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
+import type { ListDraftsDto } from './dto/list-drafts.dto';
 import type { LogExportDto } from './dto/log-export.dto';
 import type { UpdateDraftDto } from './dto/update-draft.dto';
 
@@ -44,14 +46,26 @@ export class DraftsService {
     });
   }
 
-  async findAll(userId: string, status?: string) {
+  async findAll(userId: string, queryOrStatus: ListDraftsDto | DocumentStatus = {}) {
+    const query = typeof queryOrStatus === 'string' ? { status: queryOrStatus } : queryOrStatus;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
     const where: Record<string, unknown> = { userId, parentDraftId: null };
-    if (status) where.status = status;
+
+    if (query.status) where.status = query.status;
+    if (query.documentType) where.documentType = query.documentType;
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { jurisdictionName: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
 
     return this.prisma.draft.findMany({
       where: where as any,
       orderBy: { updatedAt: 'desc' },
-      take: 50,
+      skip: (page - 1) * limit,
+      take: limit,
     });
   }
 

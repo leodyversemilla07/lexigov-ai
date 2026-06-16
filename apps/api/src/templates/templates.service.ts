@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateTemplateDto } from './dto/create-template.dto';
+import type { ListTemplatesDto } from './dto/list-templates.dto';
 import type { UpdateTemplateDto } from './dto/update-template.dto';
 
 @Injectable()
@@ -37,18 +38,36 @@ export class TemplatesService {
     });
   }
 
-  async findAll(userId: string, category?: string, publicOnly?: boolean) {
+  async findAll(userId: string, queryOrCategory: ListTemplatesDto | string = {}, publicOnly?: boolean) {
+    const query: ListTemplatesDto =
+      typeof queryOrCategory === 'string'
+        ? ({ category: queryOrCategory, publicOnly: publicOnly ?? false } as ListTemplatesDto)
+        : queryOrCategory;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
     const where: Record<string, unknown> = {
-      ...(publicOnly ? { isPublic: true } : { OR: [{ isPublic: true }, { userId }] }),
+      ...(query.publicOnly ? { isPublic: true } : { OR: [{ isPublic: true }, { userId }] }),
     };
 
-    if (category) {
-      where.category = category;
+    if (query.category) {
+      where.category = query.category;
+    }
+    if (query.jurisdiction) {
+      where.jurisdiction = { has: query.jurisdiction };
+    }
+    if (query.search) {
+      const searchFilters = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { subcategory: { contains: query.search, mode: 'insensitive' } },
+      ];
+      where.AND = [{ OR: searchFilters }];
     }
 
     return this.prisma.template.findMany({
       where: where as any,
       orderBy: { usageCount: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
   }
 

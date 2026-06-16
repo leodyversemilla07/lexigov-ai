@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import type { CreateTemplateDto } from './dto/create-template.dto';
+import type { ListTemplatesDto } from './dto/list-templates.dto';
 import type { UpdateTemplateDto } from './dto/update-template.dto';
 import { TemplatesService } from './templates.service';
 
@@ -15,8 +16,8 @@ export class TemplatesController {
   }
 
   @Get()
-  findAll(@Req() req: any, @Query('category') category?: string, @Query('publicOnly') publicOnly?: string) {
-    return this.templatesService.findAll(req.user.userId, category, publicOnly === 'true');
+  findAll(@Req() req: any, @Query() query: ListTemplatesDto) {
+    return this.templatesService.findAll(req.user.userId, query);
   }
 
   @Get(':id')

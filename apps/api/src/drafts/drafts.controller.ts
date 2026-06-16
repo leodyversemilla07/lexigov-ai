@@ -14,6 +14,7 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { DraftsService } from './drafts.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
+import type { ListDraftsDto } from './dto/list-drafts.dto';
 import type { LogExportDto } from './dto/log-export.dto';
 import type { RestoreVersionDto } from './dto/restore-version.dto';
 import type { UpdateDraftDto } from './dto/update-draft.dto';
@@ -29,8 +30,8 @@ export class DraftsController {
   }
 
   @Get()
-  findAll(@Req() req: any, @Query('status') status?: string) {
-    return this.draftsService.findAll(req.user.userId, status);
+  findAll(@Req() req: any, @Query() query: ListDraftsDto) {
+    return this.draftsService.findAll(req.user.userId, query);
   }
 
   @Get(':id')
