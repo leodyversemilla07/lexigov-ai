@@ -11,6 +11,7 @@
     "format": "biome format --write",
     "lint:turbo": "turbo lint",
     "test": "turbo test",
+    "test:e2e": "pnpm --filter @lexigov/api test:e2e",
     "db:generate": "pnpm --filter @lexigov/api db:generate",
     "db:migrate": "pnpm --filter @lexigov/api db:migrate",
     "db:seed": "pnpm --filter @lexigov/api db:seed",

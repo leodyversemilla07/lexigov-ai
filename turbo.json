@@ -21,6 +21,10 @@
       "persistent": true
     },
     "lint": {},
-    "test": {}
+    "test": {},
+    "test:e2e": {
+      "dependsOn": ["@lexigov/api#db:generate"],
+      "outputs": []
+    }
   }
 }
