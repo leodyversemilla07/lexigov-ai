@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { ThrottlerBehindAuthGuard } from './common/throttler-behind-auth.guard';
@@ -24,6 +25,14 @@ import { TemplatesModule } from './templates/templates.module';
       { name: 'default', ttl: 60_000, limit: 120 },
       { name: 'ai', ttl: 60_000, limit: 10 },
     ]),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport:
+          process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
+        level: process.env.LOG_LEVEL ?? 'info',
+        redact: ['req.headers.authorization', 'req.headers.cookie'],
+      },
+    }),
     PrismaModule,
     AuthModule,
     DraftsModule,
