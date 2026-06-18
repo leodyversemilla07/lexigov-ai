@@ -1,0 +1,29 @@
+FROM node:20-alpine
+
+RUN corepack enable && corepack prepare pnpm@11 --activate
+WORKDIR /app
+
+# Copy dependency manifests
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/typescript-config/package.json packages/typescript-config/package.json
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY tsconfig.base.json ./
+COPY apps/api apps/api
+COPY packages packages
+
+# Generate Prisma client
+RUN cd apps/api && npx prisma generate
+
+# Build the API
+RUN cd apps/api && npx nest build
+
+EXPOSE 4000
+
+CMD ["node", "apps/api/dist/main"]
