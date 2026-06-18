@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { initSentry } from './sentry/sentry.init';
@@ -10,6 +11,16 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+
+  // Swagger / OpenAPI
+  const config = new DocumentBuilder()
+    .setTitle('LexiGov API')
+    .setDescription('AI-powered platform for drafting Philippine local government ordinances (RA 7160 compliant).')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   const allowedOrigins = process.env.CORS_ORIGIN?.split(',')
     .map((origin) => origin.trim())

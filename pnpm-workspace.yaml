@@ -3,12 +3,14 @@ packages:
   - "packages/*"
 
 allowBuilds:
-  '@sentry/node-cpu-profiler': set this to true or false
+  '@scarf/scarf': true
+  '@sentry/node-cpu-profiler': true
 
 onlyBuiltDependencies:
   - "@nestjs/core"
   - "@prisma/client"
   - "@prisma/engines"
+  - "@scarf/scarf"
   - "@tailwindcss/oxide"
   - "esbuild"
   - "prisma"
