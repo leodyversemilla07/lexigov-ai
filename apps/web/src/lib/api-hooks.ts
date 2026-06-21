@@ -52,64 +52,70 @@ export function useApiQuery<T>(path: string | null, options?: UseApiQueryOptions
   const [error, setError] = useState<Error | null>(null);
   const [status, setStatus] = useState<QueryStatus>(data !== undefined ? 'success' : 'loading');
   const abortRef = useRef<AbortController | null>(null);
-  const pathRef = useRef(path);
-  pathRef.current = path;
+  const latestRequestRef = useRef(0);
 
-  const fetchData = useCallback(async (): Promise<T | null | undefined> => {
-    if (abortRef.current) abortRef.current.abort();
+  const fetchData = useCallback(
+    async (force = false): Promise<T | null | undefined> => {
+      if (abortRef.current) abortRef.current.abort();
 
-    if (pathRef.current === null) {
-      setData(undefined);
-      setError(null);
+      if (path === null) {
+        setData(undefined);
+        setError(null);
+        setStatus('loading');
+        return undefined;
+      }
+
+      const cacheKey = path;
+
+      if (force) {
+        cache.delete(cacheKey);
+      } else if (!noCache) {
+        const cached = getCached<T>(cacheKey);
+        if (cached !== undefined) {
+          setData(cached);
+          setStatus('success');
+          return cached;
+        }
+      }
+
+      const controller = new AbortController();
+      const requestId = latestRequestRef.current + 1;
+      latestRequestRef.current = requestId;
+      abortRef.current = controller;
+
       setStatus('loading');
+      setError(null);
+
+      try {
+        const result = await deduplicate(cacheKey, async () => {
+          const res = await api.get<T>(cacheKey, { signal: controller.signal });
+          return res;
+        });
+
+        if (!controller.signal.aborted && latestRequestRef.current === requestId) {
+          if (!noCache) setCache(cacheKey, result, staleTime);
+          setData(result);
+          setStatus('success');
+          return result;
+        }
+      } catch (err: unknown) {
+        if (controller.signal.aborted || latestRequestRef.current !== requestId) return undefined;
+
+        if (err instanceof ApiError && err.status === 404) {
+          setData(null);
+          setStatus('success');
+          return null;
+        }
+
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        setStatus('error');
+        setData(undefined);
+      }
       return undefined;
-    }
-
-    const cacheKey = pathRef.current;
-
-    if (!noCache) {
-      const cached = getCached<T>(cacheKey);
-      if (cached !== undefined) {
-        setData(cached);
-        setStatus('success');
-        return cached;
-      }
-    }
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setStatus('loading');
-    setError(null);
-
-    try {
-      const result = await deduplicate(cacheKey, async () => {
-        const res = await api.get<T>(cacheKey, { signal: controller.signal });
-        return res;
-      });
-
-      if (!controller.signal.aborted) {
-        if (!noCache) setCache(cacheKey, result, staleTime);
-        setData(result);
-        setStatus('success');
-        return result;
-      }
-    } catch (err: unknown) {
-      if (controller.signal.aborted) return undefined;
-
-      if (err instanceof ApiError && err.status === 404) {
-        setData(null);
-        setStatus('success');
-        return null;
-      }
-
-      const errorObj = err instanceof Error ? err : new Error(String(err));
-      setError(errorObj);
-      setStatus('error');
-      setData(undefined);
-    }
-    return undefined;
-  }, [staleTime, noCache]);
+    },
+    [path, staleTime, noCache],
+  );
 
   useEffect(() => {
     void fetchData();
@@ -119,23 +125,18 @@ export function useApiQuery<T>(path: string | null, options?: UseApiQueryOptions
   }, [fetchData]);
 
   /** Force-refetch regardless of cache. */
-  const refetch = useCallback(async (): Promise<T | null | undefined> => {
-    const cacheKey = pathRef.current;
-    if (cacheKey) cache.delete(cacheKey);
-    return fetchData();
-  }, [fetchData]);
+  const refetch = useCallback(async (): Promise<T | null | undefined> => fetchData(true), [fetchData]);
 
   /** Update local state immediately and optionally sync to cache. */
   const setQueryData = useCallback(
     (updater: T | ((prev: T | null | undefined) => T)): void => {
       setData((prev) => {
         const next = typeof updater === 'function' ? (updater as (prev: T | null | undefined) => T)(prev) : updater;
-        const cacheKey = pathRef.current;
-        if (!noCache && cacheKey) setCache(cacheKey, next, staleTime);
+        if (!noCache && path) setCache(path, next, staleTime);
         return next;
       });
     },
-    [staleTime, noCache],
+    [path, staleTime, noCache],
   );
 
   return {

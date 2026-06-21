@@ -18,12 +18,12 @@ COPY tsconfig.base.json ./
 COPY apps/api apps/api
 COPY packages packages
 
-# Generate Prisma client
-RUN cd apps/api && npx prisma generate
-
-# Build the API
-RUN cd apps/api && npx nest build
+# Generate Prisma client and build the API. Prisma generate only needs a
+# syntactically valid URL at image build time; runtime DATABASE_URL is supplied
+# by docker-compose or the deployment environment.
+RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lexigov pnpm --filter @lexigov/api db:generate
+RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lexigov pnpm --filter @lexigov/api build
 
 EXPOSE 4000
 
-CMD ["node", "apps/api/dist/main"]
+CMD ["node", "apps/api/dist/apps/api/src/main.js"]

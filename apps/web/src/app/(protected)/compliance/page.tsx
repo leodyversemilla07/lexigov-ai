@@ -27,7 +27,7 @@ function CompliancePageContent() {
   const [result, setResult] = useState<ApiComplianceResult | null>(null);
 
   const selectedDraft = drafts?.find((d: ApiDraft) => d.id === selectedDraftId);
-  const { data: reportHistory } = useApiQuery<ApiComplianceReport[]>(
+  const { data: reportHistory, refetch: refetchReportHistory } = useApiQuery<ApiComplianceReport[]>(
     selectedDraftId ? `/compliance/${selectedDraftId}` : null,
   );
 
@@ -44,6 +44,7 @@ function CompliancePageContent() {
     try {
       const complianceResult = await api.post<ApiComplianceResult>(`/compliance/${selectedDraft.id}/check`);
       setResult(complianceResult);
+      await refetchReportHistory();
       toast.success('Compliance check complete.');
     } catch (error) {
       console.error('Failed to check compliance:', error);

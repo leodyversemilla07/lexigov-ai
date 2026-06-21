@@ -268,9 +268,11 @@ function TemplatesPageContent() {
   if (debouncedSearch) queryParams.set('search', debouncedSearch);
   if (categoryFilter !== 'ALL') queryParams.set('category', categoryFilter);
 
-  const { data: templatesPage, isLoading } = useApiQuery<PaginatedResponse<EditableTemplate>>(
-    `/templates?${queryParams.toString()}`,
-  );
+  const {
+    data: templatesPage,
+    isLoading,
+    refetch: refetchTemplates,
+  } = useApiQuery<PaginatedResponse<EditableTemplate>>(`/templates?${queryParams.toString()}`);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const templateForm = useZodForm({
@@ -335,6 +337,7 @@ function TemplatesPageContent() {
       setDialogOpen(false);
       setEditingTemplateId(null);
       reset(emptyTemplateForm);
+      await refetchTemplates();
     } catch (error) {
       console.error('Failed to save template:', error);
       toast.error('Failed to save template. Please try again.');
@@ -345,6 +348,7 @@ function TemplatesPageContent() {
     if (!window.confirm(`Delete "${template.name}"? This cannot be undone.`)) return;
     try {
       await api.delete(`/templates/${template.id}`);
+      await refetchTemplates();
       toast.success('Template deleted.');
     } catch (error) {
       console.error('Failed to delete template:', error);

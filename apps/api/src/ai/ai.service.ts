@@ -5,12 +5,17 @@ import {
   buildComplianceResultFromIssues,
   mergeComplianceIssues,
 } from '../../../../packages/shared/src/compliance-analysis';
+import type { JurisdictionLevel } from '../common/contracts';
 
 interface AzureConfig {
   apiKey: string;
   apiVersion: string;
   deployment: string;
   endpoint: string;
+}
+
+function isJurisdictionLevel(value: string): value is JurisdictionLevel {
+  return value === 'barangay' || value === 'municipal' || value === 'city' || value === 'provincial';
 }
 
 @Injectable()
@@ -61,20 +66,14 @@ export class AiService {
     // shared deterministic analyzer only knows about the four RA 7160 levels
     // and would otherwise crash trying to look up penalty rules for an
     // arbitrary string.
-    const isKnownJurisdiction =
-      jurisdiction === 'barangay' ||
-      jurisdiction === 'municipal' ||
-      jurisdiction === 'city' ||
-      jurisdiction === 'provincial';
-
-    if (!isKnownJurisdiction) {
+    if (!isJurisdictionLevel(jurisdiction)) {
       // Skip the deterministic analyzer too — it requires a known jurisdiction
       // to compute penalty rule lookups. Return an empty compliance result
       // so callers can still proceed without throwing.
       return { overallScore: 0, isValid: false, issues: [] };
     }
 
-    const deterministic = analyzeDeterministicCompliance(content, jurisdiction as any);
+    const deterministic = analyzeDeterministicCompliance(content, jurisdiction);
 
     const config = this.getConfig();
     const { AzureOpenAI } = await import('openai');

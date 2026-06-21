@@ -1,7 +1,17 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { analyzeDeterministicCompliance } from '../../../../packages/shared/src/compliance-analysis';
 import { extractDraftBody } from '../../../../packages/shared/src/draft-content';
+import type { Prisma } from '../../generated/prisma/client';
+import type { JurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
+
+function toJurisdictionLevel(value: string): JurisdictionLevel {
+  if (value === 'barangay' || value === 'municipal' || value === 'city' || value === 'provincial') {
+    return value;
+  }
+
+  return 'barangay';
+}
 
 @Injectable()
 export class ComplianceService {
@@ -17,7 +27,8 @@ export class ComplianceService {
 
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
-    const deterministic = analyzeDeterministicCompliance(content, draft.jurisdiction as any);
+    const jurisdiction = toJurisdictionLevel(draft.jurisdiction);
+    const deterministic = analyzeDeterministicCompliance(content, jurisdiction);
 
     await this.prisma.$transaction(async (tx) => {
       const report = await tx.complianceReport.create({
@@ -29,7 +40,7 @@ export class ComplianceService {
           issuesCount: deterministic.issues.length,
           warningsCount: deterministic.issues.filter((i) => i.type === 'warning').length,
           suggestionsCount: deterministic.issues.filter((i) => i.type === 'suggestion').length,
-          issues: deterministic.issues as any,
+          issues: deterministic.issues as unknown as Prisma.InputJsonValue,
         },
       });
 

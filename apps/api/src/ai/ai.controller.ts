@@ -9,13 +9,13 @@ import { GenerateSummaryDto } from './dto/generate-summary.dto';
 
 /**
  * AI endpoints hit Azure OpenAI and are billed per token.
- * The 'ai' tier is configured globally in AppModule (10 req/min/user).
+ * Override the default API throttle with a tighter 10 req/min/user cap.
  */
 @ApiTags('AI')
 @ApiBearerAuth()
 @Controller('ai')
 @UseGuards(AuthGuard)
-@Throttle({ ai: { limit: 10, ttl: 60_000 } })
+@Throttle({ default: { limit: 10, ttl: 60_000 } })
 export class AiController {
   constructor(@Inject(AiService) private readonly aiService: AiService) {}
 

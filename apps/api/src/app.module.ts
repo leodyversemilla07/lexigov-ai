@@ -12,19 +12,14 @@ import { PrismaModule } from './prisma/prisma.module';
 import { TemplatesModule } from './templates/templates.module';
 
 /**
- * Rate-limit tiers:
- *  - 'default': 120 requests / minute / user (general API surface)
- *  - 'ai':      10 requests / minute / user (Azure OpenAI-backed endpoints)
+ * Default API rate limit: 120 requests / minute / user.
  *
- * Both tiers are independent, so a user can spend their AI quota independently
- * of their general API usage. Tighter tier is applied per-endpoint via @Throttle.
+ * Azure OpenAI-backed endpoints override this at the controller level with a
+ * tighter 10 requests / minute cap so non-AI routes do not consume AI quota.
  */
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 120 },
-      { name: 'ai', ttl: 60_000, limit: 10 },
-    ]),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
     LoggerModule.forRoot({
       pinoHttp: {
         transport:

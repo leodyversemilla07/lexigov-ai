@@ -1,12 +1,20 @@
 import { type CanActivate, type ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { type AuthenticatedUser, AuthService } from './auth.service';
+
+type RequestWithAuth = {
+  headers: {
+    authorization?: string;
+    cookie?: string;
+  };
+  user?: AuthenticatedUser;
+};
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithAuth>();
     const sessionToken = this.extractSessionToken(request);
 
     if (!sessionToken) {
@@ -18,7 +26,7 @@ export class AuthGuard implements CanActivate {
     return true;
   }
 
-  private extractSessionToken(request: any): string | null {
+  private extractSessionToken(request: RequestWithAuth): string | null {
     const authHeader = request.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       return authHeader.slice(7);

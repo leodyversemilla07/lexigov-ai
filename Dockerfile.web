@@ -19,10 +19,15 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY tsconfig.base.json ./
 COPY apps/web apps/web
+COPY apps/api/prisma apps/api/prisma
+COPY apps/api/prisma.config.ts apps/api/prisma.config.ts
 COPY packages packages
 
+# Generate the API Prisma client used by Better Auth in the web app
+RUN cd apps/api && DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lexigov pnpm exec prisma generate
+
 # Build the Next.js app
-RUN cd apps/web && npx next build
+RUN pnpm --filter @lexigov/web build
 
 EXPOSE 3000
 
