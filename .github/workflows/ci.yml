@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '24'
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lexigov_test
 
 jobs:
