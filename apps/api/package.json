@@ -16,7 +16,7 @@
     "lint:fix": "biome check --write",
     "format": "biome format --write",
     "test": "jest --passWithNoTests",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --forceExit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
