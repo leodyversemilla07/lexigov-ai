@@ -32,7 +32,6 @@ type UseZodFormProps<T extends z.ZodType> = Omit<UseFormProps<z.infer<T>>, 'reso
 export function useZodForm<T extends z.ZodType>({ schema, ...formProps }: UseZodFormProps<T>) {
   return useForm<z.infer<T>>({
     ...formProps,
-    // @ts-expect-error: zodResolver generic mismatch between versions
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema as unknown as Parameters<typeof zodResolver>[0]),
   });
 }
