@@ -3,7 +3,9 @@ import {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
   type ComplianceIssue,
+  getStatutoryCitations,
   mergeComplianceIssues,
+  toJurisdictionLevel,
 } from '@lexigov/shared';
 import { isJurisdictionLevel, type JurisdictionLevel } from '../common/contracts';
 
@@ -39,7 +41,22 @@ export class AiService {
       endpoint: config.endpoint,
     });
 
-    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate a ${documentType.toLowerCase()} for ${jurisdictionName} (${jurisdiction} level) following RA 7160 format.`;
+    const citations = getStatutoryCitations(prompt, toJurisdictionLevel(jurisdiction));
+    const citationContext = citations
+      .map((c) => `- ${c.source} ${c.provision} (${c.title}): ${c.relevance}`)
+      .join('\n');
+
+    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${jurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
+
+Statutory Grounding References:
+${citationContext}
+
+Document Requirements:
+1. Republic Header ("REPUBLIC OF THE PHILIPPINES", Jurisdiction name, "OFFICE OF THE SANGGUNIAN")
+2. Formal Document Title (e.g. "ORDINANCE NO. 2025-___")
+3. Formal Preamble with WHEREAS clauses citing relevant statutory bases (RA 7160 § 16, Constitution, DILG guidelines)
+4. Enacting Clause ("BE IT ORDAINED, by the Sanggunian in session assembled...")
+5. Standard Sections: Title, Declaration of Policy, Definitions, Operative Provisions, Penal Provisions (strictly obeying ${jurisdiction} limits), Administrative Enforcement, Separability Clause, Repealing Clause, Effectivity Clause.`;
 
     const completion = await client.chat.completions.create({
       model: config.deployment,
@@ -158,7 +175,22 @@ export class AiService {
       endpoint: config.endpoint,
     });
 
-    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate a ${documentType.toLowerCase()} for ${jurisdictionName} (${jurisdiction} level) following RA 7160 format. Ensure formal legal phrasing, Republic header, WHEREAS clauses, numbered sections (e.g. SECTION 1. Title.), penal provisions conforming to statutory limits, separability, repealing, and effectivity clauses.`;
+    const citations = getStatutoryCitations(prompt, toJurisdictionLevel(jurisdiction));
+    const citationContext = citations
+      .map((c) => `- ${c.source} ${c.provision} (${c.title}): ${c.relevance}`)
+      .join('\n');
+
+    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${jurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
+
+Statutory Grounding References:
+${citationContext}
+
+Document Requirements:
+1. Republic Header ("REPUBLIC OF THE PHILIPPINES", Jurisdiction name, "OFFICE OF THE SANGGUNIAN")
+2. Formal Document Title (e.g. "ORDINANCE NO. 2025-___")
+3. Formal Preamble with WHEREAS clauses citing relevant statutory bases (RA 7160 § 16, Constitution, DILG guidelines)
+4. Enacting Clause ("BE IT ORDAINED, by the Sanggunian in session assembled...")
+5. Standard Sections: Title, Declaration of Policy, Definitions, Operative Provisions, Penal Provisions (strictly obeying ${jurisdiction} limits), Administrative Enforcement, Separability Clause, Repealing Clause, Effectivity Clause.`;
 
     const stream = await client.chat.completions.create({
       model: config.deployment,

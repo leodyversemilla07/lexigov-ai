@@ -33,6 +33,7 @@ import {
   type Draft,
   DraftStudio,
   type DraftVersion,
+  LegislativeTrackerPanel,
   MetricCard,
   SectionEditor,
   STATUS_CLASSES,
@@ -384,6 +385,8 @@ export default function DraftEditorPage() {
 
         <div className='space-y-6'>
           <WorkflowPanel draft={draft} status={status} onStatusChange={setStatus} />
+
+          <LegislativeTrackerPanel jurisdiction={draft.jurisdiction} />
 
           <CompliancePulsePanel
             latestCompliance={latestCompliance}

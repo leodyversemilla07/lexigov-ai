@@ -73,5 +73,33 @@ export {
   buildSectionDiff,
 } from './text-diff';
 
+// Statutory Citations & Legal Grounding
+export type { StatutoryCitation } from './statutory-citations';
+export {
+  PHILIPPINE_STATUTORY_DATABASE,
+  generateSuggestedWhereasClauses,
+  getStatutoryCitations,
+} from './statutory-citations';
+
+// Sanggunian Legislative Tracker
+export type {
+  LegislativeMilestones,
+  LegislativeStage,
+  VotingRecord,
+} from './legislative-tracker';
+export {
+  LEGISLATIVE_STAGES,
+  calculateTransmittalDeadline,
+  getDefaultMilestones,
+} from './legislative-tracker';
+
+// Document Verification & Integrity
+export type { VerificationMetadata } from './document-verification';
+export {
+  buildVerificationMetadata,
+  generateVerificationHash,
+} from './document-verification';
+
 // Utils
 export { cn } from './utils';
+
