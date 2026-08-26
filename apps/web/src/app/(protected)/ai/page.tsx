@@ -249,19 +249,43 @@ function AIPageContent() {
 
   const handleGenerate = handleSubmit(async (values) => {
     setIsGenerating(true);
+    setGeneratedContent('');
+    setStep('preview');
+    let accumulated = '';
+
     try {
-      const generated = await api.post<{ content: string; model: string }>('/ai/generate-ordinance', {
-        prompt: values.prompt,
-        jurisdiction: values.jurisdiction,
-        jurisdictionName: values.jurisdictionName,
-        documentType: values.documentType,
-      });
-      setGeneratedContent(generated.content);
-      setGeneratedModel(generated.model);
-      setStep('preview');
-    } catch (error) {
-      console.error('Failed to generate:', error);
-      toast.error('Failed to generate draft. Please check your configuration and try again.');
+      await api.stream(
+        '/ai/generate-ordinance/stream',
+        {
+          prompt: values.prompt,
+          jurisdiction: values.jurisdiction,
+          jurisdictionName: values.jurisdictionName,
+          documentType: values.documentType,
+        },
+        (chunk) => {
+          accumulated += chunk;
+          setGeneratedContent(accumulated);
+        },
+      );
+      setGeneratedModel('azure-openai');
+      toast.success('Ordinance generated successfully.');
+    } catch {
+      // Fall back to batch generation
+      try {
+        const generated = await api.post<{ content: string; model: string }>('/ai/generate-ordinance', {
+          prompt: values.prompt,
+          jurisdiction: values.jurisdiction,
+          jurisdictionName: values.jurisdictionName,
+          documentType: values.documentType,
+        });
+        setGeneratedContent(generated.content);
+        setGeneratedModel(generated.model);
+        toast.success('Ordinance generated.');
+      } catch (err) {
+        console.error('Failed to generate:', err);
+        toast.error('Failed to generate draft. Please check your configuration and try again.');
+        setStep('configure');
+      }
     } finally {
       setIsGenerating(false);
     }

@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { extractDraftBody, normalizeDraftContent } from '../../../../packages/shared/src/draft-content';
+import { extractDraftBody, normalizeDraftContent } from '@lexigov/shared';
 import type { Prisma } from '../../generated/prisma/client';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';

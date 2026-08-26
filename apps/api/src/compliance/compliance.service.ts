@@ -1,17 +1,8 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { analyzeDeterministicCompliance } from '../../../../packages/shared/src/compliance-analysis';
-import { extractDraftBody } from '../../../../packages/shared/src/draft-content';
+import { analyzeDeterministicCompliance, extractDraftBody, toJurisdictionLevel } from '@lexigov/shared';
 import type { Prisma } from '../../generated/prisma/client';
-import type { JurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
-function toJurisdictionLevel(value: string): JurisdictionLevel {
-  if (value === 'barangay' || value === 'municipal' || value === 'city' || value === 'provincial') {
-    return value;
-  }
-
-  return 'barangay';
-}
 
 @Injectable()
 export class ComplianceService {

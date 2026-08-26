@@ -327,4 +327,63 @@ describe("compliance issue merging", () => {
             ]),
         );
     });
+
+    it("flags tax and revenue measures that lack a public hearing recital (RA 7160 § 187)", () => {
+        const content = [
+            "Republic of the Philippines",
+            "City of Sample",
+            "WHEREAS, the city needs to adjust local regulatory fees;",
+            "SECTION 1. Title.",
+            "This ordinance shall be known as the Revised Regulatory Fee Ordinance.",
+            "SECTION 2. Tax and Fee Adjustment.",
+            "A regulatory fee of P500.00 is hereby imposed on all commercial stalls.",
+            "SECTION 3. Separability Clause.",
+            "If any portion is invalid, the rest remains effective.",
+            "SECTION 4. Repealing Clause.",
+            "Inconsistent ordinances are repealed.",
+            "SECTION 5. Effectivity Clause.",
+            "This ordinance shall take effect after posting and publication.",
+        ].join("\n");
+
+        const result = analyzeDeterministicCompliance(content, "city");
+
+        expect(result.issues).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    title: "Tax/revenue measure lacks public hearing recital",
+                    type: "warning",
+                }),
+            ]),
+        );
+    });
+
+    it("flags appropriation ordinances lacking the mandatory 5% Calamity/LDRRMF allocation (RA 7160 § 324(d))", () => {
+        const content = [
+            "Republic of the Philippines",
+            "Municipality of Sample",
+            "WHEREAS, funds must be allocated for the ensuing fiscal year;",
+            "SECTION 1. Title.",
+            "This ordinance shall be known as the Annual Budget Ordinance 2025.",
+            "SECTION 2. Appropriations.",
+            "The sum of P50,000,000 is hereby appropriated for general operational expenses.",
+            "SECTION 3. Separability Clause.",
+            "If any portion is invalid, the rest remains effective.",
+            "SECTION 4. Repealing Clause.",
+            "Inconsistent ordinances are repealed.",
+            "SECTION 5. Effectivity Clause.",
+            "This ordinance shall take effect after posting and publication.",
+        ].join("\n");
+
+        const result = analyzeDeterministicCompliance(content, "municipal");
+
+        expect(result.issues).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    title: "Mandatory 5% Calamity / LDRRMF set-aside check",
+                    type: "warning",
+                }),
+            ]),
+        );
+    });
 });
+

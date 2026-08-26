@@ -135,7 +135,7 @@ export default function DraftEditorPage() {
   // Save handlers
   const saveCurrentDraft = async () => {
     if (!draft) throw new Error('Draft not found');
-    return await api.post<Draft>(`/drafts/${draftId}`, {
+    return await api.patch<Draft>(`/drafts/${draftId}`, {
       title,
       content: updateDraftSectionsContent(
         draft.content,
@@ -375,6 +375,8 @@ export default function DraftEditorPage() {
             selectedSection={selectedSection}
             selectedSectionNumber={selectedSectionNumber}
             totalSections={sectionOutline.length}
+            jurisdiction={draft.jurisdiction}
+            documentType={draft.documentType}
             onSectionChange={handleSectionChange}
             onRemoveSection={handleRemoveSection}
           />

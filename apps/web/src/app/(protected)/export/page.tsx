@@ -82,9 +82,51 @@ function buildTextExportContent(draft: ApiDraft, version: ApiDraftVersion, forma
   return `${draft.documentType.toUpperCase()}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()})\nVersion: ${version.version}\nStatus: ${version.status}\n${'='.repeat(50)}\n\n${structuredContent}`;
 }
 
+function getSanggunianBodyName(jurisdiction: string) {
+  switch (jurisdiction.toLowerCase()) {
+    case 'barangay':
+      return 'SANGGUNIANG BARANGAY';
+    case 'municipal':
+      return 'SANGGUNIANG BAYAN';
+    case 'provincial':
+      return 'SANGGUNIANG PANLALAWIGAN';
+    default:
+      return 'SANGGUNIANG PANLUNGSOD';
+  }
+}
+
+function getLocalChiefExecutiveTitle(jurisdiction: string) {
+  switch (jurisdiction.toLowerCase()) {
+    case 'barangay':
+      return 'Punong Barangay';
+    case 'municipal':
+      return 'Municipal Mayor';
+    case 'provincial':
+      return 'Provincial Governor';
+    default:
+      return 'City Mayor';
+  }
+}
+
+function getPresidingOfficerTitle(jurisdiction: string) {
+  switch (jurisdiction.toLowerCase()) {
+    case 'barangay':
+      return 'Punong Barangay / Presiding Officer';
+    case 'municipal':
+      return 'Municipal Vice Mayor / Presiding Officer';
+    case 'provincial':
+      return 'Vice Governor / Presiding Officer';
+    default:
+      return 'City Vice Mayor / Presiding Officer';
+  }
+}
+
 async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
   const sections = extractDraftSections({ body: version.body });
   const bodyParagraphs = buildDocxSectionParagraphs(sections);
+  const sanggunianName = getSanggunianBodyName(draft.jurisdiction);
+  const lceTitle = getLocalChiefExecutiveTitle(draft.jurisdiction);
+  const presidingTitle = getPresidingOfficerTitle(draft.jurisdiction);
 
   const document = new Document({
     sections: [
@@ -92,41 +134,98 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
         children: [
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 160 },
-            children: [new TextRun({ text: draft.documentType, bold: true, size: 30 })],
+            spacing: { after: 60 },
+            children: [new TextRun({ text: 'REPUBLIC OF THE PHILIPPINES', bold: true, size: 22 })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 60 },
+            children: [new TextRun({ text: draft.jurisdictionName.toUpperCase(), bold: true, size: 24 })],
           }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { after: 240 },
-            children: [new TextRun({ text: draft.title, bold: true, size: 34 })],
+            children: [new TextRun({ text: `OFFICE OF THE ${sanggunianName}`, bold: true, size: 22 })],
           }),
           new Paragraph({
+            alignment: AlignmentType.CENTER,
             spacing: { after: 120 },
+            children: [new TextRun({ text: `${draft.documentType.toUpperCase()} NO. 2025-___`, bold: true, size: 28 })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 280 },
+            children: [new TextRun({ text: draft.title, bold: true, size: 30 })],
+          }),
+          new Paragraph({
+            spacing: { after: 80 },
             children: [
-              new TextRun({ text: `Jurisdiction: ${draft.jurisdictionName} (${draft.jurisdiction})`, bold: true }),
+              new TextRun({ text: `Jurisdiction Level: ${draft.jurisdiction.toUpperCase()} | Version: v${version.version} | Status: ${version.status}`, italics: true, size: 18 }),
             ],
           }),
           new Paragraph({
-            spacing: { after: 120 },
-            children: [new TextRun({ text: `Version: v${version.version}`, bold: true })],
-          }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [new TextRun({ text: `Status: ${version.status}`, bold: true })],
-          }),
-          new Paragraph({
             spacing: { after: 240 },
-            children: [new TextRun({ text: `Last Updated: ${new Date(version.updatedAt).toLocaleString()}` })],
+            children: [new TextRun({ text: `Date Generated: ${new Date(version.updatedAt).toLocaleDateString()}`, italics: true, size: 18 })],
           }),
           ...(version.commitMessage
             ? [
                 new Paragraph({
                   spacing: { after: 240 },
-                  children: [new TextRun({ text: `Revision Note: ${version.commitMessage}` })],
+                  children: [new TextRun({ text: `Revision Notes: ${version.commitMessage}`, italics: true, size: 18 })],
                 }),
               ]
             : []),
           ...bodyParagraphs,
+          new Paragraph({
+            spacing: { before: 400, after: 140 },
+            children: [new TextRun({ text: 'ATTESTATION & APPROVAL', bold: true, size: 24 })],
+          }),
+          new Paragraph({
+            spacing: { after: 240 },
+            children: [
+              new TextRun({
+                text: 'I HEREBY CERTIFY to the correctness of the foregoing measure enacted by the Sanggunian.',
+                italics: true,
+                size: 20,
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { before: 240, after: 40 },
+            children: [new TextRun({ text: '____________________________________', bold: true, size: 20 })],
+          }),
+          new Paragraph({
+            spacing: { after: 240 },
+            children: [new TextRun({ text: 'Secretary to the Sanggunian', bold: true, size: 20 })],
+          }),
+          new Paragraph({
+            spacing: { before: 180, after: 40 },
+            children: [new TextRun({ text: 'ATTESTED & CERTIFIED CORRECT:', size: 20, bold: true })],
+          }),
+          new Paragraph({
+            spacing: { before: 240, after: 40 },
+            children: [new TextRun({ text: 'HON. _______________________________', bold: true, size: 20 })],
+          }),
+          new Paragraph({
+            spacing: { after: 240 },
+            children: [new TextRun({ text: presidingTitle, bold: true, size: 20 })],
+          }),
+          new Paragraph({
+            spacing: { before: 200, after: 40 },
+            children: [new TextRun({ text: `APPROVED pursuant to Section 54, Republic Act No. 7160:`, size: 20, bold: true })],
+          }),
+          new Paragraph({
+            spacing: { before: 240, after: 40 },
+            children: [new TextRun({ text: 'HON. _______________________________', bold: true, size: 20 })],
+          }),
+          new Paragraph({
+            spacing: { after: 40 },
+            children: [new TextRun({ text: lceTitle, bold: true, size: 20 })],
+          }),
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [new TextRun({ text: 'Date: ________________________', size: 18 })],
+          }),
         ],
       },
     ],
@@ -137,6 +236,10 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
 
 async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   const sections = extractDraftSections({ body: version.body });
+  const sanggunianName = getSanggunianBodyName(draft.jurisdiction);
+  const lceTitle = getLocalChiefExecutiveTitle(draft.jurisdiction);
+  const presidingTitle = getPresidingOfficerTitle(draft.jurisdiction);
+
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
@@ -146,7 +249,7 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const marginX = 56;
-  const topMargin = 64;
+  const topMargin = 56;
   const bottomMargin = 56;
   const maxWidth = pageWidth - marginX * 2;
   let y = topMargin;
@@ -164,9 +267,10 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
     text: string,
     fontSize: number,
     lineHeight: number,
-    options?: { align?: 'left' | 'center' | 'right'; bold?: boolean },
+    options?: { align?: 'left' | 'center' | 'right'; bold?: boolean; italic?: boolean },
   ) => {
-    pdf.setFont('times', options?.bold ? 'bold' : 'normal');
+    const style = options?.bold ? 'bold' : options?.italic ? 'italic' : 'normal';
+    pdf.setFont('times', style);
     pdf.setFontSize(fontSize);
     const lines = pdf.splitTextToSize(text || ' ', maxWidth);
 
@@ -180,21 +284,30 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
     }
   };
 
-  drawWrappedText(draft.documentType, 16, 20, { align: 'center', bold: true });
-  y += 8;
-  drawWrappedText(draft.title, 18, 24, { align: 'center', bold: true });
-  y += 18;
-  drawWrappedText(`Jurisdiction: ${draft.jurisdictionName} (${draft.jurisdiction})`, 11, 16, { bold: true });
-  drawWrappedText(`Version: v${version.version}`, 11, 16, { bold: true });
-  drawWrappedText(`Status: ${version.status}`, 11, 16, { bold: true });
-  drawWrappedText(`Last Updated: ${new Date(version.updatedAt).toLocaleString()}`, 11, 16);
+  // Official Philippine LGU Header
+  drawWrappedText('REPUBLIC OF THE PHILIPPINES', 12, 16, { align: 'center', bold: true });
+  drawWrappedText(draft.jurisdictionName.toUpperCase(), 13, 17, { align: 'center', bold: true });
+  drawWrappedText(`OFFICE OF THE ${sanggunianName}`, 12, 16, { align: 'center', bold: true });
+  y += 12;
+
+  pdf.setDrawColor(120, 120, 120);
+  pdf.line(marginX, y, pageWidth - marginX, y);
+  y += 16;
+
+  drawWrappedText(`${draft.documentType.toUpperCase()} NO. 2025-___`, 14, 18, { align: 'center', bold: true });
+  y += 4;
+  drawWrappedText(draft.title, 16, 22, { align: 'center', bold: true });
+  y += 12;
+
+  drawWrappedText(`Jurisdiction: ${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()}) | Version: v${version.version} | Status: ${version.status}`, 10, 14, { italic: true });
+  drawWrappedText(`Date: ${new Date(version.updatedAt).toLocaleDateString()}`, 10, 14, { italic: true });
 
   if (version.commitMessage) {
-    drawWrappedText(`Revision Note: ${version.commitMessage}`, 11, 16);
+    drawWrappedText(`Revision Note: ${version.commitMessage}`, 10, 14, { italic: true });
   }
 
   y += 10;
-  pdf.setDrawColor(180, 180, 180);
+  pdf.setDrawColor(200, 200, 200);
   pdf.line(marginX, y, pageWidth - marginX, y);
   y += 18;
 
@@ -204,23 +317,46 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
       : [{ heading: 'Body', body: version.body || 'No content available for this version.' }];
 
   for (const section of exportSections) {
-    drawWrappedText(section.heading, 13, 18, { bold: true });
+    drawWrappedText(section.heading, 12, 17, { bold: true });
     if (section.body.trim()) {
       for (const line of section.body.split('\n')) {
-        drawWrappedText(line || ' ', 12, 18);
+        drawWrappedText(line || ' ', 11, 16);
       }
     } else {
-      drawWrappedText('No content', 12, 18);
+      drawWrappedText('No content', 11, 16);
     }
     y += 10;
   }
+
+  // Signatory & Approval Section
+  y += 16;
+  ensureSpace(240);
+  drawWrappedText('ATTESTATION & APPROVAL', 12, 16, { bold: true });
+  drawWrappedText('I HEREBY CERTIFY to the correctness of the foregoing legislative measure.', 10, 14, { italic: true });
+  y += 24;
+
+  drawWrappedText('____________________________________', 10, 14);
+  drawWrappedText('Secretary to the Sanggunian', 10, 14, { bold: true });
+  y += 18;
+
+  drawWrappedText('ATTESTED & CERTIFIED CORRECT:', 10, 14, { bold: true });
+  y += 24;
+  drawWrappedText('HON. _______________________________', 10, 14);
+  drawWrappedText(presidingTitle, 10, 14, { bold: true });
+  y += 18;
+
+  drawWrappedText('APPROVED pursuant to Section 54, Republic Act No. 7160:', 10, 14, { bold: true });
+  y += 24;
+  drawWrappedText('HON. _______________________________', 10, 14);
+  drawWrappedText(lceTitle, 10, 14, { bold: true });
+  drawWrappedText('Date: ________________________', 10, 14);
 
   const pageCount = pdf.getNumberOfPages();
   for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
     pdf.setPage(pageIndex);
     pdf.setFont('times', 'normal');
-    pdf.setFontSize(10);
-    pdf.text(`Page ${pageIndex} of ${pageCount}`, pageWidth - marginX, pageHeight - 24, {
+    pdf.setFontSize(9);
+    pdf.text(`Page ${pageIndex} of ${pageCount} | LexiGov AI (RA 7160 Compliant)`, pageWidth - marginX, pageHeight - 24, {
       align: 'right',
     });
   }
@@ -252,7 +388,7 @@ function buildDocxSectionParagraphs(sections: ExportSection[]) {
     return [
       new Paragraph({
         spacing: { after: 120 },
-        children: [new TextRun({ text: section.heading, bold: true, size: 26 })],
+        children: [new TextRun({ text: section.heading, bold: true, size: 24 })],
       }),
       ...sectionBody,
     ];

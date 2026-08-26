@@ -48,3 +48,37 @@ export type AuditAction = z.infer<typeof auditActionSchema>;
 export const exportTypeValues = ['txt', 'md', 'docx', 'pdf'] as const;
 export const exportTypeSchema = z.enum(exportTypeValues);
 export type ExportType = z.infer<typeof exportTypeSchema>;
+
+export function isJurisdictionLevel(value: unknown): value is JurisdictionLevel {
+  return typeof value === 'string' && (jurisdictionLevelValues as readonly string[]).includes(value);
+}
+
+export function toJurisdictionLevel(value: unknown, fallback: JurisdictionLevel = 'barangay'): JurisdictionLevel {
+  if (isJurisdictionLevel(value)) {
+    return value;
+  }
+  return fallback;
+}
+
+export function isDocumentType(value: unknown): value is DocumentType {
+  return typeof value === 'string' && (documentTypeValues as readonly string[]).includes(value);
+}
+
+export function toDocumentType(value: unknown, fallback: DocumentType = 'ORDINANCE'): DocumentType {
+  if (isDocumentType(value)) {
+    return value;
+  }
+  return fallback;
+}
+
+export function isDocumentStatus(value: unknown): value is DocumentStatus {
+  return typeof value === 'string' && (documentStatusValues as readonly string[]).includes(value);
+}
+
+export function toDocumentStatus(value: unknown, fallback: DocumentStatus = 'DRAFT'): DocumentStatus {
+  if (isDocumentStatus(value)) {
+    return value;
+  }
+  return fallback;
+}
+

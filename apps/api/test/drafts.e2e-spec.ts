@@ -218,9 +218,9 @@ describe('DraftsController (e2e)', () => {
   });
 
   // -----------------------------------------------------------------------
-  // POST /api/drafts/:id (update)
+  // PATCH /api/drafts/:id (update)
   // -----------------------------------------------------------------------
-  describe('POST /api/drafts/:id', () => {
+  describe('PATCH /api/drafts/:id', () => {
     it('updates a draft', async () => {
       const createRes = await request(app.getHttpServer())
         .post('/drafts')
@@ -229,9 +229,9 @@ describe('DraftsController (e2e)', () => {
       const draftId = createRes.body.id;
 
       const res = await request(app.getHttpServer())
-        .post(`/drafts/${draftId}`)
+        .patch(`/drafts/${draftId}`)
         .send({ title: 'After Update' })
-        .expect(201);
+        .expect(200);
 
       expect(res.body.title).toBe('After Update');
     });

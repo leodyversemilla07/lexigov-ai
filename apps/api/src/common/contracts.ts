@@ -1,11 +1,20 @@
-export const jurisdictionLevelValues = ['barangay', 'city', 'municipal', 'provincial'] as const;
-export type JurisdictionLevel = (typeof jurisdictionLevelValues)[number];
-
-export const documentTypeValues = ['ORDINANCE', 'RESOLUTION', 'MEMORANDUM', 'POLICY'] as const;
-export type DocumentType = (typeof documentTypeValues)[number];
-
-export const documentStatusValues = ['DRAFT', 'REVIEW', 'FINAL', 'ARCHIVED'] as const;
-export type DocumentStatus = (typeof documentStatusValues)[number];
+export {
+  documentStatusSchema,
+  documentStatusValues,
+  type DocumentStatus,
+  documentTypeSchema,
+  documentTypeValues,
+  type DocumentType,
+  isDocumentStatus,
+  isDocumentType,
+  isJurisdictionLevel,
+  jurisdictionLevelSchema,
+  jurisdictionLevelValues,
+  type JurisdictionLevel,
+  toDocumentStatus,
+  toDocumentType,
+  toJurisdictionLevel,
+} from '@lexigov/shared';
 
 export const templateCategoryValues = [
   'Environment',
@@ -18,3 +27,4 @@ export const templateCategoryValues = [
   'Other',
 ] as const;
 export type TemplateCategory = (typeof templateCategoryValues)[number];
+

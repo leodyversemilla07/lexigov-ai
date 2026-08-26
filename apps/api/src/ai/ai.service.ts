@@ -1,21 +1,17 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import type { ComplianceIssue } from '../../../../packages/shared/src/compliance-analysis';
 import {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
+  type ComplianceIssue,
   mergeComplianceIssues,
-} from '../../../../packages/shared/src/compliance-analysis';
-import type { JurisdictionLevel } from '../common/contracts';
+} from '@lexigov/shared';
+import { isJurisdictionLevel, type JurisdictionLevel } from '../common/contracts';
 
 interface AzureConfig {
   apiKey: string;
   apiVersion: string;
   deployment: string;
   endpoint: string;
-}
-
-function isJurisdictionLevel(value: string): value is JurisdictionLevel {
-  return value === 'barangay' || value === 'municipal' || value === 'city' || value === 'provincial';
 }
 
 @Injectable()
@@ -146,4 +142,96 @@ export class AiService {
 
     return { summary: completion.choices[0]?.message?.content ?? '' };
   }
+
+  async *generateOrdinanceStream(
+    prompt: string,
+    jurisdiction: string,
+    jurisdictionName: string,
+    documentType: string,
+  ): AsyncGenerator<string, void, unknown> {
+    const config = this.getConfig();
+    const { AzureOpenAI } = await import('openai');
+
+    const client = new AzureOpenAI({
+      apiKey: config.apiKey,
+      apiVersion: config.apiVersion,
+      endpoint: config.endpoint,
+    });
+
+    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate a ${documentType.toLowerCase()} for ${jurisdictionName} (${jurisdiction} level) following RA 7160 format. Ensure formal legal phrasing, Republic header, WHEREAS clauses, numbered sections (e.g. SECTION 1. Title.), penal provisions conforming to statutory limits, separability, repealing, and effectivity clauses.`;
+
+    const stream = await client.chat.completions.create({
+      model: config.deployment,
+      max_completion_tokens: 8192,
+      stream: true,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+    });
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content ?? '';
+      if (delta) {
+        yield delta;
+      }
+    }
+  }
+
+  async assistSection(
+    sectionHeading: string,
+    sectionBody: string,
+    action: 'expand' | 'formalize' | 'penalties' | 'simplify',
+    instruction?: string,
+    jurisdiction = 'barangay',
+    documentType = 'ORDINANCE',
+  ) {
+    const config = this.getConfig();
+    const { AzureOpenAI } = await import('openai');
+
+    const client = new AzureOpenAI({
+      apiKey: config.apiKey,
+      apiVersion: config.apiVersion,
+      endpoint: config.endpoint,
+    });
+
+    let actionPrompt = '';
+    switch (action) {
+      case 'expand':
+        actionPrompt =
+          'Expand this section with detailed operative provisions, clear administrative definitions, and comprehensive procedural steps.';
+        break;
+      case 'formalize':
+        actionPrompt =
+          'Rewrite this section in formal Philippine statutory and legislative terminology (Republic Act / Local Government Code standard).';
+        break;
+      case 'penalties':
+        actionPrompt = `Format or revise the penalty provisions in this section to strictly comply with RA 7160 limits for ${jurisdiction} level (Barangay: max ₱1,000 fine, no imprisonment; Municipal: max ₱2,500 fine, max 6 mos; City/Province: max ₱5,000 fine, max 1 yr).`;
+        break;
+      case 'simplify':
+        actionPrompt =
+          'Improve clarity and conciseness of this section while preserving full legal precision and enforceability.';
+        break;
+    }
+
+    const systemPrompt = `You are an expert Philippine legislative drafter helping refine an individual section of a ${documentType.toLowerCase()} for a ${jurisdiction} LGU. Return ONLY the improved section body text (without repeating the heading itself).`;
+
+    const userPrompt = `Section Heading: ${sectionHeading}\nCurrent Section Body:\n${sectionBody || '(No content yet)'}\n\nTask: ${actionPrompt}${instruction ? `\nAdditional user instruction: ${instruction}` : ''}`;
+
+    const completion = await client.chat.completions.create({
+      model: config.deployment,
+      max_completion_tokens: 2048,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    });
+
+    return {
+      sectionBody: completion.choices[0]?.message?.content?.trim() ?? '',
+      action,
+      model: config.deployment,
+    };
+  }
 }
+

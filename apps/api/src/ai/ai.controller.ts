@@ -1,8 +1,10 @@
-import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Inject, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { AiService } from './ai.service';
+import { AssistSectionDto } from './dto/assist-section.dto';
 import { CheckComplianceDto } from './dto/check-compliance.dto';
 import { GenerateOrdinanceDto } from './dto/generate-ordinance.dto';
 import { GenerateSummaryDto } from './dto/generate-summary.dto';
@@ -27,6 +29,46 @@ export class AiController {
     return this.aiService.generateOrdinance(dto.prompt, dto.jurisdiction, dto.jurisdictionName, dto.documentType);
   }
 
+  @Post('generate-ordinance/stream')
+  @ApiOperation({ summary: 'Stream an ordinance draft generation using Server-Sent Events (SSE)' })
+  @ApiResponse({ status: 200, description: 'SSE stream of generated tokens' })
+  async generateOrdinanceStream(@Body() dto: GenerateOrdinanceDto, @Res() res: Response) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    try {
+      for await (const chunk of this.aiService.generateOrdinanceStream(
+        dto.prompt,
+        dto.jurisdiction,
+        dto.jurisdictionName,
+        dto.documentType,
+      )) {
+        res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      }
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (error) {
+      res.write(`data: ${JSON.stringify({ error: (error as Error).message })}\n\n`);
+      res.end();
+    }
+  }
+
+  @Post('assist-section')
+  @ApiOperation({ summary: 'Generate section-level AI refinements' })
+  @ApiResponse({ status: 201, description: 'Section content improved' })
+  assistSection(@Body() dto: AssistSectionDto) {
+    return this.aiService.assistSection(
+      dto.sectionHeading,
+      dto.sectionBody,
+      dto.action,
+      dto.instruction,
+      dto.jurisdiction,
+      dto.documentType,
+    );
+  }
+
   @Post('check-compliance')
   @ApiOperation({ summary: 'Check draft compliance against RA 7160' })
   @ApiResponse({ status: 201, description: 'Compliance analysis completed' })
@@ -43,3 +85,4 @@ export class AiController {
     return this.aiService.generateSummary(dto.content);
   }
 }
+

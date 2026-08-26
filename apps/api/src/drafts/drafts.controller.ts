@@ -6,6 +6,7 @@ import {
   Get,
   Inject,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -49,7 +50,7 @@ export class DraftsController {
     return this.draftsService.findOne(id, user.userId);
   }
 
-  @Post(':id')
+  @Patch(':id')
   @ApiOperation({ summary: 'Update a draft' })
   @ApiResponse({ status: 200, description: 'Draft updated' })
   update(@Param('id') id: string, @Body() dto: UpdateDraftDto, @CurrentUser() user: AuthenticatedUser) {
