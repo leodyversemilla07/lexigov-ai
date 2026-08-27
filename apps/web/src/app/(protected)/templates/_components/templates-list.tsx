@@ -258,6 +258,7 @@ const PAGE_SIZE = 20;
 
 export function TemplatesPageContent() {
   const { data: session } = useSession();
+  const canManageTemplates = session?.user?.role === 'ADMIN' || session?.user?.role === 'LEGISLATIVE_STAFF';
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -375,10 +376,12 @@ export function TemplatesPageContent() {
               Create Custom Draft
             </Link>
           </Button>
-          <Button onClick={openCreateDialog}>
-            <Plus className='mr-2 h-4 w-4' />
-            New Template
-          </Button>
+          {canManageTemplates && (
+            <Button onClick={openCreateDialog}>
+              <Plus className='mr-2 h-4 w-4' />
+              New Template
+            </Button>
+          )}
         </div>
       </div>
 
@@ -467,10 +470,12 @@ export function TemplatesPageContent() {
               <p className='mx-auto mt-2 max-w-xl text-sm text-muted-foreground'>
                 Save your first ordinance blueprint here to standardize recurring LGU drafting work.
               </p>
-              <Button className='mt-4' onClick={openCreateDialog}>
-                <Plus className='mr-2 h-4 w-4' />
-                Create Template
-              </Button>
+              {canManageTemplates && (
+                <Button className='mt-4' onClick={openCreateDialog}>
+                  <Plus className='mr-2 h-4 w-4' />
+                  Create Template
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
