@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { analyzeDeterministicCompliance, extractDraftBody, toJurisdictionLevel } from '@lexigov/shared';
+import { analyzeDeterministicCompliance, extractDraftBody } from '@lexigov/shared';
 import type { Prisma } from '../../generated/prisma/client';
+import { isJurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
 
@@ -18,8 +19,14 @@ export class ComplianceService {
 
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
-    const jurisdiction = toJurisdictionLevel(draft.jurisdiction);
-    const deterministic = analyzeDeterministicCompliance(content, jurisdiction);
+    // Mirror AiService behaviour: skip deterministic analysis (and do not
+    // persist a misleading report) when the jurisdiction is not one of the
+    // four RA 7160 levels. Previously this silently coerced to 'barangay'.
+    if (!isJurisdictionLevel(draft.jurisdiction)) {
+      return { overallScore: 0, isValid: false, issues: [] as never[] } as const;
+    }
+
+    const deterministic = analyzeDeterministicCompliance(content, draft.jurisdiction);
 
     await this.prisma.$transaction(async (tx) => {
       const report = await tx.complianceReport.create({

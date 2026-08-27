@@ -5,7 +5,6 @@ import {
   type ComplianceIssue,
   getStatutoryCitations,
   mergeComplianceIssues,
-  toJurisdictionLevel,
 } from '@lexigov/shared';
 import { isJurisdictionLevel, type JurisdictionLevel } from '../common/contracts';
 
@@ -41,12 +40,13 @@ export class AiService {
       endpoint: config.endpoint,
     });
 
-    const citations = getStatutoryCitations(prompt, toJurisdictionLevel(jurisdiction));
+    const normalizedJurisdiction = isJurisdictionLevel(jurisdiction) ? jurisdiction : 'barangay';
+    const citations = getStatutoryCitations(prompt, normalizedJurisdiction);
     const citationContext = citations
       .map((c) => `- ${c.source} ${c.provision} (${c.title}): ${c.relevance}`)
       .join('\n');
 
-    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${jurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
+    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${normalizedJurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
 
 Statutory Grounding References:
 ${citationContext}
@@ -175,12 +175,13 @@ Document Requirements:
       endpoint: config.endpoint,
     });
 
-    const citations = getStatutoryCitations(prompt, toJurisdictionLevel(jurisdiction));
+    const normalizedJurisdiction = isJurisdictionLevel(jurisdiction) ? jurisdiction : 'barangay';
+    const citations = getStatutoryCitations(prompt, normalizedJurisdiction);
     const citationContext = citations
       .map((c) => `- ${c.source} ${c.provision} (${c.title}): ${c.relevance}`)
       .join('\n');
 
-    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${jurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
+    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${normalizedJurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
 
 Statutory Grounding References:
 ${citationContext}
