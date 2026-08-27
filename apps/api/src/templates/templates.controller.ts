@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
+import { RequireRoles, RolesGuard } from '../auth/roles.guard';
 import type { AuthenticatedUser } from '../auth/auth.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { CreateTemplateDto } from './dto/create-template.dto';
@@ -16,6 +17,8 @@ export class TemplatesController {
   constructor(@Inject(TemplatesService) private readonly templatesService: TemplatesService) {}
 
   @Post()
+  @UseGuards(RolesGuard)
+  @RequireRoles('ADMIN', 'LEGISLATIVE_STAFF')
   @ApiOperation({ summary: 'Create a new template' })
   @ApiResponse({ status: 201, description: 'Template created' })
   create(@Body() dto: CreateTemplateDto, @CurrentUser() user: AuthenticatedUser) {
@@ -37,6 +40,8 @@ export class TemplatesController {
   }
 
   @Post(':id')
+  @UseGuards(RolesGuard)
+  @RequireRoles('ADMIN', 'LEGISLATIVE_STAFF')
   @ApiOperation({ summary: 'Update a template' })
   @ApiResponse({ status: 200, description: 'Template updated' })
   update(@Param('id') id: string, @Body() dto: UpdateTemplateDto, @CurrentUser() user: AuthenticatedUser) {
@@ -44,6 +49,8 @@ export class TemplatesController {
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @RequireRoles('ADMIN', 'LEGISLATIVE_STAFF')
   @ApiOperation({ summary: 'Delete a template' })
   @ApiResponse({ status: 200, description: 'Template deleted' })
   remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {

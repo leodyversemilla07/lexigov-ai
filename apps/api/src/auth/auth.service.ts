@@ -5,6 +5,7 @@ export interface AuthenticatedUser {
   userId: string;
   email: string;
   name?: string;
+  role?: string;
 }
 
 @Injectable()
@@ -25,6 +26,7 @@ export class AuthService {
       userId: session.user.id,
       email: session.user.email,
       name: session.user.name ?? undefined,
+      role: session.user.role ?? undefined,
     };
   }
 }
