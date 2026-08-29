@@ -83,4 +83,27 @@ describe('AuthService', () => {
     const result = await service.verifySession('fresh_token');
     expect(result.userId).toBe('user_1');
   });
+
+  it('serves subsequent verifications from memory cache without querying database again', async () => {
+    prisma.session.findUnique.mockResolvedValue(buildSession({ token: 'cached_token' }));
+
+    const first = await service.verifySession('cached_token');
+    const second = await service.verifySession('cached_token');
+
+    expect(first.userId).toBe('user_1');
+    expect(second.userId).toBe('user_1');
+    expect(prisma.session.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('purges token from cache when invalidateSession is called', async () => {
+    prisma.session.findUnique.mockResolvedValue(buildSession({ token: 'invalidated_token' }));
+
+    await service.verifySession('invalidated_token');
+    expect(prisma.session.findUnique).toHaveBeenCalledTimes(1);
+
+    service.invalidateSession('invalidated_token');
+
+    await service.verifySession('invalidated_token');
+    expect(prisma.session.findUnique).toHaveBeenCalledTimes(2);
+  });
 });

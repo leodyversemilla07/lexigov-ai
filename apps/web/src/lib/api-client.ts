@@ -134,7 +134,6 @@ export const api = {
   delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
 };
 
-
 /**
  * Wrap an API response with Zod validation.
  * Throws an ApiError with status 500 if validation fails.

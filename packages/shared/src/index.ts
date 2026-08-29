@@ -12,6 +12,12 @@ export {
   jurisdictionPenaltyGuidance,
   mergeComplianceIssues,
 } from './compliance-analysis';
+// Document Verification & Integrity
+export type { VerificationMetadata } from './document-verification';
+export {
+  buildVerificationMetadata,
+  generateVerificationHash,
+} from './document-verification';
 export type {
   DraftSection,
   StructuredDraftContent,
@@ -28,6 +34,17 @@ export {
   updateDraftBodyContent,
   updateDraftSectionsContent,
 } from './draft-content';
+// Sanggunian Legislative Tracker
+export type {
+  LegislativeMilestones,
+  LegislativeStage,
+  VotingRecord,
+} from './legislative-tracker';
+export {
+  calculateTransmittalDeadline,
+  getDefaultMilestones,
+  LEGISLATIVE_STAGES,
+} from './legislative-tracker';
 export type { AIDraftFormInput } from './schemas/ai';
 export * from './schemas/ai';
 export * from './schemas/auth';
@@ -51,6 +68,14 @@ export type {
   UpdateTemplateInput,
 } from './schemas/template';
 export * from './schemas/template';
+
+// Statutory Citations & Legal Grounding
+export type { StatutoryCitation } from './statutory-citations';
+export {
+  generateSuggestedWhereasClauses,
+  getStatutoryCitations,
+  PHILIPPINE_STATUTORY_DATABASE,
+} from './statutory-citations';
 export type { TemplateData } from './template-utils';
 // Template utilities
 export {
@@ -73,33 +98,5 @@ export {
   buildSectionDiff,
 } from './text-diff';
 
-// Statutory Citations & Legal Grounding
-export type { StatutoryCitation } from './statutory-citations';
-export {
-  PHILIPPINE_STATUTORY_DATABASE,
-  generateSuggestedWhereasClauses,
-  getStatutoryCitations,
-} from './statutory-citations';
-
-// Sanggunian Legislative Tracker
-export type {
-  LegislativeMilestones,
-  LegislativeStage,
-  VotingRecord,
-} from './legislative-tracker';
-export {
-  LEGISLATIVE_STAGES,
-  calculateTransmittalDeadline,
-  getDefaultMilestones,
-} from './legislative-tracker';
-
-// Document Verification & Integrity
-export type { VerificationMetadata } from './document-verification';
-export {
-  buildVerificationMetadata,
-  generateVerificationHash,
-} from './document-verification';
-
 // Utils
 export { cn } from './utils';
-

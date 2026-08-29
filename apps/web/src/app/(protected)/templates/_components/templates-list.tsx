@@ -834,5 +834,3 @@ export function TemplatesLoading() {
     </div>
   );
 }
-
-

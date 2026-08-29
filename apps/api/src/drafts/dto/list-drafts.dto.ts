@@ -34,6 +34,11 @@ export class ListDraftsDto {
   @IsIn([...documentTypeValues])
   documentType?: DocumentType;
 
+  @ApiPropertyOptional({ description: 'Filter by organization / Sanggunian LGU ID' })
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
   @ApiPropertyOptional({ description: 'Search query (matches title)' })
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))

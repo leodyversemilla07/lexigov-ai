@@ -1,1 +1,1 @@
-export { TemplatesPageContent, TemplatesLoading } from './templates-list';
+export { TemplatesLoading, TemplatesPageContent } from './templates-list';

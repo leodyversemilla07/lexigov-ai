@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { DraftsService } from './drafts.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { LogExportDto } from './dto/log-export.dto';
@@ -19,10 +19,12 @@ interface DraftRecord {
   status: string;
   aiGenerated: boolean;
   userId: string;
+  organizationId?: string | null;
   templateId?: string | null;
   version: number;
   parentDraftId?: string | null;
   commitMessage?: string | null;
+  documentHash?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +33,7 @@ function buildPrismaDouble() {
   const drafts = new Map<string, DraftRecord>();
   const auditLogs: Array<{ action: string; entityType: string; entityId: string; userId: string }> = [];
   const exportHistory: Array<{ draftId: string; exportType: string; exportedBy: string }> = [];
+  const workflowTransitions: Array<{ draftId: string; fromStatus: string; toStatus: string; actorId: string }> = [];
 
   const draft = {
     create: jest.fn(async ({ data }: { data: Partial<DraftRecord> }) => {
@@ -45,10 +48,12 @@ function buildPrismaDouble() {
         status: data.status ?? 'DRAFT',
         aiGenerated: data.aiGenerated ?? false,
         userId: data.userId ?? 'user_1',
+        organizationId: data.organizationId ?? null,
         templateId: data.templateId ?? null,
         version: data.version ?? 1,
         parentDraftId: data.parentDraftId ?? null,
         commitMessage: data.commitMessage ?? null,
+        documentHash: data.documentHash ?? null,
         createdAt: data.createdAt ?? new Date(),
         updatedAt: data.updatedAt ?? new Date(),
       };
@@ -155,17 +160,31 @@ function buildPrismaDouble() {
     ),
   };
 
+  const workflowTransitionModel = {
+    create: jest.fn(
+      async ({
+        data,
+      }: {
+        data: { draftId: string; fromStatus: string; toStatus: string; actorId: string; remarks?: string };
+      }) => {
+        workflowTransitions.push(data);
+        return data;
+      },
+    ),
+  };
+
   const tx = {
     draft,
     complianceReport,
     exportHistory: exportHistoryModel,
     auditLog,
+    workflowTransition: workflowTransitionModel,
   };
 
   return {
     ...tx,
     $transaction: jest.fn(async <T>(callback: (transaction: typeof tx) => Promise<T>) => callback(tx)),
-    _state: { drafts, auditLogs, exportHistory },
+    _state: { drafts, auditLogs, exportHistory, workflowTransitions },
   };
 }
 
@@ -510,5 +529,78 @@ describe('DraftsService.restoreVersion', () => {
     await expect(service.restoreVersion(snapshotRecord.id, snapshotRecord.id, userId)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+describe('DraftsService Multi-Tenancy & OCC', () => {
+  it('creates draft with organizationId and documentHash', async () => {
+    const { service } = buildService();
+    const draft = await service.create(
+      {
+        ...baseCreateInput,
+        organizationId: 'lgu_org_1',
+        documentHash: 'sha256_abcdef123456',
+      },
+      userId,
+    );
+
+    expect(draft.organizationId).toBe('lgu_org_1');
+    expect(draft.documentHash).toBe('sha256_abcdef123456');
+  });
+
+  it('filters drafts by organizationId when provided in query', async () => {
+    const { service, prisma } = buildService();
+    await service.create({ ...baseCreateInput, title: 'LGU 1 Draft', organizationId: 'org_1' }, 'user_1');
+    await service.create({ ...baseCreateInput, title: 'LGU 2 Draft', organizationId: 'org_2' }, 'user_2');
+
+    await service.findAll('user_1', { organizationId: 'org_1' });
+
+    expect(prisma.draft.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: 'org_1',
+          parentDraftId: null,
+        }),
+      }),
+    );
+  });
+
+  it('throws ConflictException on update when expectedVersion does not match current version (OCC)', async () => {
+    const { service } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    await expect(
+      service.update(draft.id, { title: 'Conflicting Edit', expectedVersion: 99 }, userId),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('succeeds update when expectedVersion matches current draft version', async () => {
+    const { service } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    const updated = await service.update(draft.id, { title: 'Safe Edit', expectedVersion: 1 }, userId);
+    expect(updated.version).toBe(2);
+    expect(updated.title).toBe('Safe Edit');
+  });
+
+  it('records WorkflowTransition when status changes during update', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    await service.update(
+      draft.id,
+      { status: 'FIRST_READING', commitMessage: 'Referred to First Reading calendar' },
+      userId,
+    );
+
+    expect(prisma._state.workflowTransitions).toEqual([
+      expect.objectContaining({
+        draftId: draft.id,
+        fromStatus: 'DRAFT',
+        toStatus: 'FIRST_READING',
+        actorId: userId,
+        remarks: 'Referred to First Reading calendar',
+      }),
+    ]);
   });
 });

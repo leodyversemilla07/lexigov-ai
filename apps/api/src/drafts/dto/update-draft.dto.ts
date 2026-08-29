@@ -27,4 +27,13 @@ export class UpdateDraftDto {
   @IsString()
   @MaxLength(500)
   commitMessage?: string;
+
+  @ApiPropertyOptional({ description: 'SHA-256 document content hash' })
+  @IsOptional()
+  @IsString()
+  documentHash?: string;
+
+  @ApiPropertyOptional({ description: 'Expected draft version for optimistic concurrency control' })
+  @IsOptional()
+  expectedVersion?: number;
 }

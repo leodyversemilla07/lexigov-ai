@@ -43,4 +43,14 @@ export class CreateDraftDto {
   @IsOptional()
   @IsString()
   templateId?: string;
+
+  @ApiPropertyOptional({ description: 'Organization / Sanggunian LGU ID' })
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @ApiPropertyOptional({ description: 'SHA-256 document content hash' })
+  @IsOptional()
+  @IsString()
+  documentHash?: string;
 }

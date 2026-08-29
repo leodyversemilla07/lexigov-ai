@@ -8,7 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { AlignmentType, Document, Packer, Paragraph, TextRun } from 'docx';
 import { jsPDF } from 'jspdf';
-import { CheckCircle, ChevronRight, Download, FileText, FileType, Loader2, QrCode, ScrollText, ShieldCheck } from 'lucide-react';
+import {
+  CheckCircle,
+  ChevronRight,
+  Download,
+  FileText,
+  FileType,
+  Loader2,
+  QrCode,
+  ScrollText,
+  ShieldCheck,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
@@ -160,18 +170,30 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
           new Paragraph({
             spacing: { after: 80 },
             children: [
-              new TextRun({ text: `Jurisdiction Level: ${draft.jurisdiction.toUpperCase()} | Version: v${version.version} | Status: ${version.status}`, italics: true, size: 18 }),
+              new TextRun({
+                text: `Jurisdiction Level: ${draft.jurisdiction.toUpperCase()} | Version: v${version.version} | Status: ${version.status}`,
+                italics: true,
+                size: 18,
+              }),
             ],
           }),
           new Paragraph({
             spacing: { after: 240 },
-            children: [new TextRun({ text: `Date Generated: ${new Date(version.updatedAt).toLocaleDateString()}`, italics: true, size: 18 })],
+            children: [
+              new TextRun({
+                text: `Date Generated: ${new Date(version.updatedAt).toLocaleDateString()}`,
+                italics: true,
+                size: 18,
+              }),
+            ],
           }),
           ...(version.commitMessage
             ? [
                 new Paragraph({
                   spacing: { after: 240 },
-                  children: [new TextRun({ text: `Revision Notes: ${version.commitMessage}`, italics: true, size: 18 })],
+                  children: [
+                    new TextRun({ text: `Revision Notes: ${version.commitMessage}`, italics: true, size: 18 }),
+                  ],
                 }),
               ]
             : []),
@@ -212,7 +234,9 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
           }),
           new Paragraph({
             spacing: { before: 200, after: 40 },
-            children: [new TextRun({ text: `APPROVED pursuant to Section 54, Republic Act No. 7160:`, size: 20, bold: true })],
+            children: [
+              new TextRun({ text: `APPROVED pursuant to Section 54, Republic Act No. 7160:`, size: 20, bold: true }),
+            ],
           }),
           new Paragraph({
             spacing: { before: 240, after: 40 },
@@ -320,7 +344,12 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   drawWrappedText(draft.title, 16, 22, { align: 'center', bold: true });
   y += 12;
 
-  drawWrappedText(`Jurisdiction: ${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()}) | Version: v${version.version} | Status: ${version.status}`, 10, 14, { italic: true });
+  drawWrappedText(
+    `Jurisdiction: ${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()}) | Version: v${version.version} | Status: ${version.status}`,
+    10,
+    14,
+    { italic: true },
+  );
   drawWrappedText(`Date: ${new Date(version.updatedAt).toLocaleDateString()}`, 10, 14, { italic: true });
 
   if (version.commitMessage) {
@@ -353,7 +382,9 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   y += 16;
   ensureSpace(240);
   drawWrappedText('ATTESTATION & APPROVAL', 12, 16, { bold: true });
-  drawWrappedText('I HEREBY CERTIFY to the correctness of the foregoing legislative measure.', 10, 14, { italic: true });
+  drawWrappedText('I HEREBY CERTIFY to the correctness of the foregoing legislative measure.', 10, 14, {
+    italic: true,
+  });
   y += 24;
 
   drawWrappedText('____________________________________', 10, 14);
@@ -849,5 +880,3 @@ export function ExportLoading() {
     </div>
   );
 }
-
-

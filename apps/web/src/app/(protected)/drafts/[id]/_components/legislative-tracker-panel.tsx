@@ -28,13 +28,10 @@ export function LegislativeTrackerPanel({
   milestones: initialMilestones,
   onUpdateMilestones,
 }: LegislativeTrackerPanelProps) {
-  const [milestones, setMilestones] = useState<LegislativeMilestones>(
-    initialMilestones || getDefaultMilestones(),
-  );
+  const [milestones, setMilestones] = useState<LegislativeMilestones>(initialMilestones || getDefaultMilestones());
   const [isEditing, setIsEditing] = useState(false);
 
-  const currentStageInfo =
-    LEGISLATIVE_STAGES.find((s) => s.stage === milestones.currentStage) || LEGISLATIVE_STAGES[0];
+  const currentStageInfo = LEGISLATIVE_STAGES.find((s) => s.stage === milestones.currentStage) || LEGISLATIVE_STAGES[0];
 
   const handleStageChange = (newStage: LegislativeStage) => {
     const updated = { ...milestones, currentStage: newStage };
@@ -45,10 +42,7 @@ export function LegislativeTrackerPanel({
   const handleFieldChange = (field: keyof LegislativeMilestones, value: unknown) => {
     const updated = { ...milestones, [field]: value };
     if (field === 'transmittedDate' && typeof value === 'string' && value) {
-      updated.transmittalDeadline = calculateTransmittalDeadline(
-        value,
-        (jurisdiction as JurisdictionLevel) || 'city',
-      );
+      updated.transmittalDeadline = calculateTransmittalDeadline(value, (jurisdiction as JurisdictionLevel) || 'city');
     }
     setMilestones(updated);
     onUpdateMilestones?.(updated);
@@ -203,7 +197,9 @@ export function LegislativeTrackerPanel({
             </div>
           ) : null}
 
-          {milestones.currentStage === 'TRANSMITTED_TO_LCE' || milestones.currentStage === 'ENACTED' || milestones.transmittedDate ? (
+          {milestones.currentStage === 'TRANSMITTED_TO_LCE' ||
+          milestones.currentStage === 'ENACTED' ||
+          milestones.transmittedDate ? (
             <div className='space-y-2'>
               <div className='font-semibold text-foreground flex items-center gap-1.5'>
                 <Send className='h-3.5 w-3.5 text-purple-600' /> Transmittal to Mayor / Governor
@@ -235,10 +231,18 @@ export function LegislativeTrackerPanel({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value='PENDING' className='text-xs'>Pending Signature</SelectItem>
-                    <SelectItem value='APPROVED' className='text-xs'>Approved & Signed</SelectItem>
-                    <SelectItem value='LAPSED_INTO_LAW' className='text-xs'>Lapsed into Law (§ 54)</SelectItem>
-                    <SelectItem value='VETOED' className='text-xs'>Vetoed with Objections</SelectItem>
+                    <SelectItem value='PENDING' className='text-xs'>
+                      Pending Signature
+                    </SelectItem>
+                    <SelectItem value='APPROVED' className='text-xs'>
+                      Approved & Signed
+                    </SelectItem>
+                    <SelectItem value='LAPSED_INTO_LAW' className='text-xs'>
+                      Lapsed into Law (§ 54)
+                    </SelectItem>
+                    <SelectItem value='VETOED' className='text-xs'>
+                      Vetoed with Objections
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

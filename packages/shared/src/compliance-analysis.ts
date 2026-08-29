@@ -324,9 +324,13 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
   }
 
   // RA 7160, Sections 186-188: Tax and Revenue Measures
-  const isTaxOrRevenue = /\b(tax|taxes|taxation|regulatory fee|user charge|levy|levies|franchise tax|real property tax)\b/i.test(content);
+  const isTaxOrRevenue =
+    /\b(tax|taxes|taxation|regulatory fee|user charge|levy|levies|franchise tax|real property tax)\b/i.test(content);
   const mentionsPublicHearing = /\b(public hearing|public consultation|consultative assembly)\b/i.test(content);
-  const mentionsTaxPublication = /\b(newspaper of (?:general|local) circulation|consecutive days|posted in (?:at least )?(?:two|2) (?:conspicuous|prominent) places)\b/i.test(content);
+  const mentionsTaxPublication =
+    /\b(newspaper of (?:general|local) circulation|consecutive days|posted in (?:at least )?(?:two|2) (?:conspicuous|prominent) places)\b/i.test(
+      content,
+    );
 
   if (isTaxOrRevenue) {
     if (!mentionsPublicHearing) {
@@ -334,8 +338,7 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         type: 'warning',
         section: 'Legislative Procedure',
         title: 'Tax/revenue measure lacks public hearing recital',
-        description:
-          'Tax and revenue ordinances require prior public hearings pursuant to RA 7160, Section 187.',
+        description: 'Tax and revenue ordinances require prior public hearings pursuant to RA 7160, Section 187.',
         suggestion:
           'Add a recital in the preamble or section citing the conduct of public hearings prior to enactment.',
       });
@@ -348,14 +351,14 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         title: 'Tax ordinance requires special publication/posting terms',
         description:
           'Under RA 7160 Section 188, tax ordinances must be published within 10 days in a local newspaper or posted in at least 2 prominent places for 3 consecutive weeks.',
-        suggestion:
-          'Incorporate the statutory publication and posting timeline into the effectivity clause.',
+        suggestion: 'Incorporate the statutory publication and posting timeline into the effectivity clause.',
       });
     }
   }
 
   // RA 7160, Sections 305-334: Appropriations and Budget Set-Asides
-  const isAppropriation = /\b(annual budget|supplemental budget|appropriation ordinance|appropriating the (?:amount|sum))\b/i.test(content);
+  const isAppropriation =
+    /\b(annual budget|supplemental budget|appropriation ordinance|appropriating the (?:amount|sum))\b/i.test(content);
   const mentionsCalamityFund = /\b(calamity fund|ldrr?mf|disaster risk reduction|5%|five percent)\b/i.test(content);
   const mentionsDevelopmentFund = /\b(20%|twenty percent|development fund|gad|gender and development)\b/i.test(content);
 
@@ -367,8 +370,7 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         title: 'Mandatory 5% Calamity / LDRRMF set-aside check',
         description:
           'RA 7160, Section 324(d) mandates setting aside not less than 5% of estimated revenue for local disaster risk management.',
-        suggestion:
-          'Ensure the appropriation ordinance includes the mandatory 5% LDRRMF / Calamity Fund allocation.',
+        suggestion: 'Ensure the appropriation ordinance includes the mandatory 5% LDRRMF / Calamity Fund allocation.',
       });
     }
 
@@ -379,14 +381,16 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         title: 'Statutory Development & GAD allocations',
         description:
           'Local budget measures must allocate 20% for local development and 5% for Gender and Development (GAD).',
-        suggestion:
-          'Verify statutory set-asides for the 20% Development Fund, 5% GAD, and 1% LCPC/Senior Citizens.',
+        suggestion: 'Verify statutory set-asides for the 20% Development Fund, 5% GAD, and 1% LCPC/Senior Citizens.',
       });
     }
   }
 
   // RA 7160, Sections 54-57: Sanggunian Review Transmittal
-  const mentionsTransmittal = /\b(transmitt(?:ed|al)|sangguniang (?:panlalawigan|panlungsod|bayan)|review within|secretary to the sanggunian)\b/i.test(content);
+  const mentionsTransmittal =
+    /\b(transmitt(?:ed|al)|sangguniang (?:panlalawigan|panlungsod|bayan)|review within|secretary to the sanggunian)\b/i.test(
+      content,
+    );
 
   if (jurisdiction === 'barangay' && !mentionsTransmittal) {
     issues.push({

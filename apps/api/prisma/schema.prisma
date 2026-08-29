@@ -36,6 +36,7 @@ model User {
     auditLogs       AuditLog[]
     members         Member[]
     invitations     Invitation[]
+    workflowTransitions WorkflowTransition[]
 
     @@index([email])
 }
@@ -100,6 +101,7 @@ model Organization {
 
     members     Member[]
     invitations Invitation[]
+    drafts      Draft[]
 
     @@index([slug])
 }
@@ -152,6 +154,9 @@ model Draft {
     userId String
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+    organizationId String?
+    organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
     templateId String?
 
     version       Int    @default(1)
@@ -160,17 +165,35 @@ model Draft {
     revisions     Draft[] @relation("DraftVersions")
 
     commitMessage String?
+    documentHash  String?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    complianceReports ComplianceReport[]
-    exportHistory     ExportHistory[]
+    complianceReports   ComplianceReport[]
+    exportHistory       ExportHistory[]
+    workflowTransitions WorkflowTransition[]
 
     @@index([userId])
+    @@index([organizationId])
     @@index([status])
     @@index([userId, status])
     @@index([parentDraftId])
+}
+
+model WorkflowTransition {
+    id         String   @id @default(cuid())
+    draftId    String
+    draft      Draft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
+    fromStatus String
+    toStatus   String
+    actorId    String
+    actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+    remarks    String?
+    createdAt  DateTime @default(now())
+
+    @@index([draftId])
+    @@index([actorId])
 }
 
 model Template {

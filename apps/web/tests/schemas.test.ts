@@ -30,7 +30,12 @@ describe("shared schema enums", () => {
     it("exposes the document, jurisdiction, and status contracts used by the app", () => {
         expect(documentTypeValues).toEqual(["ORDINANCE", "RESOLUTION", "MEMORANDUM", "POLICY"]);
         expect(jurisdictionLevelValues).toEqual(["barangay", "city", "municipal", "provincial"]);
-        expect(documentStatusValues).toEqual(["DRAFT", "REVIEW", "FINAL", "ARCHIVED"]);
+        expect(documentStatusValues).toContain("DRAFT");
+        expect(documentStatusValues).toContain("REVIEW");
+        expect(documentStatusValues).toContain("FINAL");
+        expect(documentStatusValues).toContain("ARCHIVED");
+        expect(documentStatusValues).toContain("FIRST_READING");
+        expect(documentStatusValues).toContain("SANGGUNIAN_ENACTED");
         expect(templateCategoryValues).toContain("Public Safety");
     });
 });

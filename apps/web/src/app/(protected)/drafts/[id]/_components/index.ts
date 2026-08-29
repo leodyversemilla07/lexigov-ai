@@ -14,4 +14,3 @@ export { SidePanelCard } from './side-panel-card';
 export * from './types';
 export { VersionTrailPanel } from './version-trail-panel';
 export { WorkflowPanel } from './workflow-panel';
-

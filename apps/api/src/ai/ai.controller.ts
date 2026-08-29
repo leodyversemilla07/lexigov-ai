@@ -85,4 +85,3 @@ export class AiController {
     return this.aiService.generateSummary(dto.content);
   }
 }
-

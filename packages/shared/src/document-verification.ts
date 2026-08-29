@@ -47,13 +47,7 @@ export function buildVerificationMetadata(
   body: string,
   baseUrl = 'https://lexigov.ph',
 ): VerificationMetadata {
-  const verificationHash = generateVerificationHash(
-    draft.id,
-    draft.title,
-    draft.jurisdiction,
-    draft.version,
-    body,
-  );
+  const verificationHash = generateVerificationHash(draft.id, draft.title, draft.jurisdiction, draft.version, body);
   const verificationSlug = `${draft.id}-v${draft.version}`;
   const verificationUrl = `${baseUrl}/verify?code=${verificationHash}&id=${draft.id}`;
 

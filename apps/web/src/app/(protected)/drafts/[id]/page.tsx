@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
 import {
   CompliancePulsePanel,
@@ -143,6 +143,7 @@ export default function DraftEditorPage() {
         sections.length > 0 ? sections : buildDraftSectionsFromBody(content),
       ),
       status,
+      expectedVersion: draft.version,
     });
   };
 
@@ -158,7 +159,19 @@ export default function DraftEditorPage() {
       toast.success('Draft saved.');
     } catch (error) {
       console.error('Failed to save draft:', error);
-      toast.error('Failed to save draft. Please try again.');
+      if (error instanceof ApiError && error.status === 409) {
+        toast.error('Draft was modified by another session. Please reload to see the latest version.', {
+          action: {
+            label: 'Reload',
+            onClick: () => {
+              refetchDraft();
+              refetchVersions();
+            },
+          },
+        });
+      } else {
+        toast.error('Failed to save draft. Please try again.');
+      }
     } finally {
       setIsSaving(false);
     }

@@ -206,8 +206,8 @@ export function SectionEditor({
                 </div>
               </div>
               <div className='mt-5 rounded-lg border border-dashed bg-background p-4 text-sm leading-6 text-muted-foreground'>
-                Use the AI quick action buttons to instantly expand, formalize, or align this section with statutory
-                RA 7160 limits.
+                Use the AI quick action buttons to instantly expand, formalize, or align this section with statutory RA
+                7160 limits.
               </div>
             </div>
           </div>
@@ -220,4 +220,3 @@ export function SectionEditor({
     </Card>
   );
 }
-

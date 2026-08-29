@@ -14,18 +14,37 @@ export const documentTypeValues = ['ORDINANCE', 'RESOLUTION', 'MEMORANDUM', 'POL
 export const documentTypeSchema = z.enum(documentTypeValues);
 export type DocumentType = z.infer<typeof documentTypeSchema>;
 
-// Document status workflow
-export const documentStatusValues = ['DRAFT', 'REVIEW', 'FINAL', 'ARCHIVED'] as const;
+// Document status workflow (combines MVP statuses and formal RA 7160 legislative stages)
+export const documentStatusValues = [
+  'DRAFT',
+  'REVIEW',
+  'FINAL',
+  'ARCHIVED',
+  'FIRST_READING',
+  'COMMITTEE_REVIEW',
+  'SECOND_READING',
+  'THIRD_READING',
+  'SANGGUNIAN_ENACTED',
+  'LCE_REVIEW',
+  'LCE_APPROVED',
+  'LCE_VETOED',
+  'HIGHER_SANGGUNIAN_REVIEW',
+  'ENACTED_PUBLISHED',
+] as const;
 export const documentStatusSchema = z.enum(documentStatusValues);
 export type DocumentStatus = z.infer<typeof documentStatusSchema>;
 
-// User roles
+// User roles (including Sanggunian officers and legislative staff)
 export const userRoleValues = [
   'ADMIN',
   'LEGISLATIVE_STAFF',
   'BARANGAY_SECRETARY',
   'CITY_COUNCIL',
   'RESEARCHER',
+  'PRESIDING_OFFICER',
+  'COMMITTEE_CHAIR',
+  'SANGGUNIAN_SECRETARY',
+  'CITIZEN_VIEWER',
 ] as const;
 export const userRoleSchema = z.enum(userRoleValues);
 export type UserRole = z.infer<typeof userRoleSchema>;
@@ -81,4 +100,3 @@ export function toDocumentStatus(value: unknown, fallback: DocumentStatus = 'DRA
   }
   return fallback;
 }
-

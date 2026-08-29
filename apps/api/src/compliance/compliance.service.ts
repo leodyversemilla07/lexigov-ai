@@ -1,9 +1,8 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { analyzeDeterministicCompliance, extractDraftBody } from '@lexigov/shared';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import { isJurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
-
 
 @Injectable()
 export class ComplianceService {

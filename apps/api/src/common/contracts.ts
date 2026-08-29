@@ -1,16 +1,16 @@
 export {
+  type DocumentStatus,
+  type DocumentType,
   documentStatusSchema,
   documentStatusValues,
-  type DocumentStatus,
   documentTypeSchema,
   documentTypeValues,
-  type DocumentType,
   isDocumentStatus,
   isDocumentType,
   isJurisdictionLevel,
+  type JurisdictionLevel,
   jurisdictionLevelSchema,
   jurisdictionLevelValues,
-  type JurisdictionLevel,
   toDocumentStatus,
   toDocumentType,
   toJurisdictionLevel,
@@ -27,4 +27,3 @@ export const templateCategoryValues = [
   'Other',
 ] as const;
 export type TemplateCategory = (typeof templateCategoryValues)[number];
-

@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
-import { RequireRoles, RolesGuard } from '../auth/roles.guard';
 import type { AuthenticatedUser } from '../auth/auth.service';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { RequireRoles, RolesGuard } from '../auth/roles.guard';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { ListTemplatesDto } from './dto/list-templates.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';

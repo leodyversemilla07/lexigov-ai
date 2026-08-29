@@ -1,4 +1,3 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
@@ -6,6 +5,7 @@ import {
   getStatutoryCitations,
   mergeComplianceIssues,
 } from '@lexigov/shared';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { isJurisdictionLevel, type JurisdictionLevel } from '../common/contracts';
 
 interface AzureConfig {
@@ -267,4 +267,3 @@ Document Requirements:
     };
   }
 }
-

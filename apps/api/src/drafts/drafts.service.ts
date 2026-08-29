@@ -1,5 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { extractDraftBody, normalizeDraftContent } from '@lexigov/shared';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';
@@ -27,8 +27,10 @@ export class DraftsService {
           status: 'DRAFT',
           aiGenerated: dto.aiGenerated ?? false,
           userId,
+          organizationId: dto.organizationId ?? null,
           templateId: dto.templateId,
           version: 1,
+          documentHash: dto.documentHash ?? null,
           createdAt: now,
           updatedAt: now,
         },
@@ -52,7 +54,13 @@ export class DraftsService {
     const query = typeof queryOrStatus === 'string' ? { status: queryOrStatus } : queryOrStatus;
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
-    const where: Record<string, unknown> = { userId, parentDraftId: null };
+    const where: Record<string, unknown> = { parentDraftId: null };
+
+    if (query.organizationId) {
+      where.organizationId = query.organizationId;
+    } else {
+      where.userId = userId;
+    }
 
     if (query.status) where.status = query.status;
     if (query.documentType) where.documentType = query.documentType;
@@ -94,18 +102,28 @@ export class DraftsService {
         throw new NotFoundException('Saved revisions are read-only');
       }
 
+      if (dto.expectedVersion !== undefined && draft.version !== dto.expectedVersion) {
+        throw new ConflictException(
+          `Draft was modified by another user (expected v${dto.expectedVersion}, current is v${draft.version})`,
+        );
+      }
+
       const now = new Date();
+      const previousStatus = draft.status;
+      const previousVersion = draft.version;
       const nextTitle = dto.title ?? draft.title;
       const nextContent = normalizeDraftContent(dto.content ?? draft.content);
       const nextStatus = dto.status ?? draft.status;
+      const nextDocumentHash = dto.documentHash ?? draft.documentHash;
 
       const hasChange =
         nextTitle !== draft.title ||
-        nextStatus !== draft.status ||
+        nextStatus !== previousStatus ||
+        nextDocumentHash !== draft.documentHash ||
         JSON.stringify(nextContent) !== JSON.stringify(draft.content);
 
       if (!hasChange) {
-        return { ...draft, version: draft.version };
+        return { ...draft, version: previousVersion };
       }
 
       await tx.draft.create({
@@ -115,13 +133,15 @@ export class DraftsService {
           jurisdiction: draft.jurisdiction,
           jurisdictionName: draft.jurisdictionName,
           content: draft.content as Prisma.InputJsonValue,
-          status: draft.status,
+          status: previousStatus,
           aiGenerated: draft.aiGenerated,
           userId: draft.userId,
+          organizationId: draft.organizationId,
           templateId: draft.templateId,
-          version: draft.version,
+          version: previousVersion,
           parentDraftId: draft.id,
           commitMessage: draft.commitMessage,
+          documentHash: draft.documentHash,
           createdAt: now,
           updatedAt: draft.updatedAt,
         },
@@ -134,10 +154,24 @@ export class DraftsService {
           content: nextContent as Prisma.InputJsonValue,
           status: nextStatus,
           commitMessage: dto.commitMessage,
-          version: draft.version + 1,
+          documentHash: nextDocumentHash,
+          version: previousVersion + 1,
           updatedAt: now,
         },
       });
+
+      if (nextStatus !== previousStatus) {
+        await tx.workflowTransition.create({
+          data: {
+            draftId: id,
+            fromStatus: previousStatus,
+            toStatus: nextStatus,
+            actorId: userId,
+            remarks: dto.commitMessage ?? null,
+            createdAt: now,
+          },
+        });
+      }
 
       await tx.auditLog.create({
         data: {
@@ -146,8 +180,10 @@ export class DraftsService {
           entityId: id,
           userId,
           changes: {
-            previousVersion: draft.version,
-            nextVersion: draft.version + 1,
+            previousVersion,
+            nextVersion: previousVersion + 1,
+            previousStatus,
+            nextStatus,
           },
           createdAt: now,
         },
@@ -250,10 +286,12 @@ export class DraftsService {
           status: draft.status,
           aiGenerated: draft.aiGenerated,
           userId: draft.userId,
+          organizationId: draft.organizationId,
           templateId: draft.templateId,
           version: draft.version,
           parentDraftId: draft.id,
           commitMessage: draft.commitMessage,
+          documentHash: draft.documentHash,
           createdAt: now,
           updatedAt: draft.updatedAt,
         },
@@ -266,10 +304,24 @@ export class DraftsService {
           content: versionDraft.content as Prisma.InputJsonValue,
           status: versionDraft.status,
           commitMessage: `Restore version v${versionDraft.version}`,
+          documentHash: versionDraft.documentHash,
           version: draft.version + 1,
           updatedAt: now,
         },
       });
+
+      if (versionDraft.status !== draft.status) {
+        await tx.workflowTransition.create({
+          data: {
+            draftId,
+            fromStatus: draft.status,
+            toStatus: versionDraft.status,
+            actorId: userId,
+            remarks: `Restored to v${versionDraft.version}`,
+            createdAt: now,
+          },
+        });
+      }
 
       await tx.auditLog.create({
         data: {
@@ -281,6 +333,8 @@ export class DraftsService {
             previousVersion: draft.version,
             nextVersion: draft.version + 1,
             restoredFromVersion: versionDraft.version,
+            previousStatus: draft.status,
+            nextStatus: versionDraft.status,
           },
           createdAt: now,
         },
