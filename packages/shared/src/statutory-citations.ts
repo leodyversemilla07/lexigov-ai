@@ -89,6 +89,36 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     sampleWhereas:
       'WHEREAS, the Supreme Court has consistently held that to be valid, an ordinance must not only conform with national statutes but must also observe substantive due process and administrative fairness;',
   },
+  {
+    id: 'ra7160-katarungan',
+    source: 'RA 7160',
+    provision: 'Sections 399–422 (Chapter 7)',
+    title: 'Katarungang Pambarangay System',
+    relevance:
+      'Mandates amicable settlement of barangay disputes at the Lupon Tagapamayapa level as a condition precedent before court filing.',
+    sampleWhereas:
+      'WHEREAS, Chapter 7 of Republic Act No. 7160 mandates the Katarungang Pambarangay system to perpetuate the Filipino tradition of settling disputes amicably at the community level;',
+  },
+  {
+    id: 'ra10121-drrm',
+    source: 'National Law',
+    provision: 'RA 10121, Section 12',
+    title: 'Philippine Disaster Risk Reduction & Management Act',
+    relevance:
+      'Mandates establishment of Local Disaster Risk Reduction & Management Offices (LDRRMO) and allocation of 5% LDRRM Fund.',
+    sampleWhereas:
+      'WHEREAS, Section 12 of Republic Act No. 10121 mandates local government units to institutionalize disaster risk reduction and climate change adaptation mechanisms in their local development plans;',
+  },
+  {
+    id: 'ra11032-eodb',
+    source: 'National Law',
+    provision: 'RA 11032, Section 9',
+    title: 'Ease of Doing Business & Efficient Government Service Delivery Act',
+    relevance:
+      'Prescribes streamlined business permitting, electronic Business One-Stop Shops (e-BOSS), and standardized processing times.',
+    sampleWhereas:
+      'WHEREAS, Republic Act No. 11032 enjoins local government units to streamline regulatory processes and implement zero-contact policies for business permitting and public transactions;',
+  },
 ];
 
 const CITATION_MAP = new Map(PHILIPPINE_STATUTORY_DATABASE.map((c) => [c.id, c]));
@@ -126,6 +156,18 @@ export function getStatutoryCitations(topicOrContent: string, _jurisdiction: Jur
 
   if (/closure|revocation|permit|license|confiscat/i.test(normalized)) {
     addCitation('sc-manila-laguio');
+  }
+
+  if (/dispute|lupon|barangay justice|amicable settlement|katarungan|mediation|arbitrat/i.test(normalized)) {
+    addCitation('ra7160-katarungan');
+  }
+
+  if (/disaster|calamity|evacuation|climate|flood|earthquake|emergency|drrm|ldrm/i.test(normalized)) {
+    addCitation('ra10121-drrm');
+  }
+
+  if (/business permit|ease of doing business|streamline|one-stop|e-boss|red tape|anti-red tape/i.test(normalized)) {
+    addCitation('ra11032-eodb');
   }
 
   return matched;

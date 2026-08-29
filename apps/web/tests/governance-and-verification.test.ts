@@ -31,6 +31,21 @@ describe('Statutory Citations & Legal Grounding', () => {
     expect(whereasList.length).toBeGreaterThanOrEqual(2);
     expect(whereasList.some((w) => w.includes('Republic Act No. 7160'))).toBe(true);
   });
+
+  it('matches Katarungang Pambarangay provisions for barangay dispute settlement', () => {
+    const citations = getStatutoryCitations('Establishing guidelines for Lupon Tagapamayapa mediation and dispute resolution', 'barangay');
+    expect(citations.some((c) => c.provision.includes('Sections 399–422'))).toBe(true);
+  });
+
+  it('matches Disaster Risk Reduction Act (RA 10121) for emergency and calamity preparedness', () => {
+    const citations = getStatutoryCitations('Allocating LDRRM emergency disaster fund for flood evacuation centers', 'city');
+    expect(citations.some((c) => c.provision.includes('RA 10121'))).toBe(true);
+  });
+
+  it('matches Ease of Doing Business Act (RA 11032) for business permitting and streamlining', () => {
+    const citations = getStatutoryCitations('Streamlining business permit processing and establishing an electronic one-stop shop', 'municipal');
+    expect(citations.some((c) => c.provision.includes('RA 11032'))).toBe(true);
+  });
 });
 
 describe('Sanggunian Legislative Tracker & Transmittal Deadlines', () => {
