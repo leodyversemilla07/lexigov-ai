@@ -13,6 +13,8 @@
     },
     "dependencies": {
         "@hookform/resolvers": "^3.10.0",
+        "@lexigov/ai": "workspace:*",
+        "@lexigov/env": "workspace:*",
         "@lexigov/shared": "workspace:*",
         "@lexigov/ui": "workspace:*",
         "@prisma/adapter-pg": "^7.8.0",

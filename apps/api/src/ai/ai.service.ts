@@ -1,163 +1,92 @@
 import {
+  type AiProvider,
+  buildComplianceAnalysisPrompt,
+  buildOrdinanceDraftingPrompt,
+  buildSummaryPrompt,
+  createAiProviderFromEnv,
+} from '@lexigov/ai';
+import {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
   type ComplianceIssue,
-  getStatutoryCitations,
   mergeComplianceIssues,
 } from '@lexigov/shared';
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { isJurisdictionLevel, type JurisdictionLevel } from '../common/contracts';
-
-interface AzureConfig {
-  apiKey: string;
-  apiVersion: string;
-  deployment: string;
-  endpoint: string;
-}
 
 @Injectable()
 export class AiService {
-  private getConfig(): AzureConfig {
-    const apiKey = process.env.AZURE_OPENAI_API_KEY;
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION;
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+  private provider: AiProvider;
 
-    if (!apiKey || !endpoint || !apiVersion || !deployment) {
-      throw new ServiceUnavailableException('Azure OpenAI not configured');
-    }
+  constructor() {
+    this.provider = createAiProviderFromEnv(process.env);
+  }
 
-    return { apiKey, apiVersion, deployment, endpoint };
+  setProvider(provider: AiProvider): void {
+    this.provider = provider;
+  }
+
+  getProvider(): AiProvider {
+    return this.provider;
   }
 
   async generateOrdinance(prompt: string, jurisdiction: string, jurisdictionName: string, documentType: string) {
-    const config = this.getConfig();
-    const { AzureOpenAI } = await import('openai');
-
-    const client = new AzureOpenAI({
-      apiKey: config.apiKey,
-      apiVersion: config.apiVersion,
-      endpoint: config.endpoint,
+    const { systemPrompt, userPrompt } = buildOrdinanceDraftingPrompt({
+      prompt,
+      jurisdiction,
+      jurisdictionName,
+      documentType,
     });
 
-    const normalizedJurisdiction = isJurisdictionLevel(jurisdiction) ? jurisdiction : 'barangay';
-    const citations = getStatutoryCitations(prompt, normalizedJurisdiction);
-    const citationContext = citations
-      .map((c) => `- ${c.source} ${c.provision} (${c.title}): ${c.relevance}`)
-      .join('\n');
-
-    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${normalizedJurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
-
-Statutory Grounding References:
-${citationContext}
-
-Document Requirements:
-1. Republic Header ("REPUBLIC OF THE PHILIPPINES", Jurisdiction name, "OFFICE OF THE SANGGUNIAN")
-2. Formal Document Title (e.g. "ORDINANCE NO. 2025-___")
-3. Formal Preamble with WHEREAS clauses citing relevant statutory bases (RA 7160 § 16, Constitution, DILG guidelines)
-4. Enacting Clause ("BE IT ORDAINED, by the Sanggunian in session assembled...")
-5. Standard Sections: Title, Declaration of Policy, Definitions, Operative Provisions, Penal Provisions (strictly obeying ${jurisdiction} limits), Administrative Enforcement, Separability Clause, Repealing Clause, Effectivity Clause.`;
-
-    const completion = await client.chat.completions.create({
-      model: config.deployment,
-      max_completion_tokens: 8192,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
+    const result = await this.provider.generateText({
+      prompt: userPrompt,
+      systemPrompt,
+      maxTokens: 8192,
     });
 
     return {
-      content: completion.choices[0]?.message?.content ?? '',
+      content: result.text,
       generatedAt: Date.now(),
-      model: config.deployment,
+      model: result.model,
     };
   }
 
   async checkCompliance(content: string, jurisdiction: string) {
-    // For unknown jurisdictions, skip the AI augmentation path entirely. The
-    // shared deterministic analyzer only knows about the four RA 7160 levels
-    // and would otherwise crash trying to look up penalty rules for an
-    // arbitrary string.
+    // For unknown jurisdictions, skip the AI augmentation path entirely.
     if (!isJurisdictionLevel(jurisdiction)) {
-      // Skip the deterministic analyzer too — it requires a known jurisdiction
-      // to compute penalty rule lookups. Return an empty compliance result
-      // so callers can still proceed without throwing.
       return { overallScore: 0, isValid: false, issues: [] };
     }
 
     const deterministic = analyzeDeterministicCompliance(content, jurisdiction);
 
-    const config = this.getConfig();
-    const { AzureOpenAI } = await import('openai');
-
-    const client = new AzureOpenAI({
-      apiKey: config.apiKey,
-      apiVersion: config.apiVersion,
-      endpoint: config.endpoint,
-    });
-
     try {
-      const result = await client.chat.completions.create({
-        model: config.deployment,
-        max_completion_tokens: 2500,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a Philippine legal drafting reviewer. Return only additional findings that are not obvious structural checks.',
-          },
-          {
-            role: 'user',
-            content: `Review this ${jurisdiction} ordinance. Return up to 3 additional findings in JSON: { "issues": [{ "type": "critical"|"warning"|"suggestion", "section": "...", "title": "...", "description": "...", "suggestion": "..." }] }\n\nDraft:\n${content}`,
-          },
-        ],
+      const { systemPrompt, userPrompt } = buildComplianceAnalysisPrompt(content, jurisdiction);
+
+      const aiResult = await this.provider.generateStructured<{ issues?: ComplianceIssue[] }>({
+        prompt: userPrompt,
+        systemPrompt,
+        maxTokens: 2500,
       });
 
-      const text = result.choices[0]?.message?.content ?? '';
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]) as {
-          issues?: ComplianceIssue[];
-        };
-        const aiIssues = Array.isArray(parsed.issues) ? parsed.issues : [];
-        const merged = mergeComplianceIssues(deterministic.issues, aiIssues);
-        return buildComplianceResultFromIssues(merged);
-      }
+      const aiIssues = Array.isArray(aiResult.issues) ? aiResult.issues : [];
+      const merged = mergeComplianceIssues(deterministic.issues, aiIssues);
+      return buildComplianceResultFromIssues(merged);
     } catch {
-      // Fall back to deterministic only
+      // Fall back to deterministic analysis
+      return deterministic;
     }
-
-    return deterministic;
   }
 
   async generateSummary(content: string) {
-    const config = this.getConfig();
-    const { AzureOpenAI } = await import('openai');
+    const { systemPrompt, userPrompt } = buildSummaryPrompt(content);
 
-    const client = new AzureOpenAI({
-      apiKey: config.apiKey,
-      apiVersion: config.apiVersion,
-      endpoint: config.endpoint,
+    const result = await this.provider.generateText({
+      prompt: userPrompt,
+      systemPrompt,
+      maxTokens: 1024,
     });
 
-    const completion = await client.chat.completions.create({
-      model: config.deployment,
-      max_completion_tokens: 1024,
-      messages: [
-        {
-          role: 'system',
-          content: 'You write concise executive summaries for Philippine local government ordinance drafts.',
-        },
-        {
-          role: 'user',
-          content: `Generate a 2-3 paragraph executive summary for this Philippine ordinance:\n\n${content}`,
-        },
-      ],
-    });
-
-    return { summary: completion.choices[0]?.message?.content ?? '' };
+    return { summary: result.text };
   }
 
   async *generateOrdinanceStream(
@@ -166,48 +95,21 @@ Document Requirements:
     jurisdictionName: string,
     documentType: string,
   ): AsyncGenerator<string, void, unknown> {
-    const config = this.getConfig();
-    const { AzureOpenAI } = await import('openai');
-
-    const client = new AzureOpenAI({
-      apiKey: config.apiKey,
-      apiVersion: config.apiVersion,
-      endpoint: config.endpoint,
+    const { systemPrompt, userPrompt } = buildOrdinanceDraftingPrompt({
+      prompt,
+      jurisdiction,
+      jurisdictionName,
+      documentType,
     });
 
-    const normalizedJurisdiction = isJurisdictionLevel(jurisdiction) ? jurisdiction : 'barangay';
-    const citations = getStatutoryCitations(prompt, normalizedJurisdiction);
-    const citationContext = citations
-      .map((c) => `- ${c.source} ${c.provision} (${c.title}): ${c.relevance}`)
-      .join('\n');
-
-    const systemPrompt = `You are an expert Philippine legislative drafting assistant. Generate an official, legally sound ${documentType.toLowerCase()} for ${jurisdictionName} (${normalizedJurisdiction} level) conforming strictly to Republic Act No. 7160 (Local Government Code of 1991).
-
-Statutory Grounding References:
-${citationContext}
-
-Document Requirements:
-1. Republic Header ("REPUBLIC OF THE PHILIPPINES", Jurisdiction name, "OFFICE OF THE SANGGUNIAN")
-2. Formal Document Title (e.g. "ORDINANCE NO. 2025-___")
-3. Formal Preamble with WHEREAS clauses citing relevant statutory bases (RA 7160 § 16, Constitution, DILG guidelines)
-4. Enacting Clause ("BE IT ORDAINED, by the Sanggunian in session assembled...")
-5. Standard Sections: Title, Declaration of Policy, Definitions, Operative Provisions, Penal Provisions (strictly obeying ${jurisdiction} limits), Administrative Enforcement, Separability Clause, Repealing Clause, Effectivity Clause.`;
-
-    const stream = await client.chat.completions.create({
-      model: config.deployment,
-      max_completion_tokens: 8192,
-      stream: true,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
+    const stream = this.provider.streamText({
+      prompt: userPrompt,
+      systemPrompt,
+      maxTokens: 8192,
     });
 
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content ?? '';
-      if (delta) {
-        yield delta;
-      }
+    for await (const token of stream) {
+      yield token;
     }
   }
 
@@ -219,15 +121,6 @@ Document Requirements:
     jurisdiction = 'barangay',
     documentType = 'ORDINANCE',
   ) {
-    const config = this.getConfig();
-    const { AzureOpenAI } = await import('openai');
-
-    const client = new AzureOpenAI({
-      apiKey: config.apiKey,
-      apiVersion: config.apiVersion,
-      endpoint: config.endpoint,
-    });
-
     let actionPrompt = '';
     switch (action) {
       case 'expand':
@@ -251,19 +144,16 @@ Document Requirements:
 
     const userPrompt = `Section Heading: ${sectionHeading}\nCurrent Section Body:\n${sectionBody || '(No content yet)'}\n\nTask: ${actionPrompt}${instruction ? `\nAdditional user instruction: ${instruction}` : ''}`;
 
-    const completion = await client.chat.completions.create({
-      model: config.deployment,
-      max_completion_tokens: 2048,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
+    const result = await this.provider.generateText({
+      prompt: userPrompt,
+      systemPrompt,
+      maxTokens: 2048,
     });
 
     return {
-      sectionBody: completion.choices[0]?.message?.content?.trim() ?? '',
+      sectionBody: result.text.trim(),
       action,
-      model: config.deployment,
+      model: result.model,
     };
   }
 }

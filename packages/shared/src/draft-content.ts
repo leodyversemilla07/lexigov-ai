@@ -4,6 +4,7 @@ export type DraftSection = {
   id: string;
   heading: string;
   body: string;
+  [key: string]: unknown;
 };
 
 export type StructuredDraftContent = {
@@ -14,6 +15,7 @@ export type StructuredDraftContent = {
   generatedAt?: number;
   model?: string;
   milestones?: LegislativeMilestones;
+  [key: string]: unknown;
 };
 
 type DraftContentRecord = Record<string, unknown>;

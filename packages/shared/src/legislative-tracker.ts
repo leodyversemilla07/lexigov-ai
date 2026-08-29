@@ -15,6 +15,7 @@ export interface VotingRecord {
   ayes: number;
   nays: number;
   abstentions: number;
+  [key: string]: unknown;
 }
 
 export interface LegislativeMilestones {
@@ -33,6 +34,7 @@ export interface LegislativeMilestones {
   lceAction?: 'APPROVED' | 'VETOED' | 'LAPSED_INTO_LAW' | 'PENDING';
   lceActionDate?: string;
   enactmentNo?: string;
+  [key: string]: unknown;
 }
 
 export const LEGISLATIVE_STAGES: Array<{

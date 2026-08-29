@@ -23,7 +23,7 @@ export class DraftsService {
           documentType: dto.documentType,
           jurisdiction: dto.jurisdiction,
           jurisdictionName: dto.jurisdictionName,
-          content: normalizeDraftContent(dto.content ?? {}),
+          content: normalizeDraftContent(dto.content ?? {}) as unknown as Prisma.InputJsonValue,
           status: 'DRAFT',
           aiGenerated: dto.aiGenerated ?? false,
           userId,
@@ -151,7 +151,7 @@ export class DraftsService {
         where: { id },
         data: {
           title: nextTitle,
-          content: nextContent as Prisma.InputJsonValue,
+          content: nextContent as unknown as Prisma.InputJsonValue,
           status: nextStatus,
           commitMessage: dto.commitMessage,
           documentHash: nextDocumentHash,
