@@ -88,6 +88,8 @@ export {
   getTemplatePrompt,
   getTemplateSections,
 } from './template-utils';
+// Test Data Factories & Fixtures
+export * from './testing';
 export type {
   DiffRow,
   DiffRowType,
@@ -99,9 +101,5 @@ export {
   buildLineDiff,
   buildSectionDiff,
 } from './text-diff';
-
 // Utils
 export { cn } from './utils';
-
-// Test Data Factories & Fixtures
-export * from './testing';

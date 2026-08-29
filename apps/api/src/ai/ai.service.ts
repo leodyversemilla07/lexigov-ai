@@ -12,7 +12,7 @@ import {
   mergeComplianceIssues,
 } from '@lexigov/shared';
 import { Injectable } from '@nestjs/common';
-import { isJurisdictionLevel, type JurisdictionLevel } from '../common/contracts';
+import { isJurisdictionLevel } from '../common/contracts';
 
 @Injectable()
 export class AiService {

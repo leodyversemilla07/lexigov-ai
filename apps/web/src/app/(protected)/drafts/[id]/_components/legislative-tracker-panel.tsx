@@ -9,12 +9,11 @@ import {
   type LegislativeStage,
 } from '@lexigov/shared';
 import { Badge } from '@lexigov/ui/components/badge';
-import { Button } from '@lexigov/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexigov/ui/components/card';
 import { Input } from '@lexigov/ui/components/input';
 import { Label } from '@lexigov/ui/components/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@lexigov/ui/components/select';
-import { CheckCircle2, ChevronRight, Clock, FileCheck, Landmark, Send, Vote } from 'lucide-react';
+import { Clock, FileCheck, Landmark, Send, Vote } from 'lucide-react';
 import { useState } from 'react';
 
 type LegislativeTrackerPanelProps = {
@@ -29,7 +28,6 @@ export function LegislativeTrackerPanel({
   onUpdateMilestones,
 }: LegislativeTrackerPanelProps) {
   const [milestones, setMilestones] = useState<LegislativeMilestones>(initialMilestones || getDefaultMilestones());
-  const [isEditing, setIsEditing] = useState(false);
 
   const currentStageInfo = LEGISLATIVE_STAGES.find((s) => s.stage === milestones.currentStage) || LEGISLATIVE_STAGES[0];
 

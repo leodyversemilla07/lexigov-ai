@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';

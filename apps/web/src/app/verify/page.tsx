@@ -4,7 +4,6 @@ import { Badge } from '@lexigov/ui/components/badge';
 import { Button } from '@lexigov/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexigov/ui/components/card';
 import { Input } from '@lexigov/ui/components/input';
-import { Label } from '@lexigov/ui/components/label';
 import { Separator } from '@lexigov/ui/components/separator';
 import { CheckCircle2, FileCheck, Landmark, QrCode, Search, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';

@@ -9,7 +9,7 @@ import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { AlertTriangle, CheckCircle, FileText, Loader2, RefreshCw, Scale, Shield, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';

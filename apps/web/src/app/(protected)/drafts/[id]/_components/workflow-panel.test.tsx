@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
 import { createMockDraft } from '@lexigov/shared';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { WorkflowPanel } from './workflow-panel';
 
 describe('WorkflowPanel (Colocated Unit Test)', () => {

@@ -44,7 +44,7 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { useState } from 'react';
 import { Controller } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Pagination } from '@/components/pagination';
