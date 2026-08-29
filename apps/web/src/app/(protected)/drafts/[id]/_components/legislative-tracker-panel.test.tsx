@@ -16,17 +16,19 @@ describe('LegislativeTrackerPanel (Colocated Unit Test)', () => {
     expect(screen.getByText(/Step 2 of 7/)).toBeInTheDocument();
   });
 
-  it('renders 3rd reading voting section when in THIRD_READING stage', () => {
-    const milestones = createMockMilestones({
-      currentStage: 'THIRD_READING',
-      votingRecord: { ayes: 12, nays: 0, abstentions: 1 },
-    });
+  it('renders active statutory role badge', () => {
+    const milestones = createMockMilestones();
 
-    render(<LegislativeTrackerPanel jurisdiction='city' milestones={milestones} onUpdateMilestones={vi.fn()} />);
+    render(
+      <LegislativeTrackerPanel
+        jurisdiction='city'
+        milestones={milestones}
+        currentUserRole='PRESIDING_OFFICER'
+        onUpdateMilestones={vi.fn()}
+      />,
+    );
 
-    expect(screen.getByText(/3rd Reading Nominal Voting Record/i)).toBeInTheDocument();
-    expect(screen.getByText('Ayes')).toBeInTheDocument();
-    expect(screen.getByText('Nays')).toBeInTheDocument();
-    expect(screen.getByText('Abstain')).toBeInTheDocument();
+    const roleBadge = screen.getByTestId('legislative.tracker.active-role');
+    expect(roleBadge).toHaveTextContent(/Presiding Officer/i);
   });
 });

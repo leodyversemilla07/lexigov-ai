@@ -7,37 +7,58 @@ import {
   LEGISLATIVE_STAGES,
   type LegislativeMilestones,
   type LegislativeStage,
+  SANGGUNIAN_ROLE_LABELS,
+  type SanggunianRole,
+  validateStageTransition,
 } from '@lexigov/shared';
 import { Badge } from '@lexigov/ui/components/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexigov/ui/components/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@lexigov/ui/components/card';
 import { Input } from '@lexigov/ui/components/input';
 import { Label } from '@lexigov/ui/components/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@lexigov/ui/components/select';
-import { Clock, FileCheck, Landmark, Send, Vote } from 'lucide-react';
+import { AlertCircle, Clock, FileCheck, Landmark, Send, ShieldCheck, Vote } from 'lucide-react';
 import { useState } from 'react';
 
 type LegislativeTrackerPanelProps = {
   jurisdiction: string;
   milestones?: LegislativeMilestones;
+  currentUserRole?: SanggunianRole;
   onUpdateMilestones?: (milestones: LegislativeMilestones) => void;
 };
 
 export function LegislativeTrackerPanel({
   jurisdiction,
   milestones: initialMilestones,
+  currentUserRole = 'LEGISLATIVE_STAFF',
   onUpdateMilestones,
 }: LegislativeTrackerPanelProps) {
   const [milestones, setMilestones] = useState<LegislativeMilestones>(initialMilestones || getDefaultMilestones());
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const currentStageInfo = LEGISLATIVE_STAGES.find((s) => s.stage === milestones.currentStage) || LEGISLATIVE_STAGES[0];
+  const roleInfo = SANGGUNIAN_ROLE_LABELS[currentUserRole] || SANGGUNIAN_ROLE_LABELS.LEGISLATIVE_STAFF;
 
   const handleStageChange = (newStage: LegislativeStage) => {
+    const validation = validateStageTransition(
+      milestones,
+      newStage,
+      currentUserRole,
+      (jurisdiction as JurisdictionLevel) || 'city',
+    );
+
+    if (!validation.isValid) {
+      setValidationError(validation.error || 'Unauthorized or invalid stage transition.');
+      return;
+    }
+
+    setValidationError(null);
     const updated = { ...milestones, currentStage: newStage };
     setMilestones(updated);
     onUpdateMilestones?.(updated);
   };
 
   const handleFieldChange = (field: keyof LegislativeMilestones, value: unknown) => {
+    setValidationError(null);
     const updated = { ...milestones, [field]: value };
     if (field === 'transmittedDate' && typeof value === 'string' && value) {
       updated.transmittalDeadline = calculateTransmittalDeadline(value, (jurisdiction as JurisdictionLevel) || 'city');
@@ -47,6 +68,7 @@ export function LegislativeTrackerPanel({
   };
 
   const handleVotingChange = (field: 'ayes' | 'nays' | 'abstentions', value: number) => {
+    setValidationError(null);
     const currentVoting = milestones.votingRecord || { ayes: 0, nays: 0, abstentions: 0 };
     const updated = {
       ...milestones,
@@ -59,35 +81,64 @@ export function LegislativeTrackerPanel({
   return (
     <Card className='border-border/70 shadow-sm'>
       <CardHeader className='pb-3'>
-        <div className='flex items-center justify-between'>
+        <div className='flex items-center justify-between gap-2'>
           <div className='flex items-center gap-2'>
             <Landmark className='h-5 w-5 text-primary' />
             <CardTitle className='text-base font-semibold'>Sanggunian Legislative Tracker</CardTitle>
           </div>
-          <Badge variant='outline' className='text-xs'>
+          <Badge variant='outline' className='text-xs font-mono'>
             RA 7160 § 54
           </Badge>
         </div>
-        <CardDescription className='text-xs'>
-          Track formal 3-Reading milestones and Local Chief Executive transmittal.
-        </CardDescription>
+        <div className='flex items-center justify-between pt-1 text-xs text-muted-foreground'>
+          <span>Track formal 3-Reading milestones and LCE transmittal.</span>
+        </div>
+        <div className='flex items-center gap-1.5 pt-1'>
+          <ShieldCheck className='h-3.5 w-3.5 text-primary' />
+          <span className='text-[11px] text-muted-foreground'>Active Statutory Role:</span>
+          <Badge data-testid='legislative.tracker.active-role' variant='secondary' className='text-[10px] py-0 px-2'>
+            {roleInfo.label}
+          </Badge>
+        </div>
       </CardHeader>
       <CardContent className='space-y-4'>
+        {validationError ? (
+          <div
+            data-testid='legislative.tracker.validation-error'
+            className='rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive flex items-start gap-2'
+          >
+            <AlertCircle className='h-4 w-4 shrink-0 mt-0.5' />
+            <div>
+              <p className='font-semibold'>Statutory Action Required</p>
+              <p className='text-[11px]'>{validationError}</p>
+            </div>
+          </div>
+        ) : null}
+
         {/* Stage Milestone Steps */}
         <div className='flex items-center justify-between rounded-lg border bg-muted/20 p-2.5 text-xs'>
           <div className='font-medium text-foreground'>
             Step {currentStageInfo.stepNumber} of 7: {currentStageInfo.label}
           </div>
-          <Badge className='bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'>
+          <Badge
+            data-testid='legislative.tracker.stage-badge'
+            className='bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+          >
             {milestones.currentStage.replace(/_/g, ' ')}
           </Badge>
         </div>
 
         {/* Quick Stage Selector */}
         <div className='space-y-1.5'>
-          <Label className='text-xs text-muted-foreground'>Advance Legislative Stage</Label>
+          <Label htmlFor='advance-stage-select' className='text-xs text-muted-foreground'>
+            Advance Legislative Stage
+          </Label>
           <Select value={milestones.currentStage} onValueChange={(val) => handleStageChange(val as LegislativeStage)}>
-            <SelectTrigger className='h-9 text-xs'>
+            <SelectTrigger
+              id='advance-stage-select'
+              data-testid='legislative.tracker.stage-select'
+              className='h-9 text-xs'
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -36,16 +36,20 @@ export {
   updateDraftMilestonesContent,
   updateDraftSectionsContent,
 } from './draft-content';
-// Sanggunian Legislative Tracker
+// Sanggunian Legislative Tracker & RBAC
 export type {
   LegislativeMilestones,
   LegislativeStage,
+  StageValidationResult,
   VotingRecord,
 } from './legislative-tracker';
 export {
   calculateTransmittalDeadline,
   getDefaultMilestones,
   LEGISLATIVE_STAGES,
+  SANGGUNIAN_ROLE_LABELS,
+  STAGE_TRANSITION_ROLES,
+  validateStageTransition,
 } from './legislative-tracker';
 export type { AIDraftFormInput } from './schemas/ai';
 export * from './schemas/ai';

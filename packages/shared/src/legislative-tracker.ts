@@ -106,3 +106,109 @@ export function getDefaultMilestones(): LegislativeMilestones {
     lceAction: 'PENDING',
   };
 }
+
+export const SANGGUNIAN_ROLE_LABELS: Record<
+  import('./schemas/enums').SanggunianRole,
+  { label: string; statutoryTitle: string; description: string }
+> = {
+  LGU_ADMIN: {
+    label: 'LGU Administrator',
+    statutoryTitle: 'Workspace & System Administrator',
+    description: 'Full administrative authority across all organization drafts and member assignments.',
+  },
+  LEGISLATIVE_STAFF: {
+    label: 'Legislative Staff / Researcher',
+    statutoryTitle: 'Sanggunian Legislative Researcher',
+    description: 'Responsible for ordinance drafting, AI prompt orchestration, and initial legal research.',
+  },
+  COMMITTEE_CHAIR: {
+    label: 'Committee Chairperson',
+    statutoryTitle: 'Standing Committee Chairperson',
+    description: 'Directs committee hearings, drafts Committee Reports, and endorses committee amendments.',
+  },
+  SANGGUNIAN_SECRETARY: {
+    label: 'Secretary to the Sanggunian',
+    statutoryTitle: 'Sanggunian Secretary (RA 7160 § 469)',
+    description: 'Calendars 1st reading, keeps official journals, numbers enactments, and tracks LCE transmittals.',
+  },
+  PRESIDING_OFFICER: {
+    label: 'Presiding Officer (Vice Mayor / Vice Gov)',
+    statutoryTitle: 'Presiding Officer (RA 7160 § 445 / 455)',
+    description:
+      'Presides over plenary sessions, maintains session order, and certifies 3rd reading nominal roll-call votes.',
+  },
+  LCE_OFFICE: {
+    label: 'Local Chief Executive (Mayor / Governor)',
+    statutoryTitle: 'Mayor / Provincial Governor (RA 7160 § 54)',
+    description: 'Executes statutory approval, issues formal veto messages, or logs lapsed enactments.',
+  },
+};
+
+export const STAGE_TRANSITION_ROLES: Record<LegislativeStage, Array<import('./schemas/enums').SanggunianRole>> = {
+  DRAFTING: ['LEGISLATIVE_STAFF', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'],
+  FIRST_READING: ['LEGISLATIVE_STAFF', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'],
+  COMMITTEE_REVIEW: ['SANGGUNIAN_SECRETARY', 'COMMITTEE_CHAIR', 'LGU_ADMIN'],
+  SECOND_READING: ['COMMITTEE_CHAIR', 'LGU_ADMIN'],
+  THIRD_READING: ['PRESIDING_OFFICER', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'],
+  TRANSMITTED_TO_LCE: ['PRESIDING_OFFICER', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'],
+  ENACTED: ['LCE_OFFICE', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'],
+  VETOED: ['LCE_OFFICE', 'LGU_ADMIN'],
+  LAPSED_INTO_LAW: ['SANGGUNIAN_SECRETARY', 'LGU_ADMIN'],
+};
+
+export interface StageValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+export function validateStageTransition(
+  currentMilestones: LegislativeMilestones,
+  targetStage: LegislativeStage,
+  actorRole: import('./schemas/enums').SanggunianRole,
+  _jurisdiction: JurisdictionLevel = 'city',
+): StageValidationResult {
+  // 1. Role Permission Gate
+  const allowedRoles = STAGE_TRANSITION_ROLES[targetStage];
+  if (!allowedRoles.includes(actorRole) && actorRole !== 'LGU_ADMIN') {
+    const roleMeta = SANGGUNIAN_ROLE_LABELS[actorRole];
+    return {
+      isValid: false,
+      error: `Access Denied: Your role (${roleMeta?.label ?? actorRole}) is not authorized to transition this draft to '${targetStage}'.`,
+    };
+  }
+
+  // 2. Statutory Legal Preconditions per Stage
+  if (targetStage === 'COMMITTEE_REVIEW' && !currentMilestones.referredCommittee?.trim()) {
+    return {
+      isValid: false,
+      error: 'Statutory Requirement Missing: Must designate a referred Standing Committee for 1st Reading referral.',
+    };
+  }
+
+  if (targetStage === 'SECOND_READING' && !currentMilestones.committeeReportNo?.trim()) {
+    return {
+      isValid: false,
+      error: 'Statutory Requirement Missing: Cannot calendar for 2nd Reading without a Committee Report Number.',
+    };
+  }
+
+  if (targetStage === 'TRANSMITTED_TO_LCE') {
+    const voting = currentMilestones.votingRecord;
+    if (!voting || voting.ayes <= voting.nays) {
+      return {
+        isValid: false,
+        error:
+          'Statutory Requirement Missing: Ordinance cannot be transmitted without affirmative nominal roll-call majority (Ayes must exceed Nays).',
+      };
+    }
+  }
+
+  if (targetStage === 'ENACTED' && currentMilestones.lceAction === 'VETOED') {
+    return {
+      isValid: false,
+      error: 'Conflict: Cannot mark as ENACTED when Local Chief Executive action is marked as VETOED.',
+    };
+  }
+
+  return { isValid: true };
+}

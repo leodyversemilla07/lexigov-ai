@@ -1,9 +1,11 @@
+import { toSanggunianRole } from '@lexigov/shared';
 import {
   BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  Headers,
   Inject,
   Param,
   Patch,
@@ -53,8 +55,14 @@ export class DraftsController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update a draft' })
   @ApiResponse({ status: 200, description: 'Draft updated' })
-  update(@Param('id') id: string, @Body() dto: UpdateDraftDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.draftsService.update(id, dto, user.userId);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateDraftDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-sanggunian-role') roleHeader?: string,
+  ) {
+    const actorRole = toSanggunianRole(roleHeader || user.role, 'LEGISLATIVE_STAFF');
+    return this.draftsService.update(id, dto, user.userId, actorRole);
   }
 
   @Delete(':id')

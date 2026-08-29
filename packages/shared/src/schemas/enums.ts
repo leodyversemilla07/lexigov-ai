@@ -49,6 +49,18 @@ export const userRoleValues = [
 export const userRoleSchema = z.enum(userRoleValues);
 export type UserRole = z.infer<typeof userRoleSchema>;
 
+// Formal RA 7160 Sanggunian Roles
+export const sanggunianRoleValues = [
+  'LGU_ADMIN',
+  'LEGISLATIVE_STAFF',
+  'COMMITTEE_CHAIR',
+  'SANGGUNIAN_SECRETARY',
+  'PRESIDING_OFFICER',
+  'LCE_OFFICE',
+] as const;
+export const sanggunianRoleSchema = z.enum(sanggunianRoleValues);
+export type SanggunianRole = z.infer<typeof sanggunianRoleSchema>;
+
 // Audit actions
 export const auditActionValues = [
   'CREATE',
@@ -96,6 +108,17 @@ export function isDocumentStatus(value: unknown): value is DocumentStatus {
 
 export function toDocumentStatus(value: unknown, fallback: DocumentStatus = 'DRAFT'): DocumentStatus {
   if (isDocumentStatus(value)) {
+    return value;
+  }
+  return fallback;
+}
+
+export function isSanggunianRole(value: unknown): value is SanggunianRole {
+  return typeof value === 'string' && (sanggunianRoleValues as readonly string[]).includes(value);
+}
+
+export function toSanggunianRole(value: unknown, fallback: SanggunianRole = 'LEGISLATIVE_STAFF'): SanggunianRole {
+  if (isSanggunianRole(value)) {
     return value;
   }
   return fallback;

@@ -1,5 +1,12 @@
-import { extractDraftBody, normalizeDraftContent } from '@lexigov/shared';
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  extractDraftBody,
+  getDefaultMilestones,
+  normalizeDraftContent,
+  type SanggunianRole,
+  toJurisdictionLevel,
+  validateStageTransition,
+} from '@lexigov/shared';
+import { ConflictException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';
@@ -92,7 +99,7 @@ export class DraftsService {
     return draft;
   }
 
-  async update(id: string, dto: UpdateDraftDto, userId: string) {
+  async update(id: string, dto: UpdateDraftDto, userId: string, actorRole: SanggunianRole = 'LEGISLATIVE_STAFF') {
     return this.prisma.$transaction(async (tx) => {
       const draft = await tx.draft.findFirst({
         where: { id, userId },
@@ -126,13 +133,29 @@ export class DraftsService {
         return { ...draft, version: previousVersion };
       }
 
+      const previousContent = normalizeDraftContent(draft.content);
+      const previousMilestones = previousContent.milestones;
+      const targetStage = nextContent.milestones?.currentStage;
+
+      if (targetStage && targetStage !== previousMilestones?.currentStage) {
+        const validation = validateStageTransition(
+          previousMilestones || getDefaultMilestones(),
+          targetStage,
+          actorRole,
+          toJurisdictionLevel(draft.jurisdiction),
+        );
+        if (!validation.isValid) {
+          throw new UnprocessableEntityException(validation.error);
+        }
+      }
+
       await tx.draft.create({
         data: {
           title: draft.title,
           documentType: draft.documentType,
           jurisdiction: draft.jurisdiction,
           jurisdictionName: draft.jurisdictionName,
-          content: draft.content as Prisma.InputJsonValue,
+          content: draft.content as unknown as Prisma.InputJsonValue,
           status: previousStatus,
           aiGenerated: draft.aiGenerated,
           userId: draft.userId,
@@ -160,14 +183,14 @@ export class DraftsService {
         },
       });
 
-      if (nextStatus !== previousStatus) {
+      if (nextStatus !== previousStatus || (targetStage && targetStage !== previousMilestones?.currentStage)) {
         await tx.workflowTransition.create({
           data: {
             draftId: id,
-            fromStatus: previousStatus,
-            toStatus: nextStatus,
+            fromStatus: previousMilestones?.currentStage ?? previousStatus,
+            toStatus: targetStage ?? nextStatus,
             actorId: userId,
-            remarks: dto.commitMessage ?? null,
+            remarks: dto.commitMessage ?? (actorRole ? `Stage updated by ${actorRole}` : null),
             createdAt: now,
           },
         });
