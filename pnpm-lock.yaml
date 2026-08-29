@@ -287,6 +287,9 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3))(vite@8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1))
 
   packages/env:
     dependencies:
@@ -300,6 +303,9 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3))(vite@8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1))
 
   packages/shared:
     dependencies:
@@ -319,6 +325,9 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3))(vite@8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1))
 
   packages/typescript-config: {}
 
@@ -7143,6 +7152,14 @@ snapshots:
       '@types/node': 24.12.4
     optional: true
 
+  '@inquirer/confirm@6.0.13(@types/node@25.8.0)':
+    dependencies:
+      '@inquirer/core': 11.1.10(@types/node@25.8.0)
+      '@inquirer/type': 4.0.5(@types/node@25.8.0)
+    optionalDependencies:
+      '@types/node': 25.8.0
+    optional: true
+
   '@inquirer/core@10.3.2(@types/node@24.12.4)':
     dependencies:
       '@inquirer/ansi': 1.0.2
@@ -7179,6 +7196,19 @@ snapshots:
       signal-exit: 4.1.0
     optionalDependencies:
       '@types/node': 24.12.4
+    optional: true
+
+  '@inquirer/core@11.1.10(@types/node@25.8.0)':
+    dependencies:
+      '@inquirer/ansi': 2.0.5
+      '@inquirer/figures': 2.0.5
+      '@inquirer/type': 4.0.5(@types/node@25.8.0)
+      cli-width: 4.1.0
+      fast-wrap-ansi: 0.2.0
+      mute-stream: 3.0.0
+      signal-exit: 4.1.0
+    optionalDependencies:
+      '@types/node': 25.8.0
     optional: true
 
   '@inquirer/editor@4.2.23(@types/node@24.12.4)':
@@ -7298,6 +7328,11 @@ snapshots:
   '@inquirer/type@4.0.5(@types/node@24.12.4)':
     optionalDependencies:
       '@types/node': 24.12.4
+    optional: true
+
+  '@inquirer/type@4.0.5(@types/node@25.8.0)':
+    optionalDependencies:
+      '@types/node': 25.8.0
     optional: true
 
   '@isaacs/cliui@8.0.2':
@@ -9199,6 +9234,15 @@ snapshots:
       msw: 2.14.6(@types/node@24.12.4)(typescript@5.9.3)
       vite: 8.0.13(@types/node@24.12.4)(jiti@2.7.0)(terser@5.47.1)
     optional: true
+
+  '@vitest/mocker@4.1.6(msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3))(vite@8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1))':
+    dependencies:
+      '@vitest/spy': 4.1.6
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      msw: 2.14.6(@types/node@25.8.0)(typescript@5.9.3)
+      vite: 8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1)
 
   '@vitest/pretty-format@4.1.6':
     dependencies:
@@ -11309,6 +11353,32 @@ snapshots:
       - '@types/node'
     optional: true
 
+  msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3):
+    dependencies:
+      '@inquirer/confirm': 6.0.13(@types/node@25.8.0)
+      '@mswjs/interceptors': 0.41.9
+      '@open-draft/deferred-promise': 3.0.0
+      '@types/statuses': 2.0.6
+      cookie: 1.1.1
+      graphql: 16.14.0
+      headers-polyfill: 5.0.1
+      is-node-process: 1.2.0
+      outvariant: 1.4.3
+      path-to-regexp: 6.3.0
+      picocolors: 1.1.1
+      rettime: 0.11.11
+      statuses: 2.0.2
+      strict-event-emitter: 0.5.1
+      tough-cookie: 6.0.1
+      type-fest: 5.6.0
+      until-async: 3.0.2
+      yargs: 17.7.2
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - '@types/node'
+    optional: true
+
   multer@2.1.1:
     dependencies:
       append-field: 1.0.0
@@ -12718,6 +12788,19 @@ snapshots:
       terser: 5.47.1
     optional: true
 
+  vite@8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1):
+    dependencies:
+      lightningcss: 1.32.0
+      picomatch: 4.0.4
+      postcss: 8.5.14
+      rolldown: 1.0.1
+      tinyglobby: 0.2.16
+    optionalDependencies:
+      '@types/node': 25.8.0
+      fsevents: 2.3.3
+      jiti: 2.7.0
+      terser: 5.47.1
+
   vitest@4.1.6(@opentelemetry/api@1.9.1)(@types/node@20.19.41)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@20.19.41)(typescript@5.9.3))(vite@8.0.13(@types/node@20.19.41)(jiti@2.7.0)(terser@5.47.1)):
     dependencies:
       '@vitest/expect': 4.1.6
@@ -12776,6 +12859,35 @@ snapshots:
     transitivePeerDependencies:
       - msw
     optional: true
+
+  vitest@4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3))(vite@8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1)):
+    dependencies:
+      '@vitest/expect': 4.1.6
+      '@vitest/mocker': 4.1.6(msw@2.14.6(@types/node@25.8.0)(typescript@5.9.3))(vite@8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1))
+      '@vitest/pretty-format': 4.1.6
+      '@vitest/runner': 4.1.6
+      '@vitest/snapshot': 4.1.6
+      '@vitest/spy': 4.1.6
+      '@vitest/utils': 4.1.6
+      es-module-lexer: 2.1.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.1.2
+      tinyglobby: 0.2.16
+      tinyrainbow: 3.1.0
+      vite: 8.0.13(@types/node@25.8.0)(jiti@2.7.0)(terser@5.47.1)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+      '@types/node': 25.8.0
+      jsdom: 29.1.1(@noble/hashes@2.2.0)
+    transitivePeerDependencies:
+      - msw
 
   w3c-xmlserializer@5.0.0:
     dependencies:

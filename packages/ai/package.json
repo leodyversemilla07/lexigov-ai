@@ -9,7 +9,7 @@
     "lint:fix": "biome check --write",
     "format": "biome format --write",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'ai package tests run via vitest and jest; see tests/'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@lexigov/env": "workspace:*",
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@lexigov/typescript-config": "workspace:*",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.6"
   }
 }

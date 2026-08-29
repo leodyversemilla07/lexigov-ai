@@ -9,13 +9,14 @@
     "lint:fix": "biome check --write",
     "format": "biome format --write",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'env package tests run via vitest; see tests/'"
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@lexigov/typescript-config": "workspace:*",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.6"
   }
 }
