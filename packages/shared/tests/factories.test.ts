@@ -77,7 +77,7 @@ describe('@lexigov/shared Test Data Factories', () => {
       const result = createMockComplianceResult();
       expect(result.overallScore).toBe(95);
       expect(result.isValid).toBe(true);
-      expect(result.issues[0]?.legalBasis).toContain('RA 7160');
+      expect(result.issues[0]?.description).toContain('RA 7160');
     });
   });
 

@@ -158,10 +158,9 @@ export function createMockComplianceResult(overrides: Partial<ComplianceResult> 
         type: 'suggestion',
         section: 'SECTION 3. Penalties.',
         title: 'Specify alternative community service',
-        description: 'Provide an alternative community service option for indigent violators.',
+        description:
+          'Provide an alternative community service option for indigent violators under RA 7160 Section 458.',
         suggestion: 'Add: Provided, that indigent violators may render community service in lieu of fine payment.',
-        legalBasis: 'RA 7160 Section 458(a)(1)(iii)',
-        recommendation: 'Incorporate community service alternatives.',
       },
     ],
     ...overrides,
