@@ -1,3 +1,5 @@
+import type { LegislativeMilestones } from './legislative-tracker';
+
 export type DraftSection = {
   id: string;
   heading: string;
@@ -11,6 +13,7 @@ export type StructuredDraftContent = {
   prompt?: string;
   generatedAt?: number;
   model?: string;
+  milestones?: LegislativeMilestones;
 };
 
 type DraftContentRecord = Record<string, unknown>;
@@ -179,11 +182,20 @@ export function buildDraftSummary(body: string) {
   return lines[0] || '';
 }
 
+export function extractDraftMilestones(content: unknown): LegislativeMilestones | undefined {
+  const record = asRecord(content);
+  if (!record?.milestones || typeof record.milestones !== 'object') {
+    return undefined;
+  }
+  return record.milestones as LegislativeMilestones;
+}
+
 export function normalizeDraftContent(content: unknown): StructuredDraftContent {
   const record = asRecord(content);
   const body = extractDraftBody(content).trim();
   const sections = extractDraftSections(content);
   const summary = asString(record?.summary).trim() || buildDraftSummary(body) || undefined;
+  const milestones = extractDraftMilestones(content);
 
   return {
     body,
@@ -192,6 +204,7 @@ export function normalizeDraftContent(content: unknown): StructuredDraftContent 
     prompt: asString(record?.prompt).trim() || undefined,
     generatedAt: typeof record?.generatedAt === 'number' ? record.generatedAt : undefined,
     model: asString(record?.model).trim() || undefined,
+    milestones,
   };
 }
 
@@ -223,5 +236,16 @@ export function updateDraftSectionsContent(content: unknown, sections: DraftSect
     body,
     sections: cleanedSections,
     summary: buildDraftSummary(body) || normalized.summary,
+  };
+}
+
+export function updateDraftMilestonesContent(
+  content: unknown,
+  milestones: LegislativeMilestones,
+): StructuredDraftContent {
+  const normalized = normalizeDraftContent(content);
+  return {
+    ...normalized,
+    milestones,
   };
 }

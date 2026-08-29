@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   buildVerificationMetadata,
   calculateTransmittalDeadline,
+  extractDraftMilestones,
   generateSuggestedWhereasClauses,
   generateVerificationHash,
   getStatutoryCitations,
+  updateDraftMilestonesContent,
 } from '@lexigov/shared';
 
 describe('Statutory Citations & Legal Grounding', () => {
@@ -40,6 +42,21 @@ describe('Sanggunian Legislative Tracker & Transmittal Deadlines', () => {
   it('computes 15-day statutory transmittal deadline for provincial ordinances', () => {
     const deadline = calculateTransmittalDeadline('2025-06-01', 'provincial');
     expect(deadline).toBe('2025-06-16');
+  });
+
+  it('extracts and updates milestones in structured draft content', () => {
+    const initialContent = { body: 'SECTION 1. Title.' };
+    const updated = updateDraftMilestonesContent(initialContent, {
+      currentStage: 'FIRST_READING',
+      firstReadingDate: '2026-08-29',
+      referredCommittee: 'Committee on Laws and Rules',
+    });
+
+    expect(updated.milestones?.currentStage).toBe('FIRST_READING');
+    expect(updated.milestones?.referredCommittee).toBe('Committee on Laws and Rules');
+
+    const extracted = extractDraftMilestones(updated);
+    expect(extracted?.firstReadingDate).toBe('2026-08-29');
   });
 });
 

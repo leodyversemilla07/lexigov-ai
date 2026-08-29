@@ -1,6 +1,6 @@
 'use client';
 
-import type { DocumentStatus } from '@lexigov/shared';
+import type { DocumentStatus, LegislativeMilestones } from '@lexigov/shared';
 import {
   buildDraftSectionsFromBody,
   cn,
@@ -8,7 +8,10 @@ import {
   createDraftSection,
   type DraftSection,
   extractDraftBody,
+  extractDraftMilestones,
   extractDraftSections,
+  getDefaultMilestones,
+  updateDraftMilestonesContent,
   updateDraftSectionsContent,
 } from '@lexigov/shared';
 import { Badge } from '@lexigov/ui/components/badge';
@@ -22,7 +25,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { api, ApiError } from '@/lib/api-client';
+import { ApiError, api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
 import {
   CompliancePulsePanel,
@@ -64,6 +67,7 @@ export default function DraftEditorPage() {
   const [status, setStatus] = useState<DocumentStatus>('DRAFT');
   const [sections, setSections] = useState<DraftSection[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState('');
+  const [milestones, setMilestones] = useState<LegislativeMilestones | undefined>(undefined);
 
   // Sync draft data to local state
   useEffect(() => {
@@ -71,12 +75,14 @@ export default function DraftEditorPage() {
 
     const body = extractDraftBody(draft.content);
     const parsedSections = extractDraftSections(draft.content);
+    const parsedMilestones = extractDraftMilestones(draft.content) || getDefaultMilestones();
 
     setTitle(draft.title);
     setContent(body);
     setSections(parsedSections);
     setSelectedSectionId(parsedSections[0]?.id ?? '');
     setStatus(draft.status as DocumentStatus);
+    setMilestones(parsedMilestones);
   }, [draft]);
 
   // Computed values
@@ -136,12 +142,15 @@ export default function DraftEditorPage() {
   // Save handlers
   const saveCurrentDraft = async () => {
     if (!draft) throw new Error('Draft not found');
+    const baseContent = updateDraftSectionsContent(
+      draft.content,
+      sections.length > 0 ? sections : buildDraftSectionsFromBody(content),
+    );
+    const structuredContent = milestones ? updateDraftMilestonesContent(baseContent, milestones) : baseContent;
+
     return await api.patch<Draft>(`/drafts/${draftId}`, {
       title,
-      content: updateDraftSectionsContent(
-        draft.content,
-        sections.length > 0 ? sections : buildDraftSectionsFromBody(content),
-      ),
+      content: structuredContent,
       status,
       expectedVersion: draft.version,
     });
@@ -399,7 +408,11 @@ export default function DraftEditorPage() {
         <div className='space-y-6'>
           <WorkflowPanel draft={draft} status={status} onStatusChange={setStatus} />
 
-          <LegislativeTrackerPanel jurisdiction={draft.jurisdiction} />
+          <LegislativeTrackerPanel
+            jurisdiction={draft.jurisdiction}
+            milestones={milestones}
+            onUpdateMilestones={setMilestones}
+          />
 
           <CompliancePulsePanel
             latestCompliance={latestCompliance}

@@ -29,9 +29,11 @@ export {
   composeDraftBodyFromSections,
   createDraftSection,
   extractDraftBody,
+  extractDraftMilestones,
   extractDraftSections,
   normalizeDraftContent,
   updateDraftBodyContent,
+  updateDraftMilestonesContent,
   updateDraftSectionsContent,
 } from './draft-content';
 // Sanggunian Legislative Tracker
