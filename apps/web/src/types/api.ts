@@ -17,9 +17,11 @@ export interface ApiDraft {
   version: number;
   content?: unknown;
   userId?: string;
+  organizationId?: string;
   templateId?: string;
   parentDraftId?: string;
   commitMessage?: string;
+  documentHash?: string;
   createdAt?: string;
   updatedAt: string;
 }

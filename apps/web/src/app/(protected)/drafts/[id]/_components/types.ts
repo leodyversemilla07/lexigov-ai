@@ -58,10 +58,12 @@ export type Draft = {
   status: string;
   aiGenerated: boolean;
   userId: string;
+  organizationId?: string;
   templateId?: string;
   version: number;
   parentDraftId?: string;
   commitMessage?: string;
+  documentHash?: string;
   createdAt: string;
   updatedAt: string;
 };
