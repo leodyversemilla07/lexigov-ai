@@ -8,6 +8,7 @@ export { ComplianceSummary } from './compliance-summary';
 export { DraftStudio } from './draft-studio';
 export { LegislativeTrackerPanel } from './legislative-tracker-panel';
 export { MetricCard } from './metric-card';
+export { OfficialExportModal } from './official-export-modal';
 export { SectionEditor } from './section-editor';
 export { SectionListItem } from './section-list-item';
 export { SidePanelCard } from './side-panel-card';

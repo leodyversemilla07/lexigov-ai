@@ -1,0 +1,353 @@
+import type { LegislativeMilestones } from './legislative-tracker';
+import type { JurisdictionLevel } from './schemas/enums';
+
+export type PaperSize = 'A4' | 'LEGAL' | 'LETTER';
+export type FontFamily = 'Book Antiqua' | 'Times New Roman' | 'Arial';
+export type LineSpacing = 1.15 | 1.5 | 2.0;
+
+export interface DocumentSignatories {
+  secretaryName: string;
+  secretaryTitle: string;
+  presidingOfficerName: string;
+  presidingOfficerTitle: string;
+  chiefExecutiveName: string;
+  chiefExecutiveTitle: string;
+  approvalDate?: string;
+  [key: string]: unknown;
+}
+
+export interface DocumentSessionDetails {
+  sessionType: 'REGULAR' | 'SPECIAL';
+  sessionDate: string;
+  sessionVenue: string;
+  presentMembers: string[];
+  absentMembers: string[];
+  [key: string]: unknown;
+}
+
+export interface DocumentFormatConfig {
+  paperSize: PaperSize;
+  fontFamily: FontFamily;
+  fontSizePt: number;
+  lineSpacing: LineSpacing;
+  includeSeals: boolean;
+  includeSessionExcerpt: boolean;
+  includeSignatures: boolean;
+  includeQrVerification: boolean;
+  signatories: DocumentSignatories;
+  sessionDetails?: DocumentSessionDetails;
+  [key: string]: unknown;
+}
+
+export interface FormattedDocumentData {
+  title: string;
+  enactmentNumber?: string;
+  documentType: string;
+  jurisdiction: JurisdictionLevel;
+  jurisdictionName: string;
+  body: string;
+  sections?: Array<{ id: string; heading: string; body: string }>;
+  verificationHash?: string;
+  verificationUrl?: string;
+  version?: number;
+  [key: string]: unknown;
+}
+
+export function inferSanggunianBodyName(
+  jurisdiction: JurisdictionLevel,
+  jurisdictionName: string,
+): { legislativeBody: string; officeName: string; enactingClauseBody: string } {
+  const cleanName = jurisdictionName.trim().toUpperCase();
+
+  switch (jurisdiction) {
+    case 'provincial':
+      return {
+        legislativeBody: `SANGGUNIANG PANLALAWIGAN`,
+        officeName: `OFFICE OF THE SANGGUNIANG PANLALAWIGAN`,
+        enactingClauseBody: `BE IT ORDAINED BY THE SANGGUNIANG PANLALAWIGAN OF ${cleanName}, IN SESSION DULY ASSEMBLED:`,
+      };
+    case 'city':
+      return {
+        legislativeBody: `SANGGUNIANG PANLUNGSOD`,
+        officeName: `OFFICE OF THE SANGGUNIANG PANLUNGSOD`,
+        enactingClauseBody: `BE IT ORDAINED BY THE SANGGUNIANG PANLUNGSOD OF ${cleanName}, IN SESSION DULY ASSEMBLED:`,
+      };
+    case 'municipal':
+      return {
+        legislativeBody: `SANGGUNIANG BAYAN`,
+        officeName: `OFFICE OF THE SANGGUNIANG BAYAN`,
+        enactingClauseBody: `BE IT ORDAINED BY THE SANGGUNIANG BAYAN OF ${cleanName}, IN SESSION DULY ASSEMBLED:`,
+      };
+    case 'barangay':
+      return {
+        legislativeBody: `SANGGUNIANG BARANGAY`,
+        officeName: `OFFICE OF THE SANGGUNIANG BARANGAY`,
+        enactingClauseBody: `BE IT ORDAINED BY THE SANGGUNIANG BARANGAY OF ${cleanName}, IN SESSION DULY ASSEMBLED:`,
+      };
+    default:
+      return {
+        legislativeBody: `SANGGUNIAN`,
+        officeName: `OFFICE OF THE SANGGUNIAN`,
+        enactingClauseBody: `BE IT ORDAINED BY THE SANGGUNIAN OF ${cleanName}, IN SESSION DULY ASSEMBLED:`,
+      };
+  }
+}
+
+export function inferDefaultSignatories(
+  jurisdiction: JurisdictionLevel,
+  jurisdictionName: string,
+): DocumentSignatories {
+  const lgu = jurisdictionName.trim();
+
+  switch (jurisdiction) {
+    case 'provincial':
+      return {
+        secretaryName: 'ATTY. MARIA ELEANOR SANTOS',
+        secretaryTitle: 'Secretary to the Sangguniang Panlalawigan',
+        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
+        presidingOfficerTitle: `Provincial Vice Governor & Presiding Officer`,
+        chiefExecutiveName: 'HON. ROBERTO V. MENDOZA',
+        chiefExecutiveTitle: `Provincial Governor, Province of ${lgu}`,
+      };
+    case 'city':
+      return {
+        secretaryName: 'ATTY. MARIA ELEANOR SANTOS',
+        secretaryTitle: 'Secretary to the Sangguniang Panlungsod',
+        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
+        presidingOfficerTitle: `City Vice Mayor & Presiding Officer`,
+        chiefExecutiveName: 'HON. VICTOR MA. REGIS SOTTO',
+        chiefExecutiveTitle: `City Mayor, City of ${lgu}`,
+      };
+    case 'municipal':
+      return {
+        secretaryName: 'MARIA ELEANOR SANTOS',
+        secretaryTitle: 'Secretary to the Sangguniang Bayan',
+        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
+        presidingOfficerTitle: `Municipal Vice Mayor & Presiding Officer`,
+        chiefExecutiveName: 'HON. ROBERTO V. MENDOZA',
+        chiefExecutiveTitle: `Municipal Mayor, Municipality of ${lgu}`,
+      };
+    case 'barangay':
+      return {
+        secretaryName: 'MARIA ELEANOR SANTOS',
+        secretaryTitle: 'Barangay Secretary',
+        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
+        presidingOfficerTitle: `Punong Barangay & Presiding Officer`,
+        chiefExecutiveName: 'HON. JUAN R. DELA CRUZ',
+        chiefExecutiveTitle: `Punong Barangay, Barangay ${lgu}`,
+      };
+    default:
+      return {
+        secretaryName: 'MARIA ELEANOR SANTOS',
+        secretaryTitle: 'Secretary to the Sanggunian',
+        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
+        presidingOfficerTitle: 'Presiding Officer',
+        chiefExecutiveName: 'HON. ROBERTO V. MENDOZA',
+        chiefExecutiveTitle: 'Local Chief Executive',
+      };
+  }
+}
+
+export function buildDefaultDocumentFormatConfig(
+  jurisdiction: JurisdictionLevel,
+  jurisdictionName: string,
+  milestones?: LegislativeMilestones,
+): DocumentFormatConfig {
+  const signatories = inferDefaultSignatories(jurisdiction, jurisdictionName);
+  if (milestones?.lceActionDate) {
+    signatories.approvalDate = milestones.lceActionDate;
+  }
+
+  const currentDate = new Date().toISOString().split('T')[0] ?? '2026-08-15';
+
+  return {
+    paperSize: 'A4',
+    fontFamily: 'Book Antiqua',
+    fontSizePt: 11,
+    lineSpacing: 1.15,
+    includeSeals: true,
+    includeSessionExcerpt: true,
+    includeSignatures: true,
+    includeQrVerification: true,
+    signatories,
+    sessionDetails: {
+      sessionType: 'REGULAR',
+      sessionDate: milestones?.thirdReadingDate || milestones?.firstReadingDate || currentDate,
+      sessionVenue: 'Legislative Session Hall',
+      presentMembers: [
+        `${signatories.presidingOfficerName} (Presiding Officer)`,
+        'Hon. Councilor Alicia Ramos (Floor Leader)',
+        'Hon. Councilor Marco Antonio Bautista',
+        'Hon. Councilor Carmela Reyes',
+        'Hon. Councilor Danilo Gomez',
+        'Hon. SK Federation President Mateo Tan',
+      ],
+      absentMembers: ['Hon. Councilor Ricardo Diaz (On Official Business)'],
+    },
+  };
+}
+
+export interface ParsedOrdinanceStructure {
+  whereAsClauses: string[];
+  enactingClause: string;
+  sections: Array<{ heading: string; body: string }>;
+}
+
+export function extractWhereAsClausesAndBody(draftBody: string): ParsedOrdinanceStructure {
+  const lines = draftBody.split('\n');
+  const whereAsClauses: string[] = [];
+  let enactingClause = '';
+  const sections: Array<{ heading: string; body: string }> = [];
+
+  let currentHeading = '';
+  let currentBodyLines: string[] = [];
+  let isParsingSections = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i] ?? '';
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const lowerLine = line.toLowerCase();
+
+    // Check for WHEREAS clauses
+    if (lowerLine.startsWith('whereas') && !isParsingSections) {
+      whereAsClauses.push(line);
+      continue;
+    }
+
+    // Check for Enacting clause
+    if (lowerLine.includes('be it ordained') || lowerLine.includes('be it resolved')) {
+      enactingClause = line;
+      isParsingSections = true;
+      continue;
+    }
+
+    // Check for Section headers (e.g. "Section 1.", "SECTION 2 -", "## Section 1")
+    const sectionMatch = line.match(/^(?:##\s*|#\s*)?(SECTION\s+\d+[.:-]?\s*[^.]*?)\.\s*(.*)$/i);
+    if (sectionMatch) {
+      if (currentHeading) {
+        sections.push({
+          heading: currentHeading,
+          body: currentBodyLines.join('\n').trim(),
+        });
+        currentBodyLines = [];
+      }
+      currentHeading = sectionMatch[1]?.trim() ?? 'SECTION';
+      const remainder = sectionMatch[2]?.trim();
+      if (remainder) {
+        currentBodyLines.push(remainder);
+      }
+      isParsingSections = true;
+      continue;
+    }
+
+    if (isParsingSections) {
+      currentBodyLines.push(rawLine);
+    } else {
+      // Unclassified preamble or general text
+      if (!currentHeading) {
+        currentHeading = 'PROVISIONS';
+      }
+      currentBodyLines.push(rawLine);
+    }
+  }
+
+  if (currentHeading) {
+    sections.push({
+      heading: currentHeading,
+      body: currentBodyLines.join('\n').trim(),
+    });
+  }
+
+  return {
+    whereAsClauses,
+    enactingClause,
+    sections,
+  };
+}
+
+export function generateOfficialDocumentText(data: FormattedDocumentData, config: DocumentFormatConfig): string {
+  const { legislativeBody, officeName, enactingClauseBody } = inferSanggunianBodyName(
+    data.jurisdiction,
+    data.jurisdictionName,
+  );
+  const parsed = extractWhereAsClausesAndBody(data.body);
+
+  const lines: string[] = [];
+
+  // 1. Official Header
+  lines.push('REPUBLIC OF THE PHILIPPINES');
+  lines.push(data.jurisdictionName.toUpperCase());
+  lines.push(officeName);
+  lines.push('------------------------------------------------------------\n');
+
+  // 2. Session Minutes Excerpt
+  if (config.includeSessionExcerpt && config.sessionDetails) {
+    lines.push(
+      `EXCERPT FROM THE MINUTES OF THE ${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody} HELD AT ${config.sessionDetails.sessionVenue.toUpperCase()} ON ${config.sessionDetails.sessionDate}.\n`,
+    );
+    lines.push('PRESENT:');
+    for (const member of config.sessionDetails.presentMembers) {
+      lines.push(`  ${member}`);
+    }
+    if (config.sessionDetails.absentMembers.length > 0) {
+      lines.push('\nABSENT:');
+      for (const member of config.sessionDetails.absentMembers) {
+        lines.push(`  ${member}`);
+      }
+    }
+    lines.push('\n------------------------------------------------------------\n');
+  }
+
+  // 3. Document Title
+  const enactmentLabel = data.enactmentNumber
+    ? `${data.documentType.toUpperCase()} NO. ${data.enactmentNumber}\n\n`
+    : '';
+  lines.push(`${enactmentLabel}${data.title.toUpperCase()}\n`);
+
+  // 4. WHEREAS Preamble
+  if (parsed.whereAsClauses.length > 0) {
+    for (const clause of parsed.whereAsClauses) {
+      lines.push(`${clause}\n`);
+    }
+  }
+
+  // 5. Enacting Clause
+  lines.push(`${parsed.enactingClause || enactingClauseBody}\n`);
+
+  // 6. Substantive Sections
+  if (parsed.sections.length > 0) {
+    for (const sec of parsed.sections) {
+      lines.push(`${sec.heading}. — ${sec.body}\n`);
+    }
+  } else {
+    lines.push(data.body);
+  }
+
+  // 7. Signature Blocks
+  if (config.includeSignatures) {
+    lines.push('\n------------------------------------------------------------');
+    lines.push('I HEREBY CERTIFY to the correctness of the foregoing legislation.\n\n');
+    lines.push(`                                  ${config.signatories.secretaryName.toUpperCase()}`);
+    lines.push(`                              ${config.signatories.secretaryTitle}\n\n`);
+    lines.push('ATTESTED AND CERTIFIED TO BE DULY ADOPTED:\n\n');
+    lines.push(`                                  ${config.signatories.presidingOfficerName.toUpperCase()}`);
+    lines.push(`                              ${config.signatories.presidingOfficerTitle}\n\n`);
+    lines.push(`APPROVED: ${config.signatories.approvalDate || '________________'}\n\n`);
+    lines.push(`                                  ${config.signatories.chiefExecutiveName.toUpperCase()}`);
+    lines.push(`                              ${config.signatories.chiefExecutiveTitle}\n`);
+  }
+
+  // 8. Cryptographic Verification Stamp
+  if (config.includeQrVerification && data.verificationHash) {
+    lines.push('------------------------------------------------------------');
+    lines.push(`[SECURITY INTEGRITY STAMP]`);
+    lines.push(`Verification Hash: ${data.verificationHash}`);
+    if (data.verificationUrl) {
+      lines.push(`Verify Online: ${data.verificationUrl}`);
+    }
+  }
+
+  return lines.join('\n');
+}

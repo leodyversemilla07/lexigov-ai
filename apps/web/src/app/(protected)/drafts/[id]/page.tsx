@@ -38,6 +38,7 @@ import {
   type DraftVersion,
   LegislativeTrackerPanel,
   MetricCard,
+  OfficialExportModal,
   SectionEditor,
   STATUS_CLASSES,
   VersionTrailPanel,
@@ -68,6 +69,7 @@ export default function DraftEditorPage() {
   const [sections, setSections] = useState<DraftSection[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState('');
   const [milestones, setMilestones] = useState<LegislativeMilestones | undefined>(undefined);
+  const [isOfficialExportOpen, setIsOfficialExportOpen] = useState(false);
 
   // Sync draft data to local state
   useEffect(() => {
@@ -315,11 +317,13 @@ export default function DraftEditorPage() {
               )}
               Check compliance
             </Button>
-            <Button variant='outline' asChild>
-              <Link href={`/export?draft=${draftId}`}>
-                <Download className='mr-2 h-4 w-4' />
-                Export
-              </Link>
+            <Button
+              variant='outline'
+              onClick={() => setIsOfficialExportOpen(true)}
+              data-testid='draft.header.official-export-btn'
+            >
+              <Download className='mr-2 h-4 w-4 text-primary' />
+              Official Export
             </Button>
             <Button variant='outline' asChild>
               <Link href={`/drafts/${draftId}/preview`}>
@@ -426,6 +430,15 @@ export default function DraftEditorPage() {
           />
         </div>
       </div>
+
+      {/* Official Philippine Government Document Export Modal */}
+      <OfficialExportModal
+        isOpen={isOfficialExportOpen}
+        onClose={() => setIsOfficialExportOpen(false)}
+        draft={draft}
+        content={content}
+        milestones={milestones}
+      />
     </div>
   );
 }

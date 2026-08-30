@@ -12,6 +12,24 @@ export {
   jurisdictionPenaltyGuidance,
   mergeComplianceIssues,
 } from './compliance-analysis';
+// Official Philippine Government Document Formatter
+export type {
+  DocumentFormatConfig,
+  DocumentSessionDetails,
+  DocumentSignatories,
+  FontFamily,
+  FormattedDocumentData,
+  LineSpacing,
+  PaperSize,
+  ParsedOrdinanceStructure,
+} from './document-formatter';
+export {
+  buildDefaultDocumentFormatConfig,
+  extractWhereAsClausesAndBody,
+  generateOfficialDocumentText,
+  inferDefaultSignatories,
+  inferSanggunianBodyName,
+} from './document-formatter';
 // Document Verification & Integrity
 export type { VerificationMetadata } from './document-verification';
 export {
