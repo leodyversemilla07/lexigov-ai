@@ -75,16 +75,18 @@ describe('Sanggunian Legislative Tracker & Transmittal Deadlines', () => {
   });
 });
 
-describe('Digital Authenticity & Document Verification Engine', () => {
-  it('generates a deterministic verification hash', () => {
-    const hash1 = generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
-    const hash2 = generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
+describe('Unverified Document Content Fingerprints', () => {
+  it('generates a deterministic SHA-256 fingerprint that covers content', async () => {
+    const hash1 = await generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
+    const hash2 = await generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
+    const changed = await generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Tampered text!');
     expect(hash1).toBe(hash2);
-    expect(hash1.startsWith('LXG-')).toBe(true);
+    expect(hash1).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(changed).not.toBe(hash1);
   });
 
-  it('builds full verification metadata with public URL', () => {
-    const meta = buildVerificationMetadata(
+  it('builds metadata that explicitly fails closed as unverified', async () => {
+    const meta = await buildVerificationMetadata(
       {
         id: 'draft_999',
         title: 'Anti-Noise Ordinance',
@@ -98,8 +100,8 @@ describe('Digital Authenticity & Document Verification Engine', () => {
     );
 
     expect(meta.documentId).toBe('draft_999');
-    expect(meta.verificationHash.startsWith('LXG-')).toBe(true);
-    expect(meta.verificationUrl).toContain('code=LXG-');
-    expect(meta.verificationUrl).toContain('id=draft_999');
+    expect(meta.status).toBe('UNVERIFIED');
+    expect(meta.verificationHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(meta.verificationUrl).toBe('/verify');
   });
 });

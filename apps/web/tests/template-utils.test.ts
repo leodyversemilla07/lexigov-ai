@@ -145,6 +145,16 @@ describe("template utils", () => {
         expect(prompt).toContain("[Penalty]");
     });
 
+    it("does not duplicate sections mirrored in structure and exampleContent", () => {
+        const mirrored = [{ heading: "SECTION 1. Title.", body: "Body" }];
+        const sections = getTemplateSections({
+            ...baseTemplate,
+            structure: { sections: mirrored },
+            exampleContent: { sections: mirrored },
+        });
+        expect(sections).toHaveLength(1);
+    });
+
     it("skips invalid section entries (non-objects, arrays, or empty objects)", () => {
         const template: TemplateData = {
             ...baseTemplate,

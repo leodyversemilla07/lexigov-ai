@@ -10,7 +10,7 @@ import { Toaster } from '@lexigov/ui/components/sonner';
 
 export const metadata: Metadata = {
   title: 'LexiGov AI - Philippine Ordinance Generator',
-  description: 'AI-powered platform for drafting RA 7160 compliant local government ordinances',
+  description: 'AI-assisted platform with advisory RA 7160 guidance for local government ordinance drafts',
 };
 
 export default function RootLayout({

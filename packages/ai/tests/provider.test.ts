@@ -66,6 +66,23 @@ describe('@lexigov/ai Provider Suite', () => {
       expect(result.text).toBe('Primary Output');
     });
 
+    it('does not concatenate fallback output after a provider emitted a partial stream', async () => {
+      const partial = {
+        name: 'partial',
+        generateText: async () => { throw new Error('unused'); },
+        generateStructured: async () => { throw new Error('unused'); },
+        streamText: async function* () { yield 'partial '; throw new Error('stream interrupted'); },
+      } satisfies AiProvider;
+      const secondary = new MockAiProvider();
+      const fallback = new ResilientFallbackProvider([partial, secondary]);
+      const chunks: string[] = [];
+
+      await expect((async () => {
+        for await (const chunk of fallback.streamText({ prompt: 'Test' })) chunks.push(chunk);
+      })()).rejects.toThrow('stream interrupted');
+      expect(chunks).toEqual(['partial ']);
+    });
+
     it('falls back to secondary provider on error', async () => {
       const failing: AiProvider = {
         name: 'failing',

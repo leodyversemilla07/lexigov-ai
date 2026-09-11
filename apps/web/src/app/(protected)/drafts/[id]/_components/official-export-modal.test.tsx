@@ -27,7 +27,7 @@ describe('OfficialExportModal (Colocated Unit Test)', () => {
       />,
     );
 
-    expect(screen.getByText('Official Government Document Exporter')).toBeInTheDocument();
+    expect(screen.getByText('Government Document Draft Exporter')).toBeInTheDocument();
     expect(screen.getByText('REPUBLIC OF THE PHILIPPINES')).toBeInTheDocument();
     expect(screen.getAllByText(/CITY OF PASIG/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/ORDINANCE NO. 2026-042/i)).toBeInTheDocument();

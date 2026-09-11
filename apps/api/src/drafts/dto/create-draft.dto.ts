@@ -47,10 +47,6 @@ export class CreateDraftDto {
   @ApiPropertyOptional({ description: 'Organization / Sanggunian LGU ID' })
   @IsOptional()
   @IsString()
+  @MinLength(1)
   organizationId?: string;
-
-  @ApiPropertyOptional({ description: 'SHA-256 document content hash' })
-  @IsOptional()
-  @IsString()
-  documentHash?: string;
 }

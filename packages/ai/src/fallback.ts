@@ -104,15 +104,19 @@ export class ResilientFallbackProvider implements AiProvider {
     let lastError: unknown;
 
     for (const provider of this.providers) {
+      let emittedOutput = false;
       try {
-        const stream = await provider.streamText(options);
+        const stream = provider.streamText(options);
         for await (const token of stream) {
+          emittedOutput = true;
           yield token;
         }
         return;
       } catch (error) {
         lastError = error;
-        // Proceed to next fallback provider
+        // Restarting with another model after output was delivered would concatenate
+        // two unrelated completions into one ordinance. Fail visibly instead.
+        if (emittedOutput) throw error;
       }
     }
 

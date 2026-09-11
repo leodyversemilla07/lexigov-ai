@@ -83,21 +83,24 @@ function readFineAmounts(content: string) {
 }
 
 function readImprisonmentMonths(content: string) {
+  const numberWords: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+    seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12,
+  };
   const matches = Array.from(
     content.matchAll(
-      /(?:imprisonment|jail(?:\s+term)?|incarceration)[^.\n]{0,80}?(\d+)\s*(day|days|month|months|year|years)/gi,
+      /(?:imprisonment|jail(?:\s+term)?|incarceration)[^.\n]{0,80}?(?:(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\s*)?(?:\(\s*)?(\d+)?(?:\s*\))?\s*(day|days|month|months|year|years)/gi,
     ),
   );
 
   return matches
     .map((match) => {
-      const quantityText = match[1];
-      const unitText = match[2];
-      if (!quantityText || !unitText) {
-        return Number.NaN;
-      }
+      const wordText = match[1]?.toLowerCase();
+      const quantityText = match[2];
+      const unitText = match[3];
+      if ((!quantityText && !wordText) || !unitText) return Number.NaN;
 
-      const quantity = Number.parseInt(quantityText, 10);
+      const quantity = quantityText ? Number.parseInt(quantityText, 10) : numberWords[wordText!] ?? Number.NaN;
       const unit = unitText.toLowerCase();
 
       if (unit.startsWith('day')) {
@@ -418,5 +421,21 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
 }
 
 export function buildComplianceResultFromIssues(issues: ComplianceIssue[]) {
-  return createResult(issues);
+  const validIssues = issues.filter((issue) =>
+    issue &&
+    ['critical', 'warning', 'suggestion'].includes(issue.type) &&
+    typeof issue.title === 'string' && issue.title.length > 0 &&
+    typeof issue.description === 'string' && issue.description.length > 0 &&
+    typeof issue.suggestion === 'string' && issue.suggestion.length > 0,
+  );
+  if (validIssues.length !== issues.length) {
+    validIssues.push({
+      type: 'critical',
+      section: 'Analysis',
+      title: 'Compliance analysis response was invalid',
+      description: 'One or more reported issues did not match the validated compliance contract.',
+      suggestion: 'Repeat the review and have an authorized legal officer inspect the draft manually.',
+    });
+  }
+  return createResult(validIssues);
 }

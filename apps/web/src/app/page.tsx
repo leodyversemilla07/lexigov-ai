@@ -32,7 +32,7 @@ export default function Home() {
           <span className='text-primary'>with AI Precision</span>
         </h1>
         <p className='text-xl text-muted-foreground mb-10 max-w-2xl mx-auto'>
-          Create RA 7160 compliant local government ordinances in minutes. AI-powered drafting, compliance checking, and
+          Create local government ordinance drafts with RA 7160-aware guidance. AI-assisted drafting, advisory checks, and
           template library for Philippine LGUs.
         </p>
         <div className='flex items-center justify-center gap-4'>
@@ -99,7 +99,7 @@ export default function Home() {
             </div>
             <span className='font-semibold'>LexiGov AI</span>
           </div>
-          <p className='text-muted-foreground text-sm'>RA 7160 Compliant • Philippine Local Government</p>
+          <p className='text-muted-foreground text-sm'>RA 7160-Aware Drafting • Philippine Local Government</p>
         </div>
       </footer>
     </div>

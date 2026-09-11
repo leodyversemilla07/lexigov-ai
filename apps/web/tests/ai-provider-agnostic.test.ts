@@ -201,7 +201,8 @@ describe('@lexigov/ai Legislative Prompt Builders', () => {
     const { systemPrompt, userPrompt } = buildComplianceAnalysisPrompt('Draft content', 'barangay');
     expect(systemPrompt).toContain('RA 7160');
     expect(systemPrompt).toContain('barangay');
-    expect(systemPrompt).toContain('overallScore');
+    expect(systemPrompt).toContain('"type": "critical"');
+    expect(systemPrompt).toContain('"description"');
     expect(userPrompt).toBe('Draft content');
   });
 });

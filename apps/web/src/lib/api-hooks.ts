@@ -35,13 +35,13 @@ function deduplicate<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
 export interface UseApiQueryOptions {
   /** How long (ms) cached data is considered fresh. Default 30_000. */
   staleTime?: number;
-  /** Disable caching entirely for this query. Default false. */
+  /** Enable/disable in-memory caching. It is disabled by default for user-scoped API data. */
   noCache?: boolean;
 }
 
 export function useApiQuery<T>(path: string | null, options?: UseApiQueryOptions) {
   const staleTime = options?.staleTime ?? 30_000;
-  const noCache = options?.noCache ?? false;
+  const noCache = options?.noCache ?? true;
 
   const [data, setData] = useState<T | null | undefined>(() => {
     if (!noCache && path !== null) {
@@ -87,10 +87,11 @@ export function useApiQuery<T>(path: string | null, options?: UseApiQueryOptions
       setError(null);
 
       try {
-        const result = await deduplicate(cacheKey, async () => {
-          const res = await api.get<T>(cacheKey, { signal: controller.signal });
-          return res;
-        });
+        // A shared request must not use one subscriber's AbortSignal. Sensitive queries
+        // bypass global deduplication by default; explicitly cached queries share safely.
+        const result = noCache
+          ? await api.get<T>(path, { signal: controller.signal })
+          : await deduplicate(cacheKey, () => api.get<T>(path));
 
         if (!controller.signal.aborted && latestRequestRef.current === requestId) {
           if (!noCache) setCache(cacheKey, result, staleTime);
@@ -147,6 +148,11 @@ export function useApiQuery<T>(path: string | null, options?: UseApiQueryOptions
     refetch,
     setQueryData,
   };
+}
+
+export function clearApiQueryCache(): void {
+  cache.clear();
+  inflight.clear();
 }
 
 export function useApiMutation<TResponse, TBody = void>(method: 'POST' | 'DELETE', pathTemplate: string) {

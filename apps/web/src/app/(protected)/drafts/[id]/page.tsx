@@ -4,7 +4,6 @@ import type { DocumentStatus, LegislativeMilestones } from '@lexigov/shared';
 import {
   buildDraftSectionsFromBody,
   cn,
-  composeDraftBodyFromSections,
   createDraftSection,
   type DraftSection,
   extractDraftBody,
@@ -110,7 +109,7 @@ export default function DraftEditorPage() {
   // Section handlers
   const replaceSections = (nextSections: DraftSection[]) => {
     setSections(nextSections);
-    setContent(composeDraftBodyFromSections(nextSections));
+    setContent(updateDraftSectionsContent({ ...(draft?.content ?? {}), body: content }, nextSections).body);
     if (!nextSections.some((s) => s.id === selectedSectionId)) {
       setSelectedSectionId(nextSections[0]?.id ?? '');
     }
@@ -145,7 +144,7 @@ export default function DraftEditorPage() {
   const saveCurrentDraft = async () => {
     if (!draft) throw new Error('Draft not found');
     const baseContent = updateDraftSectionsContent(
-      draft.content,
+      { ...(typeof draft.content === 'object' && draft.content ? draft.content : {}), body: content },
       sections.length > 0 ? sections : buildDraftSectionsFromBody(content),
     );
     const structuredContent = milestones ? updateDraftMilestonesContent(baseContent, milestones) : baseContent;
@@ -323,7 +322,7 @@ export default function DraftEditorPage() {
               data-testid='draft.header.official-export-btn'
             >
               <Download className='mr-2 h-4 w-4 text-primary' />
-              Official Export
+              Draft Export
             </Button>
             <Button variant='outline' asChild>
               <Link href={`/drafts/${draftId}/preview`}>

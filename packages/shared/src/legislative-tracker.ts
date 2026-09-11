@@ -156,6 +156,18 @@ export const STAGE_TRANSITION_ROLES: Record<LegislativeStage, Array<import('./sc
   LAPSED_INTO_LAW: ['SANGGUNIAN_SECRETARY', 'LGU_ADMIN'],
 };
 
+const NEXT_STAGES: Record<LegislativeStage, LegislativeStage[]> = {
+  DRAFTING: ['FIRST_READING'],
+  FIRST_READING: ['COMMITTEE_REVIEW'],
+  COMMITTEE_REVIEW: ['SECOND_READING'],
+  SECOND_READING: ['THIRD_READING'],
+  THIRD_READING: ['TRANSMITTED_TO_LCE'],
+  TRANSMITTED_TO_LCE: ['ENACTED', 'VETOED', 'LAPSED_INTO_LAW'],
+  ENACTED: [],
+  VETOED: ['DRAFTING'],
+  LAPSED_INTO_LAW: [],
+};
+
 export interface StageValidationResult {
   isValid: boolean;
   error?: string;
@@ -166,9 +178,31 @@ export function validateStageTransition(
   targetStage: LegislativeStage,
   actorRole: import('./schemas/enums').SanggunianRole,
   _jurisdiction: JurisdictionLevel = 'city',
+  proposedMilestones: LegislativeMilestones = currentMilestones,
 ): StageValidationResult {
-  // 1. Role Permission Gate
   const allowedRoles = STAGE_TRANSITION_ROLES[targetStage];
+  if (!allowedRoles || !NEXT_STAGES[currentMilestones.currentStage]) {
+    return { isValid: false, error: 'Unknown legislative stage.' };
+  }
+  const changesStage = targetStage !== currentMilestones.currentStage;
+  if (changesStage && !NEXT_STAGES[currentMilestones.currentStage].includes(targetStage)) {
+    return { isValid: false, error: 'Legislative stages cannot be skipped or rolled back through draft editing.' };
+  }
+
+  const changesLceAction =
+    proposedMilestones.lceAction !== currentMilestones.lceAction ||
+    proposedMilestones.lceActionDate !== currentMilestones.lceActionDate;
+  if (changesLceAction && !['LCE_OFFICE', 'LGU_ADMIN'].includes(actorRole)) {
+    return { isValid: false, error: 'Only the LCE office or an LGU administrator can record executive action.' };
+  }
+  if (
+    JSON.stringify(proposedMilestones.votingRecord) !== JSON.stringify(currentMilestones.votingRecord) &&
+    !['PRESIDING_OFFICER', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'].includes(actorRole)
+  ) {
+    return { isValid: false, error: 'Only the presiding officer, secretary, or LGU administrator can record votes.' };
+  }
+  if (!changesStage) return { isValid: true };
+
   if (!allowedRoles.includes(actorRole) && actorRole !== 'LGU_ADMIN') {
     const roleMeta = SANGGUNIAN_ROLE_LABELS[actorRole];
     return {
@@ -178,14 +212,14 @@ export function validateStageTransition(
   }
 
   // 2. Statutory Legal Preconditions per Stage
-  if (targetStage === 'COMMITTEE_REVIEW' && !currentMilestones.referredCommittee?.trim()) {
+  if (targetStage === 'COMMITTEE_REVIEW' && !proposedMilestones.referredCommittee?.trim()) {
     return {
       isValid: false,
       error: 'Statutory Requirement Missing: Must designate a referred Standing Committee for 1st Reading referral.',
     };
   }
 
-  if (targetStage === 'SECOND_READING' && !currentMilestones.committeeReportNo?.trim()) {
+  if (targetStage === 'SECOND_READING' && !proposedMilestones.committeeReportNo?.trim()) {
     return {
       isValid: false,
       error: 'Statutory Requirement Missing: Cannot calendar for 2nd Reading without a Committee Report Number.',
@@ -193,7 +227,7 @@ export function validateStageTransition(
   }
 
   if (targetStage === 'TRANSMITTED_TO_LCE') {
-    const voting = currentMilestones.votingRecord;
+    const voting = proposedMilestones.votingRecord;
     if (!voting || voting.ayes <= voting.nays) {
       return {
         isValid: false,
@@ -203,11 +237,15 @@ export function validateStageTransition(
     }
   }
 
-  if (targetStage === 'ENACTED' && currentMilestones.lceAction === 'VETOED') {
-    return {
-      isValid: false,
-      error: 'Conflict: Cannot mark as ENACTED when Local Chief Executive action is marked as VETOED.',
-    };
+  if (targetStage === 'ENACTED' && proposedMilestones.lceAction !== 'APPROVED') {
+    return { isValid: false, error: 'Recorded LCE approval is required before marking a measure as enacted.' };
+  }
+  if (targetStage === 'VETOED' && proposedMilestones.lceAction !== 'VETOED') {
+    return { isValid: false, error: 'A recorded executive veto is required.' };
+  }
+  if (targetStage === 'LAPSED_INTO_LAW') {
+    // Lapse depends on legally reviewed dates and jurisdiction rules, not a user-selected label.
+    return { isValid: false, error: 'Lapse into law requires a verified review process and is not available in draft editing.' };
   }
 
   return { isValid: true };

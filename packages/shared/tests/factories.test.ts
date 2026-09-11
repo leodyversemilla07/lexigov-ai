@@ -62,7 +62,6 @@ describe('@lexigov/shared Test Data Factories', () => {
       expect(draft.status).toBe('FIRST_READING');
       expect(draft.content.sections.length).toBe(3);
       expect(draft.content.milestones?.currentStage).toBe('FIRST_READING');
-      expect(draft.documentHash).toBeDefined();
     });
 
     it('allows overriding status and version for OCC testing', () => {

@@ -43,6 +43,14 @@ describe('Sanggunian Legislative Tracker & RBAC Suite', () => {
       expect(result.isValid).toBe(true);
     });
 
+    it('rejects skipped legislative stages even for an administrator', () => {
+      const milestones = createMockMilestones({ currentStage: 'DRAFTING' });
+      const result = validateStageTransition(milestones, 'THIRD_READING', 'LGU_ADMIN', 'city');
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('cannot be skipped');
+    });
+
     it('rejects transition to COMMITTEE_REVIEW when referredCommittee is missing', () => {
       const milestones = createMockMilestones({
         currentStage: 'FIRST_READING',
@@ -104,6 +112,15 @@ describe('Sanggunian Legislative Tracker & RBAC Suite', () => {
       const result = validateStageTransition(milestones, 'TRANSMITTED_TO_LCE', 'PRESIDING_OFFICER', 'city');
 
       expect(result.isValid).toBe(true);
+    });
+
+    it('rejects client-side executive-action changes by legislative staff', () => {
+      const current = createMockMilestones({ currentStage: 'TRANSMITTED_TO_LCE', lceAction: 'PENDING' });
+      const proposed = { ...current, lceAction: 'APPROVED' as const, lceActionDate: '2026-08-05' };
+      const result = validateStageTransition(current, 'TRANSMITTED_TO_LCE', 'LEGISLATIVE_STAFF', 'city', proposed);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('executive action');
     });
 
     it('allows LCE_OFFICE to approve and enact', () => {

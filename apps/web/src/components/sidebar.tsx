@@ -67,7 +67,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className='p-4'>
         <div className='text-xs text-muted-foreground text-center'>
-          <p>RA 7160 Compliant</p>
+          <p>RA 7160-Aware Guidance</p>
           <p className='mt-1'>Philippine Local Government</p>
         </div>
       </div>

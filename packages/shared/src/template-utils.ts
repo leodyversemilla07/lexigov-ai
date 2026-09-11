@@ -189,14 +189,11 @@ export function getTemplateBody(template: TemplateData, jurisdictionName: string
 export function getTemplateSections(template: TemplateData) {
   const structure = asRecord(template.structure);
   const exampleContent = asRecord(template.exampleContent);
-  const explicitSections = [
-    ...readTemplateSections(getObjectValue(exampleContent, 'sections')),
-    ...readTemplateSections(getObjectValue(structure, 'sections')),
-  ];
-
-  if (explicitSections.length > 0) {
-    return explicitSections;
-  }
+  // exampleContent often mirrors structure; concatenating both duplicates every section.
+  const exampleSections = readTemplateSections(getObjectValue(exampleContent, 'sections'));
+  const structureSections = readTemplateSections(getObjectValue(structure, 'sections'));
+  if (exampleSections.length > 0) return exampleSections;
+  if (structureSections.length > 0) return structureSections;
 
   return buildDraftSectionsFromBody(getTemplateBodyFromRaw(template));
 }

@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DraftsService } from './drafts.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { LogExportDto } from './dto/log-export.dto';
@@ -24,7 +24,6 @@ interface DraftRecord {
   version: number;
   parentDraftId?: string | null;
   commitMessage?: string | null;
-  documentHash?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,7 +52,6 @@ function buildPrismaDouble() {
         version: data.version ?? 1,
         parentDraftId: data.parentDraftId ?? null,
         commitMessage: data.commitMessage ?? null,
-        documentHash: data.documentHash ?? null,
         createdAt: data.createdAt ?? new Date(),
         updatedAt: data.updatedAt ?? new Date(),
       };
@@ -120,9 +118,11 @@ function buildPrismaDouble() {
       );
     }),
     findUnique: jest.fn(async ({ where }: { where: { id: string } }) => drafts.get(where.id) ?? null),
-    update: jest.fn(async ({ where, data }: { where: { id: string }; data: Partial<DraftRecord> }) => {
+    update: jest.fn(async ({ where, data }: { where: { id: string; userId?: string; version?: number }; data: Partial<DraftRecord> }) => {
       const existing = drafts.get(where.id);
-      if (!existing) throw new Error(`Draft ${where.id} not found`);
+      if (!existing || (where.userId && existing.userId !== where.userId) || (where.version && existing.version !== where.version)) {
+        throw Object.assign(new Error(`Draft ${where.id} not found`), { code: 'P2025' });
+      }
       Object.assign(existing, data);
       return existing;
     }),
@@ -173,8 +173,20 @@ function buildPrismaDouble() {
     ),
   };
 
+  const member = {
+    findUnique: jest.fn(async ({ where }: { where: { organizationId_userId: { organizationId: string; userId: string } } }) => ({
+      ...where.organizationId_userId,
+      role: 'member',
+    })),
+  };
+  const user = {
+    findUnique: jest.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id, role: 'user' })),
+  };
+
   const tx = {
     draft,
+    member,
+    user,
     complianceReport,
     exportHistory: exportHistoryModel,
     auditLog,
@@ -290,6 +302,7 @@ describe('DraftsService.findAll', () => {
       where: {
         userId: 'user_1',
         parentDraftId: null,
+        organizationId: null,
         documentType: 'RESOLUTION',
         OR: [
           { title: { contains: 'curfew', mode: 'insensitive' } },
@@ -533,19 +546,27 @@ describe('DraftsService.restoreVersion', () => {
 });
 
 describe('DraftsService Multi-Tenancy & OCC', () => {
-  it('creates draft with organizationId and documentHash', async () => {
+  it('creates an organization draft for a persisted member', async () => {
     const { service } = buildService();
     const draft = await service.create(
       {
         ...baseCreateInput,
         organizationId: 'lgu_org_1',
-        documentHash: 'sha256_abcdef123456',
       },
       userId,
     );
 
     expect(draft.organizationId).toBe('lgu_org_1');
-    expect(draft.documentHash).toBe('sha256_abcdef123456');
+  });
+
+  it('rejects an organization identifier when the caller is not a member', async () => {
+    const { service, prisma } = buildService();
+    prisma.member.findUnique.mockResolvedValueOnce(null as never);
+
+    await expect(service.create({ ...baseCreateInput, organizationId: 'other_tenant' }, userId)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma._state.drafts.size).toBe(0);
   });
 
   it('filters drafts by organizationId when provided in query', async () => {
@@ -589,7 +610,7 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
 
     await service.update(
       draft.id,
-      { status: 'FIRST_READING', commitMessage: 'Referred to First Reading calendar' },
+      { status: 'REVIEW', commitMessage: 'Submitted for draft review' },
       userId,
     );
 
@@ -597,9 +618,9 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
       expect.objectContaining({
         draftId: draft.id,
         fromStatus: 'DRAFT',
-        toStatus: 'FIRST_READING',
+        toStatus: 'REVIEW',
         actorId: userId,
-        remarks: 'Referred to First Reading calendar',
+        remarks: 'Submitted for draft review',
       }),
     ]);
   });

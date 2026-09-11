@@ -1,11 +1,9 @@
-import { toSanggunianRole } from '@lexigov/shared';
 import {
   BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
-  Headers,
   Inject,
   Param,
   Patch,
@@ -59,10 +57,8 @@ export class DraftsController {
     @Param('id') id: string,
     @Body() dto: UpdateDraftDto,
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-sanggunian-role') roleHeader?: string,
   ) {
-    const actorRole = toSanggunianRole(roleHeader || user.role, 'LEGISLATIVE_STAFF');
-    return this.draftsService.update(id, dto, user.userId, actorRole);
+    return this.draftsService.update(id, dto, user.userId);
   }
 
   @Delete(':id')
@@ -81,7 +77,7 @@ export class DraftsController {
   @Post(':id/restore')
   @ApiOperation({ summary: 'Restore a previous version' })
   restoreVersion(@Param('id') id: string, @Body() dto: RestoreVersionDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.draftsService.restoreVersion(id, dto.versionId, user.userId);
+    return this.draftsService.restoreVersion(id, dto.versionId, user.userId, dto.expectedVersion);
   }
 
   @Get(':id/export')

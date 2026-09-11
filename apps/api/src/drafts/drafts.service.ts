@@ -1,13 +1,14 @@
 import {
   extractDraftBody,
   getDefaultMilestones,
+  legislativeMilestonesSchema,
   normalizeDraftContent,
-  type SanggunianRole,
   toJurisdictionLevel,
   validateStageTransition,
 } from '@lexigov/shared';
 import { ConflictException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
+import { requireDraftWriteRole, requireOrganizationMembership } from '../auth/organization-access';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
@@ -24,20 +25,23 @@ export class DraftsService {
     const now = new Date();
 
     return this.prisma.$transaction(async (tx) => {
+      await requireDraftWriteRole(tx, dto.organizationId, userId);
       const draft = await tx.draft.create({
         data: {
           title: dto.title,
           documentType: dto.documentType,
           jurisdiction: dto.jurisdiction,
           jurisdictionName: dto.jurisdictionName,
-          content: normalizeDraftContent(dto.content ?? {}) as unknown as Prisma.InputJsonValue,
+          content: {
+            ...normalizeDraftContent(dto.content ?? {}),
+            milestones: getDefaultMilestones(),
+          } as unknown as Prisma.InputJsonValue,
           status: 'DRAFT',
           aiGenerated: dto.aiGenerated ?? false,
           userId,
           organizationId: dto.organizationId ?? null,
           templateId: dto.templateId,
           version: 1,
-          documentHash: dto.documentHash ?? null,
           createdAt: now,
           updatedAt: now,
         },
@@ -61,12 +65,15 @@ export class DraftsService {
     const query = typeof queryOrStatus === 'string' ? { status: queryOrStatus } : queryOrStatus;
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
-    const where: Record<string, unknown> = { parentDraftId: null };
+    // Keep the existing owner-scoped contract. Selecting a tenant must never broaden access.
+    const where: Record<string, unknown> = { parentDraftId: null, userId };
 
     if (query.organizationId) {
+      await requireOrganizationMembership(this.prisma, query.organizationId, userId);
       where.organizationId = query.organizationId;
     } else {
-      where.userId = userId;
+      // Organization drafts are requested explicitly so former members cannot list them by omission.
+      where.organizationId = null;
     }
 
     if (query.status) where.status = query.status;
@@ -96,10 +103,11 @@ export class DraftsService {
       where: { id, userId },
     });
     if (!draft) throw new NotFoundException('Draft not found');
+    await requireOrganizationMembership(this.prisma, draft.organizationId, userId);
     return draft;
   }
 
-  async update(id: string, dto: UpdateDraftDto, userId: string, actorRole: SanggunianRole = 'LEGISLATIVE_STAFF') {
+  async update(id: string, dto: UpdateDraftDto, userId: string) {
     return this.prisma.$transaction(async (tx) => {
       const draft = await tx.draft.findFirst({
         where: { id, userId },
@@ -109,6 +117,7 @@ export class DraftsService {
         throw new NotFoundException('Saved revisions are read-only');
       }
 
+      const actorRole = await requireDraftWriteRole(tx, draft.organizationId, userId);
       if (dto.expectedVersion !== undefined && draft.version !== dto.expectedVersion) {
         throw new ConflictException(
           `Draft was modified by another user (expected v${dto.expectedVersion}, current is v${draft.version})`,
@@ -121,12 +130,13 @@ export class DraftsService {
       const nextTitle = dto.title ?? draft.title;
       const nextContent = normalizeDraftContent(dto.content ?? draft.content);
       const nextStatus = dto.status ?? draft.status;
-      const nextDocumentHash = dto.documentHash ?? draft.documentHash;
-
+      // Editing cannot attest enactment/publication; that requires a future verified publication workflow.
+      if (nextStatus !== previousStatus && !['DRAFT', 'REVIEW', 'FINAL', 'ARCHIVED'].includes(nextStatus)) {
+        throw new UnprocessableEntityException('Formal enactment and publication status cannot be set by draft editing');
+      }
       const hasChange =
         nextTitle !== draft.title ||
         nextStatus !== previousStatus ||
-        nextDocumentHash !== draft.documentHash ||
         JSON.stringify(nextContent) !== JSON.stringify(draft.content);
 
       if (!hasChange) {
@@ -134,20 +144,23 @@ export class DraftsService {
       }
 
       const previousContent = normalizeDraftContent(draft.content);
-      const previousMilestones = previousContent.milestones;
-      const targetStage = nextContent.milestones?.currentStage;
-
-      if (targetStage && targetStage !== previousMilestones?.currentStage) {
-        const validation = validateStageTransition(
-          previousMilestones || getDefaultMilestones(),
-          targetStage,
-          actorRole,
-          toJurisdictionLevel(draft.jurisdiction),
-        );
-        if (!validation.isValid) {
-          throw new UnprocessableEntityException(validation.error);
-        }
+      const previousMilestones = { ...getDefaultMilestones(), ...previousContent.milestones };
+      // Omitting milestones does not erase the workflow or allow a restart of stage validation.
+      const incomingMilestones = dto.content?.milestones ?? nextContent.milestones ?? previousMilestones;
+      const parsedMilestones = legislativeMilestonesSchema.safeParse(incomingMilestones);
+      if (!parsedMilestones.success) {
+        throw new UnprocessableEntityException('Invalid legislative milestone data');
       }
+      nextContent.milestones = { ...getDefaultMilestones(), ...parsedMilestones.data };
+      const targetStage = nextContent.milestones.currentStage;
+      const validation = validateStageTransition(
+        previousMilestones,
+        targetStage,
+        actorRole,
+        toJurisdictionLevel(draft.jurisdiction),
+        nextContent.milestones,
+      );
+      if (!validation.isValid) throw new UnprocessableEntityException(validation.error);
 
       await tx.draft.create({
         data: {
@@ -164,31 +177,35 @@ export class DraftsService {
           version: previousVersion,
           parentDraftId: draft.id,
           commitMessage: draft.commitMessage,
-          documentHash: draft.documentHash,
           createdAt: now,
           updatedAt: draft.updatedAt,
         },
       });
 
       const updated = await tx.draft.update({
-        where: { id },
+        where: { id, userId, version: previousVersion },
         data: {
           title: nextTitle,
           content: nextContent as unknown as Prisma.InputJsonValue,
           status: nextStatus,
           commitMessage: dto.commitMessage,
-          documentHash: nextDocumentHash,
           version: previousVersion + 1,
           updatedAt: now,
         },
+      }).catch((error: unknown) => {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+          throw new ConflictException('Draft was modified by another session');
+        }
+        throw error;
       });
 
-      if (nextStatus !== previousStatus || (targetStage && targetStage !== previousMilestones?.currentStage)) {
+      const stageChanged = targetStage !== previousMilestones.currentStage;
+      if (nextStatus !== previousStatus || stageChanged) {
         await tx.workflowTransition.create({
           data: {
             draftId: id,
-            fromStatus: previousMilestones?.currentStage ?? previousStatus,
-            toStatus: targetStage ?? nextStatus,
+            fromStatus: stageChanged ? previousMilestones.currentStage : previousStatus,
+            toStatus: stageChanged ? targetStage : nextStatus,
             actorId: userId,
             remarks: dto.commitMessage ?? (actorRole ? `Stage updated by ${actorRole}` : null),
             createdAt: now,
@@ -226,6 +243,7 @@ export class DraftsService {
         throw new NotFoundException('Saved revisions cannot be deleted directly');
       }
 
+      await requireDraftWriteRole(tx, draft.organizationId, userId);
       const revisions = await tx.draft.findMany({
         where: { parentDraftId: id },
       });
@@ -276,7 +294,7 @@ export class DraftsService {
     }));
   }
 
-  async restoreVersion(draftId: string, versionId: string, userId: string) {
+  async restoreVersion(draftId: string, versionId: string, userId: string, expectedVersion?: number) {
     return this.prisma.$transaction(async (tx) => {
       const draft = await tx.draft.findFirst({
         where: { id: draftId, userId },
@@ -286,6 +304,10 @@ export class DraftsService {
         throw new NotFoundException('Saved revisions cannot be restored directly');
       }
 
+      await requireDraftWriteRole(tx, draft.organizationId, userId);
+      if (expectedVersion !== undefined && expectedVersion !== draft.version) {
+        throw new ConflictException('Draft was modified by another session');
+      }
       const versionDraft = await tx.draft.findFirst({
         where: { id: versionId, OR: [{ id: draftId }, { parentDraftId: draftId }] },
       });
@@ -314,37 +336,31 @@ export class DraftsService {
           version: draft.version,
           parentDraftId: draft.id,
           commitMessage: draft.commitMessage,
-          documentHash: draft.documentHash,
           createdAt: now,
           updatedAt: draft.updatedAt,
         },
       });
 
       const updated = await tx.draft.update({
-        where: { id: draftId },
+        where: { id: draftId, userId, version: draft.version },
         data: {
           title: versionDraft.title,
-          content: versionDraft.content as Prisma.InputJsonValue,
-          status: versionDraft.status,
+          content: {
+            ...normalizeDraftContent(versionDraft.content),
+            milestones: normalizeDraftContent(draft.content).milestones ?? getDefaultMilestones(),
+          } as unknown as Prisma.InputJsonValue,
+          // Restoring text must never replay historical approvals or roll back the live workflow.
+          status: draft.status,
           commitMessage: `Restore version v${versionDraft.version}`,
-          documentHash: versionDraft.documentHash,
           version: draft.version + 1,
           updatedAt: now,
         },
+      }).catch((error: unknown) => {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+          throw new ConflictException('Draft was modified by another session');
+        }
+        throw error;
       });
-
-      if (versionDraft.status !== draft.status) {
-        await tx.workflowTransition.create({
-          data: {
-            draftId,
-            fromStatus: draft.status,
-            toStatus: versionDraft.status,
-            actorId: userId,
-            remarks: `Restored to v${versionDraft.version}`,
-            createdAt: now,
-          },
-        });
-      }
 
       await tx.auditLog.create({
         data: {
@@ -357,7 +373,7 @@ export class DraftsService {
             nextVersion: draft.version + 1,
             restoredFromVersion: versionDraft.version,
             previousStatus: draft.status,
-            nextStatus: versionDraft.status,
+            nextStatus: draft.status,
           },
           createdAt: now,
         },

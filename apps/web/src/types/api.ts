@@ -21,7 +21,6 @@ export interface ApiDraft {
   templateId?: string;
   parentDraftId?: string;
   commitMessage?: string;
-  documentHash?: string;
   createdAt?: string;
   updatedAt: string;
 }

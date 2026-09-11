@@ -59,13 +59,11 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
 
   const documentData: FormattedDocumentData = {
     title: draft.title,
-    enactmentNumber: milestones?.enactmentNo || '2026-___',
+    enactmentNumber: milestones?.enactmentNo || '____-___',
     documentType: draft.documentType,
     jurisdiction: toJurisdictionLevel(draft.jurisdiction),
     jurisdictionName: draft.jurisdictionName,
     body: content,
-    verificationHash: draft.documentHash || `LXG-${draft.id.slice(0, 8).toUpperCase()}`,
-    verificationUrl: `https://lexigov.ph/verify?id=${draft.id}`,
     version: draft.version,
   };
 
@@ -78,7 +76,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
     try {
       setIsExportingDocx(true);
       await downloadOfficialDocx(documentData, config);
-      toast.success('Official Word (.docx) document generated and downloaded.');
+      toast.success('Word (.docx) working draft downloaded.');
     } catch (err) {
       console.error(err);
       toast.error('Failed to generate Word document.');
@@ -91,7 +89,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
     try {
       setIsExportingPdf(true);
       downloadOfficialPdf(documentData, config);
-      toast.success('Official PDF document generated and downloaded.');
+      toast.success('PDF working draft downloaded.');
     } catch (err) {
       console.error(err);
       toast.error('Failed to generate PDF document.');
@@ -109,7 +107,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
     const text = generateOfficialDocumentText(documentData, config);
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success('Official formatted text copied to clipboard.');
+    toast.success('Formatted working draft copied to clipboard.');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -128,9 +126,9 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
             <div className='flex items-center gap-2'>
               <Landmark className='h-5 w-5 text-primary' />
               <div>
-                <DialogTitle className='text-lg font-semibold'>Official Government Document Exporter</DialogTitle>
+                <DialogTitle className='text-lg font-semibold'>Government Document Draft Exporter</DialogTitle>
                 <DialogDescription className='text-xs'>
-                  Publish court-admissible, RA 7160 compliant legislation formatted for official gazettes and archival.
+                  Export a working draft for authorized review. This does not certify enactment, authenticity, or legal compliance.
                 </DialogDescription>
               </div>
             </div>
@@ -258,7 +256,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value='1.15' className='text-xs'>
-                            1.15 (Official Standard)
+                            1.15 (Standard)
                           </SelectItem>
                           <SelectItem value='1.5' className='text-xs'>
                             1.5 (Plenary Reading)
@@ -300,15 +298,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                       />
                       <span>Include 3-Part Statutory Signature Block</span>
                     </label>
-                    <label className='flex items-center gap-2 cursor-pointer'>
-                      <input
-                        type='checkbox'
-                        className='rounded border-gray-300 text-primary focus:ring-primary'
-                        checked={config.includeQrVerification}
-                        onChange={(e) => setConfig((prev) => ({ ...prev, includeQrVerification: e.target.checked }))}
-                      />
-                      <span>Include Cryptographic Verification Stamp</span>
-                    </label>
+                    <p className='text-muted-foreground'>Official authentication is not available.</p>
                   </div>
                 </div>
               ) : null}
@@ -591,15 +581,9 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                   </div>
                 ) : null}
 
-                {/* Cryptographic Security Stamp */}
-                {config.includeQrVerification && documentData.verificationHash ? (
-                  <div className='mt-8 pt-3 border-t border-gray-300 text-[7.5pt] text-gray-500 flex items-center justify-between'>
-                    <span>
-                      Verification Fingerprint: <strong>{documentData.verificationHash}</strong>
-                    </span>
-                    <span>Verified via LexiGov AI</span>
-                  </div>
-                ) : null}
+                <div className='mt-8 pt-3 border-t border-gray-300 text-[7.5pt] text-gray-500'>
+                  WORKING DRAFT — NOT AN OFFICIAL RECORD. Not authenticated or legally certified by LexiGov.
+                </div>
               </div>
             </ScrollArea>
           </div>

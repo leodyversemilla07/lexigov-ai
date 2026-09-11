@@ -21,8 +21,11 @@ model User {
     createdAt       DateTime  @default(now())
     updatedAt       DateTime  @updatedAt
     role            String    @default("user")
+    banned          Boolean   @default(false)
+    banReason       String?
+    banExpires      DateTime?
 
-    // Two-factor auth
+    // Two-factor auth (legacy secret columns retained for non-destructive migration)
     twoFactorEnabled     Boolean  @default(false)
     twoFactorSecret      String?
     twoFactorBackupCodes String?
@@ -37,6 +40,7 @@ model User {
     members         Member[]
     invitations     Invitation[]
     workflowTransitions WorkflowTransition[]
+    twoFactors      TwoFactor[]
 
     @@index([email])
 }
@@ -49,9 +53,23 @@ model Session {
     updatedAt  DateTime @updatedAt
     ipAddress  String?
     userAgent  String?
+    activeOrganizationId String?
+    impersonatedBy String?
     userId     String
     user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+    @@index([userId])
+}
+
+model TwoFactor {
+    id          String  @id @default(cuid())
+    secret      String
+    backupCodes String
+    verified    Boolean @default(true)
+    userId      String
+    user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([secret])
     @@index([userId])
 }
 
@@ -96,6 +114,7 @@ model Organization {
     name        String
     slug        String   @unique
     logo        String?
+    metadata    String?
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
@@ -165,7 +184,6 @@ model Draft {
     revisions     Draft[] @relation("DraftVersions")
 
     commitMessage String?
-    documentHash  String?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

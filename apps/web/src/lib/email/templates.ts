@@ -6,7 +6,7 @@
 
 const BRAND = {
   name: 'LexiGov AI',
-  tagline: 'RA 7160-compliant ordinance drafting',
+  tagline: 'RA 7160-aware ordinance drafting',
   primary: '#1f2937',
   accent: '#2563eb',
   surface: '#f8fafc',

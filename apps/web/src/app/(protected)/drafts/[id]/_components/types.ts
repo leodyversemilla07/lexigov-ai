@@ -63,7 +63,6 @@ export type Draft = {
   version: number;
   parentDraftId?: string;
   commitMessage?: string;
-  documentHash?: string;
   createdAt: string;
   updatedAt: string;
 };

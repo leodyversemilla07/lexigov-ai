@@ -5,13 +5,9 @@ import { SanggunianRolesGuard } from './sanggunian-roles.guard';
 
 function buildContext(req: Record<string, unknown>): ExecutionContext {
   return {
-    switchToHttp: () => ({
-      getRequest: () => req,
-      getResponse: () => ({}),
-      getNext: () => ({}),
-    }),
-    getHandler: () => ({}) as never,
-    getClass: () => ({}) as never,
+    switchToHttp: () => ({ getRequest: () => req }),
+    getHandler: () => ({}),
+    getClass: () => ({}),
   } as unknown as ExecutionContext;
 }
 
@@ -22,85 +18,54 @@ describe('SanggunianRolesGuard', () => {
 
   beforeEach(() => {
     reflector = new Reflector();
-    prisma = {
-      member: { findUnique: jest.fn() },
-    };
+    prisma = { member: { findUnique: jest.fn() } };
     guard = new SanggunianRolesGuard(reflector, prisma as unknown as PrismaService);
   });
 
-  it('allows access when no roles are required on handler or class', async () => {
+  it('allows access when no roles are required', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
-    const context = buildContext({ user: { id: 'u1' } });
-
-    const allowed = await guard.canActivate(context);
-    expect(allowed).toBe(true);
+    await expect(guard.canActivate(buildContext({ headers: {}, user: { userId: 'u1' } }))).resolves.toBe(true);
   });
 
-  it('throws UnauthorizedException when user is not present on request', async () => {
+  it('requires the authenticated userId shape', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['PRESIDING_OFFICER']);
-    const context = buildContext({ headers: {} });
-
-    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(buildContext({ headers: {}, user: { id: 'wrong-shape' } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
-  it('allows access when x-sanggunian-role header matches required role', async () => {
+  it('ignores a client-provided role header', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['PRESIDING_OFFICER']);
-    const context = buildContext({
+    await expect(guard.canActivate(buildContext({
       headers: { 'x-sanggunian-role': 'PRESIDING_OFFICER' },
-      user: { id: 'u1', role: 'LEGISLATIVE_STAFF' },
-    });
-
-    const allowed = await guard.canActivate(context);
-    expect(allowed).toBe(true);
+      user: { userId: 'u1', role: 'user' },
+    }))).rejects.toThrow(ForbiddenException);
   });
 
-  it('allows access when organization membership matches required role', async () => {
+  it('uses persisted organization membership role', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['SANGGUNIAN_SECRETARY']);
-    prisma.member.findUnique.mockResolvedValue({
-      organizationId: 'org_pasig',
-      userId: 'u1',
-      role: 'SANGGUNIAN_SECRETARY',
-    });
+    prisma.member.findUnique.mockResolvedValue({ organizationId: 'org', userId: 'u1', role: 'SANGGUNIAN_SECRETARY' });
+    const request = { headers: { 'x-organization-id': 'org' }, user: { userId: 'u1', role: 'user' } };
 
-    const context = buildContext({
-      headers: { 'x-organization-id': 'org_pasig' },
-      user: { id: 'u1', role: 'LEGISLATIVE_STAFF' },
+    await expect(guard.canActivate(buildContext(request))).resolves.toBe(true);
+    expect(prisma.member.findUnique).toHaveBeenCalledWith({
+      where: { organizationId_userId: { organizationId: 'org', userId: 'u1' } },
     });
-
-    const allowed = await guard.canActivate(context);
-    expect(allowed).toBe(true);
   });
 
-  it('throws ForbiddenException when role does not match requirements', async () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['LCE_OFFICE']);
-    prisma.member.findUnique.mockResolvedValue({
-      organizationId: 'org_pasig',
-      userId: 'u1',
-      role: 'LEGISLATIVE_STAFF',
-    });
-
-    const context = buildContext({
-      headers: { 'x-organization-id': 'org_pasig' },
-      user: { id: 'u1', role: 'LEGISLATIVE_STAFF' },
-    });
-
-    await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+  it('rejects users who are not members of the requested organization', async () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['SANGGUNIAN_SECRETARY']);
+    prisma.member.findUnique.mockResolvedValue(null);
+    await expect(guard.canActivate(buildContext({
+      headers: { 'x-organization-id': 'org' }, user: { userId: 'u1', role: 'ADMIN' },
+    }))).rejects.toThrow(ForbiddenException);
   });
 
-  it('always allows LGU_ADMIN access to any role-guarded handler', async () => {
+  it('allows a persisted LGU administrator membership', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['LCE_OFFICE']);
-    prisma.member.findUnique.mockResolvedValue({
-      organizationId: 'org_pasig',
-      userId: 'u1',
-      role: 'LGU_ADMIN',
-    });
-
-    const context = buildContext({
-      headers: { 'x-organization-id': 'org_pasig' },
-      user: { id: 'u1', role: 'user' },
-    });
-
-    const allowed = await guard.canActivate(context);
-    expect(allowed).toBe(true);
+    prisma.member.findUnique.mockResolvedValue({ organizationId: 'org', userId: 'u1', role: 'owner' });
+    await expect(guard.canActivate(buildContext({
+      headers: { 'x-organization-id': 'org' }, user: { userId: 'u1', role: 'user' },
+    }))).resolves.toBe(true);
   });
 });

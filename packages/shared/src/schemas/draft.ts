@@ -47,7 +47,6 @@ export const createDraftSchema = z.object({
   content: draftContentSchema.optional(),
   templateId: z.string().min(1).optional(),
   organizationId: z.string().min(1).optional(),
-  documentHash: z.string().optional(),
   commitMessage: z.string().max(500).optional(),
 });
 export type CreateDraftInput = z.infer<typeof createDraftSchema>;
@@ -56,7 +55,6 @@ export const draftComposerSchema = createDraftSchema.omit({
   content: true,
   templateId: true,
   organizationId: true,
-  documentHash: true,
   commitMessage: true,
 });
 export type DraftComposerInput = z.infer<typeof draftComposerSchema>;
@@ -72,7 +70,6 @@ export const updateDraftSchema = z.object({
   status: documentStatusSchema.optional(),
   commitMessage: z.string().max(500).optional(),
   aiGenerated: z.boolean().optional(),
-  documentHash: z.string().optional(),
   expectedVersion: z.number().int().positive().optional(),
 });
 export type UpdateDraftInput = z.infer<typeof updateDraftSchema>;

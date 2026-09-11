@@ -34,6 +34,7 @@ export {
 export type { VerificationMetadata } from './document-verification';
 export {
   buildVerificationMetadata,
+  generateDocumentFingerprint,
   generateVerificationHash,
 } from './document-verification';
 export type {
@@ -83,6 +84,7 @@ export type {
 } from './schemas/draft';
 export * from './schemas/draft';
 export * from './schemas/enums';
+export * from './schemas/legislative';
 export type {
   CreateTemplateInput,
   TemplateCategory,
@@ -124,4 +126,5 @@ export {
   buildSectionDiff,
 } from './text-diff';
 // Utils
+export { escapeHtml } from './html';
 export { cn } from './utils';

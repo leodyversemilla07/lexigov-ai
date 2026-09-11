@@ -1,6 +1,7 @@
 import { analyzeDeterministicCompliance, extractDraftBody } from '@lexigov/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
+import { requireOrganizationMembership } from '../auth/organization-access';
 import { isJurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,6 +17,7 @@ export class ComplianceService {
       throw new NotFoundException('Draft not found');
     }
 
+    await requireOrganizationMembership(this.prisma, draft.organizationId, userId);
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
     // Mirror AiService behaviour: skip deterministic analysis (and do not
@@ -64,6 +66,7 @@ export class ComplianceService {
       where: { id: draftId, userId },
     });
     if (!draft) return [];
+    await requireOrganizationMembership(this.prisma, draft.organizationId, userId);
 
     return this.prisma.complianceReport.findMany({
       where: { draftId },

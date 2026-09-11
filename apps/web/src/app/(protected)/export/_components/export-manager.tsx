@@ -1,6 +1,6 @@
 'use client';
 
-import { buildVerificationMetadata, cn, extractDraftBody, extractDraftSections } from '@lexigov/shared';
+import { cn, extractDraftBody, extractDraftSections } from '@lexigov/shared';
 import { Badge } from '@lexigov/ui/components/badge';
 import { Button } from '@lexigov/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexigov/ui/components/card';
@@ -15,9 +15,8 @@ import {
   FileText,
   FileType,
   Loader2,
-  QrCode,
   ScrollText,
-  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -254,7 +253,7 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
             spacing: { before: 240, after: 40 },
             children: [
               new TextRun({
-                text: `DOCUMENT AUTHENTICITY CODE: ${buildVerificationMetadata(draft, version.body || '').verificationHash}`,
+                text: 'WORKING DRAFT — NOT AN OFFICIAL RECORD',
                 bold: true,
                 size: 16,
               }),
@@ -264,7 +263,7 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
             spacing: { after: 120 },
             children: [
               new TextRun({
-                text: `Official Verification Portal: ${buildVerificationMetadata(draft, version.body || '').verificationUrl}`,
+                text: 'This export has not been authenticated or legally certified by LexiGov.',
                 italics: true,
                 size: 16,
               }),
@@ -283,7 +282,6 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   const sanggunianName = getSanggunianBodyName(draft.jurisdiction);
   const lceTitle = getLocalChiefExecutiveTitle(draft.jurisdiction);
   const presidingTitle = getPresidingOfficerTitle(draft.jurisdiction);
-  const verification = buildVerificationMetadata(draft, version.body || '');
 
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -409,7 +407,7 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
     pdf.setFont('times', 'normal');
     pdf.setFontSize(9);
     pdf.text(
-      `Page ${pageIndex} of ${pageCount} | Auth: ${verification.verificationHash} | LexiGov AI (RA 7160 Compliant)`,
+      `Page ${pageIndex} of ${pageCount} | WORKING DRAFT - NOT AN OFFICIAL RECORD`,
       pageWidth - marginX,
       pageHeight - 24,
       { align: 'right' },
@@ -689,36 +687,15 @@ export function ExportPageContent() {
           )}
 
           {selectedDraft && selectedVersion && (
-            <Card className='border-emerald-500/30 bg-emerald-50/5'>
+            <Card>
               <CardHeader className='pb-2'>
-                <div className='flex items-center justify-between'>
-                  <CardTitle className='text-sm font-semibold flex items-center gap-1.5'>
-                    <ShieldCheck className='h-4 w-4 text-emerald-600' />
-                    Digital Authenticity
-                  </CardTitle>
-                  <Badge variant='outline' className='text-[10px] text-emerald-600 border-emerald-500/30'>
-                    Verified
-                  </Badge>
-                </div>
+                <CardTitle className='text-sm font-semibold flex items-center gap-1.5'>
+                  <ShieldAlert className='h-4 w-4 text-amber-600' />
+                  Unverified working draft
+                </CardTitle>
               </CardHeader>
-              <CardContent className='space-y-2 text-xs'>
-                <div>
-                  <span className='text-muted-foreground'>Verification Code:</span>
-                  <div className='font-mono font-bold text-foreground mt-0.5'>
-                    {buildVerificationMetadata(selectedDraft, selectedVersion.body || '').verificationHash}
-                  </div>
-                </div>
-                <div className='pt-1'>
-                  <Button variant='outline' size='sm' className='w-full text-xs h-8' asChild>
-                    <Link
-                      href={`/verify?code=${buildVerificationMetadata(selectedDraft, selectedVersion.body || '').verificationHash}&id=${selectedDraft.id}`}
-                      target='_blank'
-                    >
-                      <QrCode className='mr-1.5 h-3.5 w-3.5 text-primary' />
-                      Open Verification Portal
-                    </Link>
-                  </Button>
-                </div>
+              <CardContent className='text-xs text-muted-foreground'>
+                Exports do not certify enactment, signatures, or legal compliance. Obtain the official record from the issuing LGU.
               </CardContent>
             </Card>
           )}

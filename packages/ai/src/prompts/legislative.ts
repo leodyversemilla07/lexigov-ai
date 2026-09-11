@@ -94,15 +94,13 @@ Analyze the provided draft ordinance against:
 
 You must respond in valid JSON matching this schema:
 {
-  "overallScore": <integer between 0 and 100>,
-  "isValid": <boolean>,
   "issues": [
     {
-      "type": "violation" | "warning" | "suggestion",
+      "type": "critical" | "warning" | "suggestion",
       "section": "<section title or number>",
-      "message": "<concise explanation>",
-      "legalBasis": "<exact citation, e.g. RA 7160 Section 458(a)(1)(iii)>",
-      "recommendation": "<actionable fix>"
+      "title": "<short issue title>",
+      "description": "<concise explanation including the exact legal basis when known>",
+      "suggestion": "<actionable fix>"
     }
   ]
 }`;

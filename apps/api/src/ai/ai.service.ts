@@ -6,9 +6,9 @@ import {
   createAiProviderFromEnv,
 } from '@lexigov/ai';
 import {
+  aiComplianceResultSchema,
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
-  type ComplianceIssue,
   mergeComplianceIssues,
 } from '@lexigov/shared';
 import { Injectable } from '@nestjs/common';
@@ -62,14 +62,14 @@ export class AiService {
     try {
       const { systemPrompt, userPrompt } = buildComplianceAnalysisPrompt(content, jurisdiction);
 
-      const aiResult = await this.provider.generateStructured<{ issues?: ComplianceIssue[] }>({
+      const rawAiResult = await this.provider.generateStructured<unknown>({
         prompt: userPrompt,
         systemPrompt,
         maxTokens: 2500,
+        schema: aiComplianceResultSchema,
       });
-
-      const aiIssues = Array.isArray(aiResult.issues) ? aiResult.issues : [];
-      const merged = mergeComplianceIssues(deterministic.issues, aiIssues);
+      const aiResult = aiComplianceResultSchema.parse(rawAiResult);
+      const merged = mergeComplianceIssues(deterministic.issues, aiResult.issues);
       return buildComplianceResultFromIssues(merged);
     } catch {
       // Fall back to deterministic analysis

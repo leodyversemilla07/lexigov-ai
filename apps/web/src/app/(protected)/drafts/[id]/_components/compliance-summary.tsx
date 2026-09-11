@@ -38,10 +38,10 @@ export function ComplianceSummary({
             {complianceResult.isValid ? <CheckCircle2 className='h-5 w-5' /> : <AlertTriangle className='h-5 w-5' />}
           </div>
           <div>
-            <CardTitle className='text-lg'>RA 7160 Compliance Snapshot</CardTitle>
+            <CardTitle className='text-lg'>RA 7160 Advisory Review</CardTitle>
             <CardDescription className='mt-1 text-sm text-foreground/70'>
-              Score {complianceResult.overallScore}/100 with {complianceResult.issues.length} flagged
-              {complianceResult.issues.length === 1 ? ' issue' : ' issues'}.
+              Automated score {complianceResult.overallScore}/100 with {complianceResult.issues.length} flagged
+              {complianceResult.issues.length === 1 ? ' issue' : ' issues'}. This is not a legal certification.
             </CardDescription>
           </div>
         </div>

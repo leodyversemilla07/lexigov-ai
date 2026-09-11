@@ -2,12 +2,6 @@ import type { ZodSchema } from 'zod';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-function getSessionToken(): string | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/(?:__Secure-)?better-auth\.session_token=([^;]+)/);
-  return match?.[1] ? decodeURIComponent(match[1]) : null;
-}
-
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -24,9 +18,8 @@ interface RequestOptions {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
-  const token = getSessionToken();
+  // Better Auth cookies are HttpOnly. Let the browser send them; never read or copy them into JS headers.
   const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(`${API_URL}${path}`, {
@@ -61,11 +54,9 @@ async function streamPost(
   onChunk: (chunk: string) => void,
   options: RequestOptions = {},
 ): Promise<void> {
-  const token = getSessionToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
@@ -107,17 +98,14 @@ async function streamPost(
       const trimmed = line.trim();
       if (trimmed.startsWith('data: ')) {
         const jsonStr = trimmed.slice(6);
+        let parsed: { chunk?: string; done?: boolean; error?: string };
         try {
-          const parsed = JSON.parse(jsonStr) as { chunk?: string; done?: boolean; error?: string };
-          if (parsed.error) {
-            throw new Error(parsed.error);
-          }
-          if (parsed.chunk) {
-            onChunk(parsed.chunk);
-          }
+          parsed = JSON.parse(jsonStr) as typeof parsed;
         } catch {
-          // ignore non-json SSE line
+          continue; // Ignore only malformed/non-JSON SSE frames.
         }
+        if (parsed.error) throw new ApiError(502, parsed.error, parsed);
+        if (parsed.chunk) onChunk(parsed.chunk);
       }
     }
   }
