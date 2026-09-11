@@ -387,11 +387,12 @@ export class DraftsService {
     const draft = await this.findOne(id, userId);
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
+    const warning = 'WORKING DRAFT — NOT AN OFFICIAL RECORD\nThis export has not been authenticated or legally certified by LexiGov.\n\n';
     const header = `${draft.documentType}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction})\nv${draft.version}\nStatus: ${draft.status}\n${'='.repeat(50)}\n\n`;
     const formatted =
       format === 'md'
-        ? `# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**v${draft.version}**\n\n---\n\n${content}`
-        : header + content;
+        ? `> **WORKING DRAFT — NOT AN OFFICIAL RECORD**\n> This export has not been authenticated or legally certified by LexiGov.\n\n# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**v${draft.version}**\n\n---\n\n${content}`
+        : warning + header + content;
 
     await this.prisma.exportHistory.create({
       data: {

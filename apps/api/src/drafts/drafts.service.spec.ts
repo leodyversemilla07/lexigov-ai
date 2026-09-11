@@ -440,6 +440,7 @@ describe('DraftsService.exportDraft', () => {
     const result = await service.exportDraft(draft.id, userId, 'md');
 
     expect(result.mimeType).toBe('text/markdown');
+    expect(result.content).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
     expect(result.content).toContain('# Barangay Curfew Ordinance');
     expect(result.content).toContain('SECTION 1. Curfew hours are 10pm to 4am.');
     expect(result.filename).toMatch(/^Barangay_Curfew_Ordinance_v1\.md$/);
@@ -453,6 +454,7 @@ describe('DraftsService.exportDraft', () => {
     const result = await service.exportDraft(draft.id, userId, 'txt');
 
     expect(result.mimeType).toBe('text/plain');
+    expect(result.content).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
     expect(result.content).toContain('ORDINANCE');
     expect(result.content).toContain('SECTION 1. Body text.');
   });

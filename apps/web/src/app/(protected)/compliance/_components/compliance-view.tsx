@@ -11,16 +11,16 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useAllDrafts } from '@/hooks/useAllDrafts';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { ApiComplianceReport, ApiComplianceResult, ApiDraft, PaginatedResponse } from '@/types';
+import type { ApiComplianceReport, ApiComplianceResult, ApiDraft } from '@/types';
 
 export function CompliancePageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: draftsPage } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
-  const drafts = draftsPage?.data;
+  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts();
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [isChecking, setIsChecking] = useState(false);
@@ -90,8 +90,6 @@ export function CompliancePageContent() {
       }
     : { critical: 0, warning: 0, suggestion: 0 };
 
-  const isLoading = draftsPage === undefined;
-
   return (
     <div className='space-y-6'>
       <div>
@@ -113,6 +111,11 @@ export function CompliancePageContent() {
                   <Skeleton className='h-10' />
                   <Skeleton className='h-10' />
                   <Skeleton className='h-10' />
+                </div>
+              ) : draftsError ? (
+                <div className='space-y-3 text-sm text-destructive'>
+                  <p>Unable to load the complete draft list.</p>
+                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>Retry</Button>
                 </div>
               ) : !drafts || drafts.length === 0 ? (
                 <div className='text-center py-4'>

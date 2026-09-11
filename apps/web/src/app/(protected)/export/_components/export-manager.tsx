@@ -1,6 +1,6 @@
 'use client';
 
-import { cn, extractDraftBody, extractDraftSections } from '@lexigov/shared';
+import { cn, extractDraftBody } from '@lexigov/shared';
 import { Badge } from '@lexigov/ui/components/badge';
 import { Button } from '@lexigov/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexigov/ui/components/card';
@@ -23,8 +23,9 @@ import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
+import { useAllDrafts } from '@/hooks/useAllDrafts';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { ApiDraft, ApiDraftVersion, PaginatedResponse } from '@/types';
+import type { ApiDraft, ApiDraftVersion } from '@/types';
 
 type ExportFormat = 'txt' | 'md' | 'docx' | 'pdf';
 
@@ -60,11 +61,6 @@ const exportFormats: Array<{
   },
 ];
 
-interface ExportSection {
-  heading: string;
-  body: string;
-}
-
 function getDraftContent(draft: ApiDraft): string {
   return extractDraftBody(draft.content);
 }
@@ -73,22 +69,12 @@ function sanitizeFilename(value: string) {
   return value.replace(/[^a-z0-9]/gi, '_');
 }
 
-function buildTextExportContent(draft: ApiDraft, version: ApiDraftVersion, format: 'txt' | 'md') {
-  const sections = extractDraftSections({ body: version.body });
-  const structuredContent =
-    sections.length > 0
-      ? sections.map((section) => `${section.heading}\n${section.body}`.trim()).join('\n\n')
-      : version.body;
-
+export function buildTextExportContent(draft: ApiDraft, version: ApiDraftVersion, format: 'txt' | 'md') {
   if (format === 'md') {
-    const markdownSections =
-      sections.length > 0
-        ? sections.map((section) => `## ${section.heading}\n\n${section.body || 'No content'}`).join('\n\n')
-        : version.body;
-    return `# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**Version:** ${version.version}\n**Status:** ${version.status}\n\n---\n\n${markdownSections}`;
+    return `> **WORKING DRAFT — NOT AN OFFICIAL RECORD**\n> This export has not been authenticated or legally certified by LexiGov.\n\n# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**Version:** ${version.version}\n**Status:** ${version.status}\n\n---\n\n${version.body}`;
   }
 
-  return `${draft.documentType.toUpperCase()}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()})\nVersion: ${version.version}\nStatus: ${version.status}\n${'='.repeat(50)}\n\n${structuredContent}`;
+  return `WORKING DRAFT — NOT AN OFFICIAL RECORD\nThis export has not been authenticated or legally certified by LexiGov.\n\n${draft.documentType.toUpperCase()}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction.toUpperCase()})\nVersion: ${version.version}\nStatus: ${version.status}\n${'='.repeat(50)}\n\n${version.body}`;
 }
 
 function getSanggunianBodyName(jurisdiction: string) {
@@ -104,43 +90,19 @@ function getSanggunianBodyName(jurisdiction: string) {
   }
 }
 
-function getLocalChiefExecutiveTitle(jurisdiction: string) {
-  switch (jurisdiction.toLowerCase()) {
-    case 'barangay':
-      return 'Punong Barangay';
-    case 'municipal':
-      return 'Municipal Mayor';
-    case 'provincial':
-      return 'Provincial Governor';
-    default:
-      return 'City Mayor';
-  }
-}
-
-function getPresidingOfficerTitle(jurisdiction: string) {
-  switch (jurisdiction.toLowerCase()) {
-    case 'barangay':
-      return 'Punong Barangay / Presiding Officer';
-    case 'municipal':
-      return 'Municipal Vice Mayor / Presiding Officer';
-    case 'provincial':
-      return 'Vice Governor / Presiding Officer';
-    default:
-      return 'City Vice Mayor / Presiding Officer';
-  }
-}
-
 async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
-  const sections = extractDraftSections({ body: version.body });
-  const bodyParagraphs = buildDocxSectionParagraphs(sections);
+  const bodyParagraphs = buildDocxBodyParagraphs(version.body);
   const sanggunianName = getSanggunianBodyName(draft.jurisdiction);
-  const lceTitle = getLocalChiefExecutiveTitle(draft.jurisdiction);
-  const presidingTitle = getPresidingOfficerTitle(draft.jurisdiction);
 
   const document = new Document({
     sections: [
       {
         children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 120 },
+            children: [new TextRun({ text: 'WORKING DRAFT — NOT AN OFFICIAL RECORD', bold: true, size: 22 })],
+          }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { after: 60 },
@@ -159,7 +121,7 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { after: 120 },
-            children: [new TextRun({ text: `${draft.documentType.toUpperCase()} NO. 2025-___`, bold: true, size: 28 })],
+            children: [new TextRun({ text: `${draft.documentType.toUpperCase()} NO. ____-___`, bold: true, size: 28 })],
           }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
@@ -180,7 +142,7 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
             spacing: { after: 240 },
             children: [
               new TextRun({
-                text: `Date Generated: ${new Date(version.updatedAt).toLocaleDateString()}`,
+                text: `Version Date: ${new Date(version.updatedAt).toLocaleDateString()}`,
                 italics: true,
                 size: 18,
               }),
@@ -197,58 +159,6 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
               ]
             : []),
           ...bodyParagraphs,
-          new Paragraph({
-            spacing: { before: 400, after: 140 },
-            children: [new TextRun({ text: 'ATTESTATION & APPROVAL', bold: true, size: 24 })],
-          }),
-          new Paragraph({
-            spacing: { after: 240 },
-            children: [
-              new TextRun({
-                text: 'I HEREBY CERTIFY to the correctness of the foregoing measure enacted by the Sanggunian.',
-                italics: true,
-                size: 20,
-              }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { before: 240, after: 40 },
-            children: [new TextRun({ text: '____________________________________', bold: true, size: 20 })],
-          }),
-          new Paragraph({
-            spacing: { after: 240 },
-            children: [new TextRun({ text: 'Secretary to the Sanggunian', bold: true, size: 20 })],
-          }),
-          new Paragraph({
-            spacing: { before: 180, after: 40 },
-            children: [new TextRun({ text: 'ATTESTED & CERTIFIED CORRECT:', size: 20, bold: true })],
-          }),
-          new Paragraph({
-            spacing: { before: 240, after: 40 },
-            children: [new TextRun({ text: 'HON. _______________________________', bold: true, size: 20 })],
-          }),
-          new Paragraph({
-            spacing: { after: 240 },
-            children: [new TextRun({ text: presidingTitle, bold: true, size: 20 })],
-          }),
-          new Paragraph({
-            spacing: { before: 200, after: 40 },
-            children: [
-              new TextRun({ text: `APPROVED pursuant to Section 54, Republic Act No. 7160:`, size: 20, bold: true }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { before: 240, after: 40 },
-            children: [new TextRun({ text: 'HON. _______________________________', bold: true, size: 20 })],
-          }),
-          new Paragraph({
-            spacing: { after: 40 },
-            children: [new TextRun({ text: lceTitle, bold: true, size: 20 })],
-          }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [new TextRun({ text: 'Date: ________________________', size: 18 })],
-          }),
           new Paragraph({
             spacing: { before: 240, after: 40 },
             children: [
@@ -278,10 +188,7 @@ async function buildDocxBlob(draft: ApiDraft, version: ApiDraftVersion) {
 }
 
 async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
-  const sections = extractDraftSections({ body: version.body });
   const sanggunianName = getSanggunianBodyName(draft.jurisdiction);
-  const lceTitle = getLocalChiefExecutiveTitle(draft.jurisdiction);
-  const presidingTitle = getPresidingOfficerTitle(draft.jurisdiction);
 
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -327,7 +234,10 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
     }
   };
 
-  // Official Philippine LGU Header
+  drawWrappedText('WORKING DRAFT — NOT AN OFFICIAL RECORD', 11, 16, { align: 'center', bold: true });
+  y += 4;
+
+  // Philippine LGU Header
   drawWrappedText('REPUBLIC OF THE PHILIPPINES', 12, 16, { align: 'center', bold: true });
   drawWrappedText(draft.jurisdictionName.toUpperCase(), 13, 17, { align: 'center', bold: true });
   drawWrappedText(`OFFICE OF THE ${sanggunianName}`, 12, 16, { align: 'center', bold: true });
@@ -337,7 +247,7 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   pdf.line(marginX, y, pageWidth - marginX, y);
   y += 16;
 
-  drawWrappedText(`${draft.documentType.toUpperCase()} NO. 2025-___`, 14, 18, { align: 'center', bold: true });
+  drawWrappedText(`${draft.documentType.toUpperCase()} NO. ____-___`, 14, 18, { align: 'center', bold: true });
   y += 4;
   drawWrappedText(draft.title, 16, 22, { align: 'center', bold: true });
   y += 12;
@@ -348,7 +258,7 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
     14,
     { italic: true },
   );
-  drawWrappedText(`Date: ${new Date(version.updatedAt).toLocaleDateString()}`, 10, 14, { italic: true });
+  drawWrappedText(`Version Date: ${new Date(version.updatedAt).toLocaleDateString()}`, 10, 14, { italic: true });
 
   if (version.commitMessage) {
     drawWrappedText(`Revision Note: ${version.commitMessage}`, 10, 14, { italic: true });
@@ -359,47 +269,16 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   pdf.line(marginX, y, pageWidth - marginX, y);
   y += 18;
 
-  const exportSections =
-    sections.length > 0
-      ? sections
-      : [{ heading: 'Body', body: version.body || 'No content available for this version.' }];
-
-  for (const section of exportSections) {
-    drawWrappedText(section.heading, 12, 17, { bold: true });
-    if (section.body.trim()) {
-      for (const line of section.body.split('\n')) {
-        drawWrappedText(line || ' ', 11, 16);
-      }
-    } else {
-      drawWrappedText('No content', 11, 16);
+  const bodyLines = (version.body || 'No content available for this version.').split('\n');
+  for (const line of bodyLines) {
+    if (!line.trim()) {
+      y += 8;
+      continue;
     }
-    y += 10;
+    drawWrappedText(line, /^SECTION\s+\d+/i.test(line) ? 12 : 11, 16, {
+      bold: /^SECTION\s+\d+/i.test(line),
+    });
   }
-
-  // Signatory & Approval Section
-  y += 16;
-  ensureSpace(240);
-  drawWrappedText('ATTESTATION & APPROVAL', 12, 16, { bold: true });
-  drawWrappedText('I HEREBY CERTIFY to the correctness of the foregoing legislative measure.', 10, 14, {
-    italic: true,
-  });
-  y += 24;
-
-  drawWrappedText('____________________________________', 10, 14);
-  drawWrappedText('Secretary to the Sanggunian', 10, 14, { bold: true });
-  y += 18;
-
-  drawWrappedText('ATTESTED & CERTIFIED CORRECT:', 10, 14, { bold: true });
-  y += 24;
-  drawWrappedText('HON. _______________________________', 10, 14);
-  drawWrappedText(presidingTitle, 10, 14, { bold: true });
-  y += 18;
-
-  drawWrappedText('APPROVED pursuant to Section 54, Republic Act No. 7160:', 10, 14, { bold: true });
-  y += 24;
-  drawWrappedText('HON. _______________________________', 10, 14);
-  drawWrappedText(lceTitle, 10, 14, { bold: true });
-  drawWrappedText('Date: ________________________', 10, 14);
 
   const pageCount = pdf.getNumberOfPages();
   for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
@@ -417,34 +296,14 @@ async function buildPdfBlob(draft: ApiDraft, version: ApiDraftVersion) {
   return pdf.output('blob');
 }
 
-function buildDocxSectionParagraphs(sections: ExportSection[]) {
-  const exportSections =
-    sections.length > 0 ? sections : [{ heading: 'Body', body: 'No content available for this version.' }];
-
-  return exportSections.flatMap((section) => {
-    const sectionBody = section.body.trim()
-      ? section.body.split('\n').map(
-          (line, index) =>
-            new Paragraph({
-              alignment: AlignmentType.JUSTIFIED,
-              spacing: { after: index === section.body.split('\n').length - 1 ? 180 : 80 },
-              children: [new TextRun({ text: line || ' ' })],
-            }),
-        )
-      : [
-          new Paragraph({
-            spacing: { after: 180 },
-            children: [new TextRun({ text: 'No content available for this section.' })],
-          }),
-        ];
-
-    return [
-      new Paragraph({
-        spacing: { after: 120 },
-        children: [new TextRun({ text: section.heading, bold: true, size: 24 })],
-      }),
-      ...sectionBody,
-    ];
+function buildDocxBodyParagraphs(body: string) {
+  return (body || 'No content available for this version.').split('\n').map((line) => {
+    const isSectionHeading = /^SECTION\s+\d+/i.test(line);
+    return new Paragraph({
+      alignment: line.trim() ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+      spacing: { after: line.trim() ? 80 : 120 },
+      children: [new TextRun({ text: line || ' ', bold: isSectionHeading, size: isSectionHeading ? 24 : 22 })],
+    });
   });
 }
 
@@ -463,8 +322,7 @@ export function ExportPageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
-  const drafts = draftsPage?.data;
+  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts();
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [selectedVersionId, setSelectedVersionId] = useState('');
@@ -575,6 +433,11 @@ export function ExportPageContent() {
                 <div className='space-y-2'>
                   <Skeleton className='h-10' />
                   <Skeleton className='h-10' />
+                </div>
+              ) : draftsError ? (
+                <div className='space-y-3 text-sm text-destructive'>
+                  <p>Unable to load the complete draft list.</p>
+                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>Retry</Button>
                 </div>
               ) : !drafts || drafts.length === 0 ? (
                 <div className='text-center py-4'>

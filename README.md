@@ -1,12 +1,12 @@
 # LexiGov AI
 
-An AI-powered platform for drafting **RA 7160-compliant** local government ordinances for Philippine Local Government Units (LGUs).
+An AI-assisted platform for drafting Philippine local government ordinances with advisory RA 7160 checks for Local Government Units (LGUs).
 
 ---
 
 ## Overview
 
-LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI with a structured document workflow. It supports multiple jurisdiction levels (Barangay, City, Municipal, Provincial) and document types (Ordinance, Resolution, Memorandum, Policy), with built-in RA 7160 compliance checking.
+LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI with a structured document workflow. It supports multiple jurisdiction levels (Barangay, City, Municipal, Provincial) and document types (Ordinance, Resolution, Memorandum, Policy), with built-in, advisory RA 7160 drafting checks. Automated results are not legal certifications.
 
 ---
 
@@ -29,7 +29,7 @@ LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI 
 ## Features
 
 - **AI Ordinance Generation** — Generate complete, professionally formatted ordinances from a plain-language prompt using Azure OpenAI
-- **RA 7160 Compliance Checking** — Automated compliance scoring against the Local Government Code of 1991
+- **RA 7160 Advisory Checks** — Automated drafting signals against selected Local Government Code requirements
 - **Draft Management** — Create, edit, and track ordinance drafts through a status workflow (Draft → Review → Final → Archived)
 - **Template Library** — Reusable ordinance templates by category and jurisdiction level, with manual and AI draft entry points
 - **Version History & Compare** — Each substantive save snapshots the prior draft state and enables line-by-line comparison between revisions
@@ -98,7 +98,7 @@ tests/                        # Test files
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22.13+
 - An Azure OpenAI resource with a deployed chat model
 - PostgreSQL (for NestJS API)
 
@@ -161,7 +161,7 @@ This starts both Next.js (web) and NestJS (API) concurrently. Open [http://local
 - Saved template flow is active from `/templates` into `/drafts/new` and `/ai`
 - Draft edits create saved revision snapshots that can be compared in `/compare`
 - Compliance reports are persisted with draft version metadata
-- The `docs/` folder contains archived planning material from an older Prisma/Firebase architecture and should not be used as the source of truth for the running app
+- `docs/ARCHITECTURE.md` describes the implemented system and explicitly identifies unimplemented infrastructure
 
 ---
 
