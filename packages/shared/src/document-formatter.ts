@@ -122,8 +122,6 @@ export function buildDefaultDocumentFormatConfig(
     signatories.approvalDate = milestones.lceActionDate;
   }
 
-  const currentDate = new Date().toISOString().split('T')[0] ?? '2026-08-15';
-
   return {
     paperSize: 'A4',
     fontFamily: 'Book Antiqua',
@@ -136,8 +134,8 @@ export function buildDefaultDocumentFormatConfig(
     signatories,
     sessionDetails: {
       sessionType: 'REGULAR',
-      sessionDate: milestones?.thirdReadingDate || milestones?.firstReadingDate || currentDate,
-      sessionVenue: 'Legislative Session Hall',
+      sessionDate: milestones?.thirdReadingDate || milestones?.firstReadingDate || '',
+      sessionVenue: '',
       presentMembers: [],
       absentMembers: [],
     },
@@ -231,16 +229,18 @@ export function generateOfficialDocumentText(data: FormattedDocumentData, config
 
   const lines: string[] = ['WORKING DRAFT — NOT AN OFFICIAL RECORD\n'];
 
-  // 1. Official Header
-  lines.push('REPUBLIC OF THE PHILIPPINES');
-  lines.push(data.jurisdictionName.toUpperCase());
-  lines.push(officeName);
-  lines.push('------------------------------------------------------------\n');
+  // 1. Optional government-style header
+  if (config.includeSeals) {
+    lines.push('REPUBLIC OF THE PHILIPPINES');
+    lines.push(data.jurisdictionName.toUpperCase());
+    lines.push(officeName);
+    lines.push('------------------------------------------------------------\n');
+  }
 
   // 2. Session Minutes Excerpt
   if (config.includeSessionExcerpt && config.sessionDetails) {
     lines.push(
-      `EXCERPT FROM THE MINUTES OF THE ${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody} HELD AT ${config.sessionDetails.sessionVenue.toUpperCase()} ON ${config.sessionDetails.sessionDate}.\n`,
+      `DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES\n${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody}; VENUE: ${config.sessionDetails.sessionVenue.toUpperCase() || 'NOT PROVIDED'}; DATE: ${config.sessionDetails.sessionDate || 'NOT PROVIDED'}.\n`,
     );
     lines.push('PRESENT:');
     for (const member of config.sessionDetails.presentMembers) {
@@ -280,18 +280,16 @@ export function generateOfficialDocumentText(data: FormattedDocumentData, config
     lines.push(data.body);
   }
 
-  // 7. Signature Blocks
+  // 7. Proposed signatory placeholders. These never assert signature, adoption, or approval.
   if (config.includeSignatures) {
     lines.push('\n------------------------------------------------------------');
-    lines.push('I HEREBY CERTIFY to the correctness of the foregoing legislation.\n\n');
-    lines.push(`                                  ${config.signatories.secretaryName.toUpperCase()}`);
-    lines.push(`                              ${config.signatories.secretaryTitle}\n\n`);
-    lines.push('ATTESTED AND CERTIFIED TO BE DULY ADOPTED:\n\n');
-    lines.push(`                                  ${config.signatories.presidingOfficerName.toUpperCase()}`);
-    lines.push(`                              ${config.signatories.presidingOfficerTitle}\n\n`);
-    lines.push(`APPROVED: ${config.signatories.approvalDate || '________________'}\n\n`);
-    lines.push(`                                  ${config.signatories.chiefExecutiveName.toUpperCase()}`);
-    lines.push(`                              ${config.signatories.chiefExecutiveTitle}\n`);
+    lines.push('DRAFT SIGNATORY PLACEHOLDERS — NO SIGNATURE OR APPROVAL IS RECORDED\n');
+    lines.push(`Proposed Sanggunian Secretary: ${config.signatories.secretaryName.toUpperCase()}`);
+    lines.push(`${config.signatories.secretaryTitle}\n`);
+    lines.push(`Proposed Presiding Officer: ${config.signatories.presidingOfficerName.toUpperCase()}`);
+    lines.push(`${config.signatories.presidingOfficerTitle}\n`);
+    lines.push(`Proposed Local Chief Executive: ${config.signatories.chiefExecutiveName.toUpperCase()}`);
+    lines.push(`${config.signatories.chiefExecutiveTitle}\n`);
   }
 
   lines.push('\nThis export has not been authenticated or legally certified by LexiGov.');

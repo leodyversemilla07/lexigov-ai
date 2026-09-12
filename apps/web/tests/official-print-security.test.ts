@@ -31,5 +31,7 @@ describe('official print HTML security', () => {
     expect(html).toContain("script-src 'none'");
     expect(html).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
     expect(html).toContain('not been authenticated or legally certified');
+    expect(html).toContain('DRAFT SIGNATORY PLACEHOLDERS');
+    expect(html).not.toMatch(/I HEREBY CERTIFY|DULY ADOPTED|APPROVED:/);
   });
 });

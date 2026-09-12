@@ -112,5 +112,27 @@ SECTION 3. PENALTIES. — Violators shall be fined PHP 5,000.
       expect(text).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
       expect(text).toContain('not been authenticated or legally certified');
     });
+
+    it('renders optional signatories only as non-attesting draft placeholders', () => {
+      const config = buildDefaultDocumentFormatConfig('city', 'Pasig');
+      config.includeSignatures = true;
+      config.signatories.secretaryName = 'Sample Secretary';
+      config.includeSessionExcerpt = true;
+      const text = generateOfficialDocumentText(
+        {
+          title: 'Sample Working Draft',
+          documentType: 'ORDINANCE',
+          jurisdiction: 'city',
+          jurisdictionName: 'City of Pasig',
+          body: 'SECTION 1. SAMPLE. — Draft text.',
+        },
+        config,
+      );
+
+      expect(text).toContain('DRAFT SIGNATORY PLACEHOLDERS');
+      expect(text).toContain('Proposed Sanggunian Secretary: SAMPLE SECRETARY');
+      expect(text).toContain('DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES');
+      expect(text).not.toMatch(/I HEREBY CERTIFY|DULY ADOPTED|APPROVED:|EXCERPT FROM THE MINUTES/);
+    });
   });
 });

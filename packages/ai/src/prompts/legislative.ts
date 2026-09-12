@@ -31,7 +31,7 @@ ${citationContext || '- Republic Act No. 7160 (Local Government Code of 1991)'}
 
 Document Requirements:
 1. Republic Header ("REPUBLIC OF THE PHILIPPINES", Jurisdiction name, "OFFICE OF THE SANGGUNIAN")
-2. Formal Document Title (e.g. "ORDINANCE NO. 2025-___")
+2. Formal Document Title (e.g. "ORDINANCE NO. ____-___")
 3. Formal Preamble with WHEREAS clauses citing relevant statutory bases (RA 7160 § 16 General Welfare Clause, 1987 Constitution, and applicable national laws)
 4. Enacting Clause ("BE IT ORDAINED, by the Sanggunian in session assembled...")
 5. Standard Sections:
