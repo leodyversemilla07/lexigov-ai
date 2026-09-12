@@ -35,7 +35,8 @@ LexiGov AI streamlines the ordinance creation process by combining Azure OpenAI 
 - **Version History & Compare** — Each substantive save snapshots the prior draft state and enables line-by-line comparison between revisions
 - **Compliance History** — Saved compliance reports are tracked per draft version for later review
 - **Export** — Export drafts and saved revisions to TXT, Markdown, DOCX, and PDF
-- **Role-Based Access** — Roles: Admin, Legislative Staff, Barangay Secretary, City Council, Researcher
+- **Organization Workspaces** — Switch between personal and persisted Better Auth organization draft scopes
+- **Role-Based Access** — Server-derived user and organization membership roles for legislative actions
 - **Collapsible Sidebar** — shadcn sidebar-07 with collapse-to-icons navigation
 
 ---

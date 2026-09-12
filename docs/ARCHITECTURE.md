@@ -23,7 +23,7 @@ Better Auth runs in the web application with email/password, two-factor, organiz
 
 The API validates sessions against PostgreSQL on every request so logout, suspension, and role changes take effect immediately. Cookie-authenticated mutations require a configured trusted `Origin`.
 
-Draft access remains owner-scoped. Supplying an `organizationId` additionally requires persisted membership in that organization. Legislative workflow permissions are derived from persisted user or membership roles; client role headers are not trusted.
+Draft access remains owner-scoped. Supplying an `organizationId` additionally requires persisted membership in that organization. The frontend’s active Better Auth organization scopes draft lists, selectors, dashboard counts, and newly created manual or AI drafts; users can switch back to a personal workspace. Legislative workflow permissions are derived from persisted user or membership roles; client role headers are not trusted.
 
 ## Draft integrity and versioning
 

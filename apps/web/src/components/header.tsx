@@ -15,6 +15,7 @@ import { FolderOpenDot, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Fragment } from 'react';
+import { OrganizationSwitcher } from '@/components/organization-switcher';
 
 const routeLabels: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -67,7 +68,7 @@ export function Header() {
       <div className='flex items-center gap-3 min-w-0'>
         <SidebarTrigger className='-ml-1' />
         <Separator orientation='vertical' className='h-6' />
-        <div className='min-w-0'>
+        <div className='hidden min-w-0 sm:block'>
           <div className='font-medium truncate'>LexiGov AI Workspace</div>
           <Breadcrumb>
             <BreadcrumbList className='text-xs'>
@@ -90,14 +91,15 @@ export function Header() {
         </div>
       </div>
 
-      <div className='flex items-center gap-4'>
-        <Button variant='outline' size='sm' asChild>
+      <div className='flex items-center gap-3'>
+        <OrganizationSwitcher />
+        <Button variant='outline' size='sm' className='hidden lg:inline-flex' asChild>
           <Link href='/templates'>
             <FolderOpenDot className='mr-2 h-4 w-4' />
             Templates
           </Link>
         </Button>
-        <Button size='sm' asChild>
+        <Button size='sm' className='hidden lg:inline-flex' asChild>
           <Link href='/ai'>
             <Sparkles className='mr-2 h-4 w-4' />
             AI Draft

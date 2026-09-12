@@ -38,6 +38,28 @@ describe('useAllDrafts', () => {
     ]);
   });
 
+  it('scopes every page request to the selected organization', async () => {
+    getMock
+      .mockResolvedValueOnce(page([draft('d1')], 1, 2))
+      .mockResolvedValueOnce(page([draft('d2')], 2, 2));
+    const { useAllDrafts } = await import('@/hooks/useAllDrafts');
+    const { result } = renderHook(() => useAllDrafts({ organizationId: 'org/id' }));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(getMock.mock.calls.map(([path]) => path)).toEqual([
+      '/drafts?page=1&limit=100&organizationId=org%2Fid',
+      '/drafts?page=2&limit=100&organizationId=org%2Fid',
+    ]);
+  });
+
+  it('does not request personal drafts while workspace resolution is pending', async () => {
+    const { useAllDrafts } = await import('@/hooks/useAllDrafts');
+    const { result } = renderHook(() => useAllDrafts({ enabled: false }));
+
+    expect(result.current.isLoading).toBe(true);
+    expect(getMock).not.toHaveBeenCalled();
+  });
+
   it('fails the complete load rather than presenting a partial list', async () => {
     getMock.mockResolvedValueOnce(page([draft('d1')], 1, 2)).mockRejectedValueOnce(new Error('page failed'));
     const { useAllDrafts } = await import('@/hooks/useAllDrafts');

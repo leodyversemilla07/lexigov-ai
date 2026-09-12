@@ -12,6 +12,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useAllDrafts } from '@/hooks/useAllDrafts';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
 import type { ApiComplianceReport, ApiComplianceResult, ApiDraft } from '@/types';
@@ -20,18 +21,29 @@ export function CompliancePageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts();
+  const { organizationId, isLoading: isScopeLoading } = useDraftScope();
+  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts({
+    organizationId,
+    enabled: !isScopeLoading,
+  });
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [isChecking, setIsChecking] = useState(false);
   const [result, setResult] = useState<ApiComplianceResult | null>(null);
   const checkRequestRef = useRef(0);
+  const previousScopeRef = useRef(organizationId);
 
   useEffect(() => {
     checkRequestRef.current += 1;
     setResult(null);
     setIsChecking(false);
   }, [selectedDraftId]);
+
+  useEffect(() => {
+    if (previousScopeRef.current === organizationId) return;
+    previousScopeRef.current = organizationId;
+    setSelectedDraftId('');
+  }, [organizationId]);
 
   const selectedDraft = drafts?.find((d: ApiDraft) => d.id === selectedDraftId);
   const { data: reportHistory, refetch: refetchReportHistory } = useApiQuery<ApiComplianceReport[]>(

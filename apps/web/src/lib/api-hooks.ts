@@ -83,6 +83,7 @@ export function useApiQuery<T>(path: string | null, options?: UseApiQueryOptions
       latestRequestRef.current = requestId;
       abortRef.current = controller;
 
+      if (noCache) setData(undefined);
       setStatus('loading');
       setError(null);
 

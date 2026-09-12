@@ -8,14 +8,19 @@ import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { ArrowLeftRight, FileCheck, GitCompareArrows } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useAllDrafts } from '@/hooks/useAllDrafts';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { useApiQuery } from '@/lib/api-hooks';
 import type { ApiDraft, ApiDraftVersion } from '@/types';
 
 function ComparePageContent() {
   const searchParams = useSearchParams();
-  const { data: drafts, error: draftsError, refetch: refetchDrafts } = useAllDrafts();
+  const { organizationId, isLoading: isScopeLoading } = useDraftScope();
+  const { data: drafts, error: draftsError, refetch: refetchDrafts } = useAllDrafts({
+    organizationId,
+    enabled: !isScopeLoading,
+  });
   const initialDraftId = searchParams.get('draft') ?? '';
   const [selectedDraftId, setSelectedDraftId] = useState(initialDraftId);
   const { data: versions } = useApiQuery<ApiDraftVersion[]>(
@@ -23,6 +28,15 @@ function ComparePageContent() {
   );
   const [leftVersionId, setLeftVersionId] = useState('');
   const [rightVersionId, setRightVersionId] = useState('');
+  const previousScopeRef = useRef(organizationId);
+
+  useEffect(() => {
+    if (previousScopeRef.current === organizationId) return;
+    previousScopeRef.current = organizationId;
+    setSelectedDraftId('');
+    setLeftVersionId('');
+    setRightVersionId('');
+  }, [organizationId]);
 
   const draftOptions = drafts ?? [];
   const versionOptions = versions ?? [];

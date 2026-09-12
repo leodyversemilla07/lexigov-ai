@@ -20,10 +20,11 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
 import { useAllDrafts } from '@/hooks/useAllDrafts';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { useApiQuery } from '@/lib/api-hooks';
 import type { ApiDraft, ApiDraftVersion } from '@/types';
 
@@ -322,7 +323,11 @@ export function ExportPageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts();
+  const { organizationId, isLoading: isScopeLoading } = useDraftScope();
+  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts({
+    organizationId,
+    enabled: !isScopeLoading,
+  });
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [selectedVersionId, setSelectedVersionId] = useState('');
@@ -331,6 +336,17 @@ export function ExportPageContent() {
   const [exportSuccess, setExportSuccess] = useState(false);
   const [previewContent, setPreviewContent] = useState<string>('');
   const [showPreview, setShowPreview] = useState(false);
+  const previousScopeRef = useRef(organizationId);
+
+  useEffect(() => {
+    if (previousScopeRef.current === organizationId) return;
+    previousScopeRef.current = organizationId;
+    setSelectedDraftId('');
+    setSelectedVersionId('');
+    setPreviewContent('');
+    setShowPreview(false);
+    setExportSuccess(false);
+  }, [organizationId]);
 
   const { data: versionHistory } = useApiQuery<ApiDraftVersion[]>(
     selectedDraftId ? `/drafts/${selectedDraftId}/versions` : null,

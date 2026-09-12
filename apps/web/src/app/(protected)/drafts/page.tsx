@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Pagination } from '@/components/pagination';
 import { useDebounce } from '@/hooks/use-debounce';
+import { appendDraftScope, useDraftScope } from '@/hooks/useDraftScope';
 import { useApiQuery } from '@/lib/api-hooks';
 import type { ApiDraft, PaginatedResponse } from '@/types';
 
@@ -41,6 +42,7 @@ export default function DraftsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
 
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const { organization, organizationId, isLoading: isScopeLoading } = useDraftScope();
 
   const queryParams = new URLSearchParams({
     page: String(currentPage),
@@ -50,8 +52,10 @@ export default function DraftsPage() {
   if (statusFilter !== 'ALL') queryParams.set('status', statusFilter);
   if (typeFilter !== 'ALL') queryParams.set('documentType', typeFilter);
 
-  const apiPath = `/drafts?${queryParams.toString()}`;
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(apiPath);
+  const apiPath = appendDraftScope(`/drafts?${queryParams.toString()}`, organizationId);
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(
+    isScopeLoading ? null : apiPath,
+  );
   const drafts = draftsPage?.data ?? [];
   const totalCount = draftsPage?.total ?? 0;
 
@@ -75,8 +79,14 @@ export default function DraftsPage() {
       {/* Header */}
       <div className='flex items-center justify-between'>
         <div>
-          <h1 className='text-3xl font-bold tracking-tight'>My Drafts</h1>
-          <p className='text-muted-foreground mt-1'>Manage and organize your ordinance drafts</p>
+          <h1 className='text-3xl font-bold tracking-tight'>
+            {organization ? `${organization.name} Drafts` : 'My Drafts'}
+          </h1>
+          <p className='text-muted-foreground mt-1'>
+            {organization
+              ? 'Manage drafts in the active organization workspace'
+              : 'Manage your personal ordinance drafts'}
+          </p>
         </div>
         <div className='flex gap-2'>
           <Button variant='outline' asChild>
@@ -170,7 +180,7 @@ export default function DraftsPage() {
       {/* Drafts List */}
       <Card>
         <CardContent className='p-0'>
-          {isLoading ? (
+          {isLoading || isScopeLoading ? (
             <div className='p-6 space-y-4'>
               {['draft-skeleton-1', 'draft-skeleton-2', 'draft-skeleton-3', 'draft-skeleton-4', 'draft-skeleton-5'].map(
                 (skeletonKey) => (
