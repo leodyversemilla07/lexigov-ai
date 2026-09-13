@@ -9,8 +9,22 @@ export function resolveStoredRole(value: unknown): SanggunianRole | null {
   if (isSanggunianRole(role)) return role;
   if (role === 'ADMIN' || role === 'OWNER') return 'LGU_ADMIN';
   if (role === 'BARANGAY_SECRETARY') return 'SANGGUNIAN_SECRETARY';
-  if (['USER', 'MEMBER', 'RESEARCHER', 'CITY_COUNCIL'].includes(role)) return 'LEGISLATIVE_STAFF';
+  if (['USER', 'MEMBER', 'CITY_COUNCIL'].includes(role)) return 'LEGISLATIVE_STAFF';
   return null;
+}
+
+export async function hasOrganizationResourceAccess(
+  prisma: Pick<Prisma.TransactionClient, 'member'>,
+  organizationId: string | null | undefined,
+  ownerId: string,
+  userId: string,
+): Promise<boolean> {
+  if (!userId) return false;
+  if (!organizationId) return ownerId === userId;
+  const member = await prisma.member.findUnique({
+    where: { organizationId_userId: { organizationId, userId } },
+  });
+  return Boolean(member);
 }
 
 export async function requireOrganizationMembership(
@@ -27,16 +41,24 @@ export async function requireOrganizationMembership(
   return member;
 }
 
+export async function resolveDraftResourceRole(
+  prisma: Pick<Prisma.TransactionClient, 'member' | 'user'>,
+  organizationId: string | null | undefined,
+  userId: string,
+): Promise<SanggunianRole | null> {
+  const member = await requireOrganizationMembership(prisma, organizationId, userId);
+  const storedRole = member
+    ? member.role
+    : (await prisma.user.findUnique({ where: { id: userId }, select: { role: true } }))?.role;
+  return resolveStoredRole(storedRole);
+}
+
 export async function requireDraftWriteRole(
   prisma: Pick<Prisma.TransactionClient, 'member' | 'user'>,
   organizationId: string | null | undefined,
   userId: string,
 ): Promise<SanggunianRole> {
-  const member = await requireOrganizationMembership(prisma, organizationId, userId);
-  const storedRole = member
-    ? member.role
-    : (await prisma.user.findUnique({ where: { id: userId }, select: { role: true } }))?.role;
-  const role = resolveStoredRole(storedRole);
+  const role = await resolveDraftResourceRole(prisma, organizationId, userId);
   if (!role) throw new ForbiddenException('Your role does not permit draft changes');
   return role;
 }

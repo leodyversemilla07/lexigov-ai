@@ -1,4 +1,4 @@
-import type { DocumentStatus, DraftSection } from '@lexigov/shared';
+import type { DocumentStatus, DraftSection, SanggunianRole } from '@lexigov/shared';
 
 export type ComplianceIssue = {
   type: 'critical' | 'warning' | 'suggestion';
@@ -65,6 +65,9 @@ export type Draft = {
   commitMessage?: string;
   createdAt: string;
   updatedAt: string;
+  effectiveRole?: SanggunianRole | null;
+  canEdit?: boolean;
+  canDelete?: boolean;
 };
 
 export type DraftEditorState = {

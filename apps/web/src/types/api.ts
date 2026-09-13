@@ -23,6 +23,9 @@ export interface ApiDraft {
   commitMessage?: string;
   createdAt?: string;
   updatedAt: string;
+  effectiveRole?: string | null;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export interface ApiDraftVersion {

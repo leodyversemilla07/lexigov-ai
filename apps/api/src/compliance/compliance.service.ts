@@ -1,7 +1,7 @@
 import { analyzeDeterministicCompliance, extractDraftBody } from '@lexigov/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
-import { requireOrganizationMembership } from '../auth/organization-access';
+import { hasOrganizationResourceAccess } from '../auth/organization-access';
 import { isJurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -10,14 +10,11 @@ export class ComplianceService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async checkDraft(draftId: string, userId: string) {
-    const draft = await this.prisma.draft.findFirst({
-      where: { id: draftId, userId },
-    });
-    if (!draft) {
+    const draft = await this.prisma.draft.findUnique({ where: { id: draftId } });
+    if (!draft || !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))) {
       throw new NotFoundException('Draft not found');
     }
 
-    await requireOrganizationMembership(this.prisma, draft.organizationId, userId);
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
     // Mirror AiService behaviour: skip deterministic analysis (and do not
@@ -62,11 +59,10 @@ export class ComplianceService {
   }
 
   async getReports(draftId: string, userId: string) {
-    const draft = await this.prisma.draft.findFirst({
-      where: { id: draftId, userId },
-    });
-    if (!draft) return [];
-    await requireOrganizationMembership(this.prisma, draft.organizationId, userId);
+    const draft = await this.prisma.draft.findUnique({ where: { id: draftId } });
+    if (!draft || !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))) {
+      return [];
+    }
 
     return this.prisma.complianceReport.findMany({
       where: { draftId },

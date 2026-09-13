@@ -16,6 +16,7 @@ type DraftStudioProps = {
   onContentChange: (content: string) => void;
   onSectionSelect: (sectionId: string) => void;
   onAddSection: () => void;
+  readOnly?: boolean;
 };
 
 export function DraftStudio({
@@ -26,6 +27,7 @@ export function DraftStudio({
   onContentChange,
   onSectionSelect,
   onAddSection,
+  readOnly = false,
 }: DraftStudioProps) {
   return (
     <Card>
@@ -72,6 +74,7 @@ export function DraftStudio({
                 rows={24}
                 className='h-full min-h-[620px] resize-y border-0 bg-transparent px-0 py-0 font-mono text-sm leading-7 shadow-none focus-visible:ring-0'
                 placeholder='Start writing your ordinance here...'
+                readOnly={readOnly}
               />
             </div>
           </div>
@@ -86,7 +89,7 @@ export function DraftStudio({
                   Jump between sections and expand the ordinance structure.
                 </div>
               </div>
-              <Button variant='outline' size='sm' onClick={onAddSection}>
+              <Button variant='outline' size='sm' onClick={onAddSection} disabled={readOnly}>
                 <Plus className='mr-2 h-4 w-4' />
                 Add
               </Button>

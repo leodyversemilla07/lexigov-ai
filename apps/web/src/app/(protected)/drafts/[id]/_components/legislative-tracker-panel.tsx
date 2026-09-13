@@ -17,13 +17,14 @@ import { Input } from '@lexigov/ui/components/input';
 import { Label } from '@lexigov/ui/components/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@lexigov/ui/components/select';
 import { AlertCircle, Clock, FileCheck, Landmark, Send, ShieldCheck, Vote } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type LegislativeTrackerPanelProps = {
   jurisdiction: string;
   milestones?: LegislativeMilestones;
   currentUserRole?: SanggunianRole;
   onUpdateMilestones?: (milestones: LegislativeMilestones) => void;
+  readOnly?: boolean;
 };
 
 export function LegislativeTrackerPanel({
@@ -31,9 +32,15 @@ export function LegislativeTrackerPanel({
   milestones: initialMilestones,
   currentUserRole = 'LEGISLATIVE_STAFF',
   onUpdateMilestones,
+  readOnly = false,
 }: LegislativeTrackerPanelProps) {
   const [milestones, setMilestones] = useState<LegislativeMilestones>(initialMilestones || getDefaultMilestones());
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMilestones(initialMilestones || getDefaultMilestones());
+    setValidationError(null);
+  }, [initialMilestones]);
 
   const currentStageInfo = LEGISLATIVE_STAGES.find((s) => s.stage === milestones.currentStage) || LEGISLATIVE_STAGES[0];
   const roleInfo = SANGGUNIAN_ROLE_LABELS[currentUserRole] || SANGGUNIAN_ROLE_LABELS.LEGISLATIVE_STAFF;
@@ -133,7 +140,11 @@ export function LegislativeTrackerPanel({
           <Label htmlFor='advance-stage-select' className='text-xs text-muted-foreground'>
             Advance Legislative Stage
           </Label>
-          <Select value={milestones.currentStage} onValueChange={(val) => handleStageChange(val as LegislativeStage)}>
+          <Select
+            value={milestones.currentStage}
+            onValueChange={(val) => handleStageChange(val as LegislativeStage)}
+            disabled={readOnly}
+          >
             <SelectTrigger
               id='advance-stage-select'
               data-testid='legislative.tracker.stage-select'
@@ -166,6 +177,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.firstReadingDate || ''}
                     onChange={(e) => handleFieldChange('firstReadingDate', e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
                 <div>
@@ -175,6 +187,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.referredCommittee || ''}
                     onChange={(e) => handleFieldChange('referredCommittee', e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -194,6 +207,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.committeeHearingDate || ''}
                     onChange={(e) => handleFieldChange('committeeHearingDate', e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
                 <div>
@@ -203,6 +217,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.committeeReportNo || ''}
                     onChange={(e) => handleFieldChange('committeeReportNo', e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -222,6 +237,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.votingRecord?.ayes || 0}
                     onChange={(e) => handleVotingChange('ayes', parseInt(e.target.value, 10) || 0)}
+                    disabled={readOnly}
                   />
                 </div>
                 <div>
@@ -231,6 +247,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.votingRecord?.nays || 0}
                     onChange={(e) => handleVotingChange('nays', parseInt(e.target.value, 10) || 0)}
+                    disabled={readOnly}
                   />
                 </div>
                 <div>
@@ -240,6 +257,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.votingRecord?.abstentions || 0}
                     onChange={(e) => handleVotingChange('abstentions', parseInt(e.target.value, 10) || 0)}
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -261,6 +279,7 @@ export function LegislativeTrackerPanel({
                     className='h-7 text-xs'
                     value={milestones.transmittedDate || ''}
                     onChange={(e) => handleFieldChange('transmittedDate', e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
                 <div>
@@ -275,6 +294,7 @@ export function LegislativeTrackerPanel({
                 <Select
                   value={milestones.lceAction || 'PENDING'}
                   onValueChange={(val) => handleFieldChange('lceAction', val)}
+                  disabled={readOnly}
                 >
                   <SelectTrigger className='h-7 text-xs'>
                     <SelectValue />
@@ -285,9 +305,6 @@ export function LegislativeTrackerPanel({
                     </SelectItem>
                     <SelectItem value='APPROVED' className='text-xs'>
                       Approved & Signed
-                    </SelectItem>
-                    <SelectItem value='LAPSED_INTO_LAW' className='text-xs'>
-                      Lapsed into Law (§ 54)
                     </SelectItem>
                     <SelectItem value='VETOED' className='text-xs'>
                       Vetoed with Objections

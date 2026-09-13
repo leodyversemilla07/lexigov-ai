@@ -19,12 +19,13 @@ import { Card, CardContent } from '@lexigov/ui/components/card';
 import { Input } from '@lexigov/ui/components/input';
 import { Label } from '@lexigov/ui/components/label';
 import { Skeleton } from '@lexigov/ui/components/skeleton';
-import { ArrowLeft, CheckCircle, Download, FileText, Loader2, Save, Shield, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Download, FileText, Loader2, Save, Shield, Sparkles, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ApiError, api } from '@/lib/api-client';
+import { useSession } from '@/lib/auth-client';
 import { useApiQuery } from '@/lib/api-hooks';
 import {
   CompliancePulsePanel,
@@ -47,6 +48,7 @@ import {
 export default function DraftEditorPage() {
   const params = useParams();
   const draftId = params.id as string;
+  const { data: session } = useSession();
 
   // API queries
   const { data: draft, isLoading: draftLoading, refetch: refetchDraft } = useApiQuery<Draft>(`/drafts/${draftId}`);
@@ -95,6 +97,7 @@ export default function DraftEditorPage() {
   const currentComplianceReport = complianceHistory?.find(
     (report) => report.draftVersion === draft?.version && !report.revisionDraftId,
   );
+  const isReadOnly = draft?.canEdit === false;
   const latestCompliance: ComplianceSummaryData | null | undefined = complianceResult
     ? {
         overallScore: complianceResult.overallScore,
@@ -158,7 +161,7 @@ export default function DraftEditorPage() {
   };
 
   const handleSave = async () => {
-    if (!draft) return;
+    if (!draft || isReadOnly) return;
     setIsSaving(true);
     setSaveSuccess(false);
     try {
@@ -192,7 +195,7 @@ export default function DraftEditorPage() {
     setIsCheckingCompliance(true);
     setShowCompliance(true);
     try {
-      await saveCurrentDraft();
+      if (!isReadOnly) await saveCurrentDraft();
       const result = await api.post<ComplianceResult>(`/compliance/${draftId}/check`);
       setComplianceResult(result);
       await Promise.all([refetchDraft(), refetchVersions(), refetchComplianceHistory()]);
@@ -206,7 +209,7 @@ export default function DraftEditorPage() {
   };
 
   const handleRestoreVersion = async (versionId: string, versionNumber: number) => {
-    if (!draft) return;
+    if (!draft || isReadOnly) return;
     setIsRestoringVersionId(versionId);
     try {
       await saveCurrentDraft();
@@ -277,9 +280,20 @@ export default function DraftEditorPage() {
                     AI generated
                   </Badge>
                 ) : null}
+                {draft.organizationId && session?.user.id && draft.userId !== session.user.id ? (
+                  <Badge variant='outline' className='rounded-full px-3 py-1'>
+                    <Users className='mr-1.5 h-3.5 w-3.5' />
+                    Shared organization draft
+                  </Badge>
+                ) : null}
                 <Badge variant='outline' className='rounded-full px-3 py-1'>
                   v{draft.version}
                 </Badge>
+                {isReadOnly ? (
+                  <Badge variant='outline' className='rounded-full px-3 py-1'>
+                    Read-only access
+                  </Badge>
+                ) : null}
               </div>
 
               <div className='max-w-4xl'>
@@ -291,6 +305,7 @@ export default function DraftEditorPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className='h-auto border-0 bg-transparent px-0 text-3xl font-bold tracking-tight shadow-none focus-visible:ring-0'
+                  readOnly={isReadOnly}
                 />
               </div>
 
@@ -330,7 +345,7 @@ export default function DraftEditorPage() {
                 Preview
               </Link>
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={isSaving || isReadOnly}>
               {isSaving ? (
                 <>
                   <Loader2 className='mr-2 h-4 w-4 animate-spin' />
@@ -395,6 +410,7 @@ export default function DraftEditorPage() {
             onContentChange={handleContentChange}
             onSectionSelect={setSelectedSectionId}
             onAddSection={handleAddSection}
+            readOnly={isReadOnly}
           />
 
           <SectionEditor
@@ -405,16 +421,19 @@ export default function DraftEditorPage() {
             documentType={draft.documentType}
             onSectionChange={handleSectionChange}
             onRemoveSection={handleRemoveSection}
+            readOnly={isReadOnly}
           />
         </div>
 
         <div className='space-y-6'>
-          <WorkflowPanel draft={draft} status={status} onStatusChange={setStatus} />
+          <WorkflowPanel draft={draft} status={status} onStatusChange={setStatus} readOnly={isReadOnly} />
 
           <LegislativeTrackerPanel
             jurisdiction={draft.jurisdiction}
             milestones={milestones}
+            currentUserRole={draft.effectiveRole ?? undefined}
             onUpdateMilestones={setMilestones}
+            readOnly={isReadOnly}
           />
 
           <CompliancePulsePanel
@@ -426,6 +445,7 @@ export default function DraftEditorPage() {
             versionHistory={versionHistory ?? undefined}
             isRestoringVersionId={isRestoringVersionId}
             onRestoreVersion={handleRestoreVersion}
+            readOnly={isReadOnly}
           />
         </div>
       </div>

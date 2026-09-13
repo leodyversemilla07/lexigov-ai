@@ -571,21 +571,96 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
     expect(prisma._state.drafts.size).toBe(0);
   });
 
-  it('filters drafts by organizationId when provided in query', async () => {
+  it('lists every organization draft for a persisted member', async () => {
     const { service, prisma } = buildService();
-    await service.create({ ...baseCreateInput, title: 'LGU 1 Draft', organizationId: 'org_1' }, 'user_1');
-    await service.create({ ...baseCreateInput, title: 'LGU 2 Draft', organizationId: 'org_2' }, 'user_2');
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared LGU Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    await service.create({ ...baseCreateInput, title: 'Other LGU Draft', organizationId: 'org_2' }, 'user_2');
 
-    await service.findAll('user_1', { organizationId: 'org_1' });
+    const result = await service.findAll('member_user', { organizationId: 'org_1' });
 
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: sharedDraft.id,
+        effectiveRole: 'LEGISLATIVE_STAFF',
+        canEdit: true,
+        canDelete: false,
+      }),
+    ]);
     expect(prisma.draft.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
+        where: {
           organizationId: 'org_1',
           parentDraftId: null,
-        }),
+        },
       }),
     );
+  });
+
+  it('allows a persisted organization member to read and update another member\'s draft', async () => {
+    const { service } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+
+    await expect(service.findOne(sharedDraft.id, 'member_user')).resolves.toMatchObject({ id: sharedDraft.id });
+    const updated = await service.update(
+      sharedDraft.id,
+      { title: 'Collaboratively Updated', expectedVersion: 1 },
+      'member_user',
+    );
+    expect(updated).toMatchObject({ title: 'Collaboratively Updated', version: 2 });
+  });
+
+  it('prevents a non-admin collaborator from deleting another member\'s organization draft', async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+
+    await expect(service.remove(sharedDraft.id, 'member_user')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma._state.drafts.has(sharedDraft.id)).toBe(true);
+  });
+
+  it('allows an organization administrator to delete another member\'s draft', async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    prisma.member.findUnique
+      .mockResolvedValueOnce({ organizationId: 'org_1', userId: 'admin_user', role: 'owner' } as never)
+      .mockResolvedValueOnce({ organizationId: 'org_1', userId: 'admin_user', role: 'owner' } as never);
+
+    await expect(service.remove(sharedDraft.id, 'admin_user')).resolves.toEqual({ success: true });
+    expect(prisma._state.drafts.has(sharedDraft.id)).toBe(false);
+  });
+
+  it('returns not found for a non-member without exposing an organization draft', async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Private LGU Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    prisma.member.findUnique.mockResolvedValueOnce(null as never);
+
+    await expect(service.findOne(sharedDraft.id, 'outsider_user')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('reports read-only capabilities for a researcher-owned personal draft', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+    prisma.user.findUnique.mockResolvedValueOnce({ id: userId, role: 'researcher' });
+
+    await expect(service.findOne(draft.id, userId)).resolves.toMatchObject({
+      effectiveRole: null,
+      canEdit: false,
+      canDelete: false,
+    });
   });
 
   it('throws ConflictException on update when expectedVersion does not match current version (OCC)', async () => {

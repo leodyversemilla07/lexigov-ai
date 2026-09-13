@@ -10,9 +10,10 @@ type WorkflowPanelProps = {
   draft: Draft;
   status: DocumentStatus;
   onStatusChange: (status: DocumentStatus) => void;
+  readOnly?: boolean;
 };
 
-export function WorkflowPanel({ draft, status, onStatusChange }: WorkflowPanelProps) {
+export function WorkflowPanel({ draft, status, onStatusChange, readOnly = false }: WorkflowPanelProps) {
   return (
     <SidePanelCard title='Workflow' description='Keep the draft status and context accurate before review.'>
       <div className='space-y-4'>
@@ -26,7 +27,7 @@ export function WorkflowPanel({ draft, status, onStatusChange }: WorkflowPanelPr
               {status}
             </Badge>
           </div>
-          <Select value={status} onValueChange={(value) => onStatusChange(value as DocumentStatus)}>
+          <Select value={status} onValueChange={(value) => onStatusChange(value as DocumentStatus)} disabled={readOnly}>
             <SelectTrigger id='draft-status' data-testid='workflow.panel.status-select' className='h-11 w-full'>
               <SelectValue />
             </SelectTrigger>

@@ -6,9 +6,20 @@ import {
   toJurisdictionLevel,
   validateStageTransition,
 } from '@lexigov/shared';
-import { ConflictException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
-import { requireDraftWriteRole, requireOrganizationMembership } from '../auth/organization-access';
+import {
+  hasOrganizationResourceAccess,
+  requireDraftWriteRole,
+  resolveDraftResourceRole,
+} from '../auth/organization-access';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,6 +31,18 @@ import type { UpdateDraftDto } from './dto/update-draft.dto';
 @Injectable()
 export class DraftsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  private async getAccessibleDraft(
+    prisma: Pick<Prisma.TransactionClient, 'draft' | 'member'>,
+    id: string,
+    userId: string,
+  ) {
+    const draft = await prisma.draft.findUnique({ where: { id } });
+    if (!draft || !(await hasOrganizationResourceAccess(prisma, draft.organizationId, draft.userId, userId))) {
+      throw new NotFoundException('Draft not found');
+    }
+    return draft;
+  }
 
   async create(dto: CreateDraftDto, userId: string) {
     const now = new Date();
@@ -65,14 +88,14 @@ export class DraftsService {
     const query = typeof queryOrStatus === 'string' ? { status: queryOrStatus } : queryOrStatus;
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
-    // Keep the existing owner-scoped contract. Selecting a tenant must never broaden access.
-    const where: Record<string, unknown> = { parentDraftId: null, userId };
+    const where: Record<string, unknown> = { parentDraftId: null };
+    const actorRole = await resolveDraftResourceRole(this.prisma, query.organizationId, userId);
 
     if (query.organizationId) {
-      await requireOrganizationMembership(this.prisma, query.organizationId, userId);
       where.organizationId = query.organizationId;
     } else {
-      // Organization drafts are requested explicitly so former members cannot list them by omission.
+      // Personal scope remains owner-only. Organization records are always requested explicitly.
+      where.userId = userId;
       where.organizationId = null;
     }
 
@@ -95,24 +118,33 @@ export class DraftsService {
       this.prisma.draft.count({ where: where as Prisma.DraftWhereInput }),
     ]);
 
-    return buildPaginatedResult(data, page, limit, total);
+    return buildPaginatedResult(
+      data.map((draft) => ({
+        ...draft,
+        effectiveRole: actorRole,
+        canEdit: Boolean(actorRole),
+        canDelete: Boolean(actorRole) && (draft.userId === userId || actorRole === 'LGU_ADMIN'),
+      })),
+      page,
+      limit,
+      total,
+    );
   }
 
   async findOne(id: string, userId: string) {
-    const draft = await this.prisma.draft.findFirst({
-      where: { id, userId },
-    });
-    if (!draft) throw new NotFoundException('Draft not found');
-    await requireOrganizationMembership(this.prisma, draft.organizationId, userId);
-    return draft;
+    const draft = await this.getAccessibleDraft(this.prisma, id, userId);
+    const actorRole = await resolveDraftResourceRole(this.prisma, draft.organizationId, userId);
+    return {
+      ...draft,
+      effectiveRole: actorRole,
+      canEdit: Boolean(actorRole),
+      canDelete: Boolean(actorRole) && (draft.userId === userId || actorRole === 'LGU_ADMIN'),
+    };
   }
 
   async update(id: string, dto: UpdateDraftDto, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const draft = await tx.draft.findFirst({
-        where: { id, userId },
-      });
-      if (!draft) throw new NotFoundException('Draft not found');
+      const draft = await this.getAccessibleDraft(tx, id, userId);
       if (draft.parentDraftId) {
         throw new NotFoundException('Saved revisions are read-only');
       }
@@ -183,7 +215,7 @@ export class DraftsService {
       });
 
       const updated = await tx.draft.update({
-        where: { id, userId, version: previousVersion },
+        where: { id, version: previousVersion },
         data: {
           title: nextTitle,
           content: nextContent as unknown as Prisma.InputJsonValue,
@@ -235,15 +267,15 @@ export class DraftsService {
 
   async remove(id: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const draft = await tx.draft.findFirst({
-        where: { id, userId },
-      });
-      if (!draft) throw new NotFoundException('Draft not found');
+      const draft = await this.getAccessibleDraft(tx, id, userId);
       if (draft.parentDraftId) {
         throw new NotFoundException('Saved revisions cannot be deleted directly');
       }
 
-      await requireDraftWriteRole(tx, draft.organizationId, userId);
+      const actorRole = await requireDraftWriteRole(tx, draft.organizationId, userId);
+      if (draft.organizationId && draft.userId !== userId && actorRole !== 'LGU_ADMIN') {
+        throw new ForbiddenException('Only the draft owner or an organization administrator can delete this draft');
+      }
       const revisions = await tx.draft.findMany({
         where: { parentDraftId: id },
       });
@@ -296,10 +328,7 @@ export class DraftsService {
 
   async restoreVersion(draftId: string, versionId: string, userId: string, expectedVersion?: number) {
     return this.prisma.$transaction(async (tx) => {
-      const draft = await tx.draft.findFirst({
-        where: { id: draftId, userId },
-      });
-      if (!draft) throw new NotFoundException('Draft not found');
+      const draft = await this.getAccessibleDraft(tx, draftId, userId);
       if (draft.parentDraftId) {
         throw new NotFoundException('Saved revisions cannot be restored directly');
       }
@@ -342,7 +371,7 @@ export class DraftsService {
       });
 
       const updated = await tx.draft.update({
-        where: { id: draftId, userId, version: draft.version },
+        where: { id: draftId, version: draft.version },
         data: {
           title: versionDraft.title,
           content: {

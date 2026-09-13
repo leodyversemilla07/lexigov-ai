@@ -4,6 +4,7 @@ import { ComplianceService } from './compliance.service';
 interface DraftRecord {
   id: string;
   userId: string;
+  organizationId?: string | null;
   jurisdiction: string;
   content: unknown;
   version: number;
@@ -23,7 +24,8 @@ interface ComplianceReportRecord {
 }
 
 interface PrismaDouble {
-  draft: { findFirst: jest.Mock };
+  draft: { findUnique: jest.Mock };
+  member: { findUnique: jest.Mock };
   complianceReport: {
     create: jest.Mock;
     findMany: jest.Mock;
@@ -43,13 +45,13 @@ function buildPrismaDouble(): PrismaDouble {
   const auditLogs: Array<{ action: string; entityId: string; userId: string; changes?: unknown }> = [];
 
   const draft = {
-    findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) => {
-      return (
-        Array.from(drafts.values()).find((d) =>
-          Object.entries(where).every(([k, v]) => (d as unknown as Record<string, unknown>)[k] === v),
-        ) ?? null
-      );
-    }),
+    findUnique: jest.fn(async ({ where }: { where: { id: string } }) => drafts.get(where.id) ?? null),
+  };
+  const member = {
+    findUnique: jest.fn(async ({ where }: { where: { organizationId_userId: { organizationId: string; userId: string } } }) => ({
+      ...where.organizationId_userId,
+      role: 'member',
+    })),
   };
 
   const complianceReport = {
@@ -98,6 +100,7 @@ function buildPrismaDouble(): PrismaDouble {
 
   return {
     ...tx,
+    member,
     $transaction: jest.fn(async <T>(callback: (transaction: typeof tx) => Promise<T>) => callback(tx)),
     state: { drafts, reports, auditLogs },
   };
@@ -168,6 +171,37 @@ describe('ComplianceService.checkDraft', () => {
 
     await expect(service.checkDraft('draft_other_user', 'user_1')).rejects.toThrow('Draft not found');
     expect(prisma.state.auditLogs).toHaveLength(0);
+  });
+
+  it('allows an organization member to check another member\'s organization draft', async () => {
+    const { service, prisma } = buildService();
+    prisma.state.drafts.set('shared_draft', {
+      id: 'shared_draft',
+      userId: 'author_user',
+      organizationId: 'org_1',
+      jurisdiction: 'barangay',
+      content: { body: wellFormedBarangay },
+      version: 1,
+    });
+
+    await expect(service.checkDraft('shared_draft', 'member_user')).resolves.toHaveProperty('overallScore');
+    expect(prisma.state.reports).toHaveLength(1);
+  });
+
+  it('does not reveal an organization draft to a non-member', async () => {
+    const { service, prisma } = buildService();
+    prisma.state.drafts.set('shared_draft', {
+      id: 'shared_draft',
+      userId: 'author_user',
+      organizationId: 'org_1',
+      jurisdiction: 'barangay',
+      content: { body: wellFormedBarangay },
+      version: 1,
+    });
+    prisma.member.findUnique.mockResolvedValueOnce(null);
+
+    await expect(service.checkDraft('shared_draft', 'outsider_user')).rejects.toThrow('Draft not found');
+    expect(prisma.state.reports).toHaveLength(0);
   });
 
   it('runs deterministic analysis, persists a report, and writes an audit log entry', async () => {

@@ -16,6 +16,45 @@ describe('LegislativeTrackerPanel (Colocated Unit Test)', () => {
     expect(screen.getByText(/Step 2 of 7/)).toBeInTheDocument();
   });
 
+  it('disables workflow controls for read-only access and omits unsupported lapse actions', () => {
+    const milestones = createMockMilestones({
+      currentStage: 'TRANSMITTED_TO_LCE',
+      transmittedDate: '2026-01-01',
+    });
+
+    render(
+      <LegislativeTrackerPanel
+        jurisdiction='city'
+        milestones={milestones}
+        onUpdateMilestones={vi.fn()}
+        readOnly
+      />,
+    );
+
+    expect(screen.getByTestId('legislative.tracker.stage-select')).toBeDisabled();
+    expect(screen.queryByText(/Lapsed into Law/i)).not.toBeInTheDocument();
+  });
+
+  it('synchronizes its stage when refreshed milestone props arrive', () => {
+    const { rerender } = render(
+      <LegislativeTrackerPanel
+        jurisdiction='city'
+        milestones={createMockMilestones({ currentStage: 'DRAFTING' })}
+        onUpdateMilestones={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <LegislativeTrackerPanel
+        jurisdiction='city'
+        milestones={createMockMilestones({ currentStage: 'FIRST_READING' })}
+        onUpdateMilestones={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Step 2 of 7/)).toBeInTheDocument();
+  });
+
   it('renders active statutory role badge', () => {
     const milestones = createMockMilestones();
 

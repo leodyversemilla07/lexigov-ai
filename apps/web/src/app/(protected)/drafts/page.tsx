@@ -24,6 +24,7 @@ import {
   Search,
   Shield,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -31,11 +32,13 @@ import { Pagination } from '@/components/pagination';
 import { useDebounce } from '@/hooks/use-debounce';
 import { appendDraftScope, useDraftScope } from '@/hooks/useDraftScope';
 import { useApiQuery } from '@/lib/api-hooks';
+import { useSession } from '@/lib/auth-client';
 import type { ApiDraft, PaginatedResponse } from '@/types';
 
 const PAGE_SIZE = 20;
 
 export default function DraftsPage() {
+  const { data: session } = useSession();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -232,6 +235,12 @@ export default function DraftsPage() {
                               AI
                             </Badge>
                           )}
+                          {draft.organizationId && session?.user.id && draft.userId !== session.user.id ? (
+                            <Badge variant='outline' className='shrink-0'>
+                              <Users className='mr-1 h-3 w-3' />
+                              Shared by another member
+                            </Badge>
+                          ) : null}
                         </div>
                         <div className='flex items-center gap-3 text-sm text-muted-foreground flex-wrap'>
                           <span className='font-medium'>{draft.documentType}</span>
@@ -251,7 +260,7 @@ export default function DraftsPage() {
                       <div className='flex items-center gap-1'>
                         <Button variant='ghost' size='sm' asChild>
                           <Link href={`/drafts/${draft.id}`}>
-                            Edit
+                            {draft.canEdit === false ? 'View' : 'Edit'}
                             <ArrowRight className='ml-1 h-3 w-3' />
                           </Link>
                         </Button>
