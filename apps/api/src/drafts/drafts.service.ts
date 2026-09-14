@@ -1,4 +1,5 @@
 import {
+  calculateTransmittalDeadline,
   extractDraftBody,
   getDefaultMilestones,
   legislativeMilestonesSchema,
@@ -184,13 +185,23 @@ export class DraftsService {
         throw new UnprocessableEntityException('Invalid legislative milestone data');
       }
       nextContent.milestones = { ...getDefaultMilestones(), ...parsedMilestones.data };
+      const jurisdiction = toJurisdictionLevel(draft.jurisdiction);
+      if (nextContent.milestones.transmittedDate && jurisdiction !== 'barangay') {
+        nextContent.milestones.transmittalDeadline = calculateTransmittalDeadline(
+          nextContent.milestones.transmittedDate,
+          jurisdiction,
+        );
+      } else {
+        delete nextContent.milestones.transmittalDeadline;
+      }
       const targetStage = nextContent.milestones.currentStage;
       const validation = validateStageTransition(
         previousMilestones,
         targetStage,
         actorRole,
-        toJurisdictionLevel(draft.jurisdiction),
+        jurisdiction,
         nextContent.milestones,
+        draft.documentType,
       );
       if (!validation.isValid) throw new UnprocessableEntityException(validation.error);
 

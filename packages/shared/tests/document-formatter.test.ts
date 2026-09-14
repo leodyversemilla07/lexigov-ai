@@ -61,6 +61,15 @@ describe('Official Philippine Government Document Formatter Suite', () => {
       expect(config.sessionDetails?.presentMembers).toEqual([]);
       expect(config.signatories.secretaryName).toBe('');
     });
+
+    it('does not present a veto date as an approval date', () => {
+      const config = buildDefaultDocumentFormatConfig('city', 'Pasig', {
+        currentStage: 'VETOED',
+        lceAction: 'VETOED',
+        lceActionDate: '2026-08-05',
+      });
+      expect(config.signatories.approvalDate).toBeUndefined();
+    });
   });
 
   describe('extractWhereAsClausesAndBody()', () => {

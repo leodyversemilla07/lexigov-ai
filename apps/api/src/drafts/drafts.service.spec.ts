@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { DraftsService } from './drafts.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { LogExportDto } from './dto/log-export.dto';
@@ -367,6 +367,117 @@ describe('DraftsService.update', () => {
     });
 
     await expect(service.update(revisionId, { title: 'changed' }, userId)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('derives the indicative LCE deadline on the server from complete vote and transmittal evidence', async () => {
+    const { service, prisma } = buildService();
+    const root = await service.create({ ...baseCreateInput, jurisdiction: 'city' }, userId);
+    expectDefined(prisma._state.drafts.get(root.id)).content = {
+      body: 'Working draft',
+      milestones: {
+        currentStage: 'THIRD_READING',
+        firstReadingDate: '2026-08-01',
+        secondReadingDate: '2026-08-02',
+        thirdReadingDate: '2026-08-03',
+        votingRecord: { ayes: 0, nays: 0, abstentions: 0 },
+        lceAction: 'PENDING',
+      },
+    };
+    prisma.user.findUnique.mockResolvedValue({ id: userId, role: 'PRESIDING_OFFICER' });
+
+    const updated = await service.update(
+      root.id,
+      {
+        content: {
+          body: 'Working draft',
+          milestones: {
+            currentStage: 'TRANSMITTED_TO_LCE',
+            firstReadingDate: '2026-08-01',
+            secondReadingDate: '2026-08-02',
+            thirdReadingDate: '2026-08-03',
+            transmittedDate: '2026-08-04',
+            transmittalDeadline: '2099-01-01',
+            votingRecord: {
+              totalMembership: 12,
+              membersPresent: 10,
+              ayes: 6,
+              nays: 3,
+              abstentions: 1,
+              rollCallRecorded: true,
+            },
+            lceAction: 'PENDING',
+          },
+        },
+      },
+      userId,
+    );
+
+    expect(updated.content).toMatchObject({
+      milestones: { transmittalDeadline: '2026-08-14' },
+    });
+  });
+
+  it('rejects impossible dates and same-stage executive-action entries', async () => {
+    const { service, prisma } = buildService();
+    const root = await service.create({ ...baseCreateInput, jurisdiction: 'city' }, userId);
+
+    await expect(
+      service.update(
+        root.id,
+        {
+          content: {
+            body: 'Working draft',
+            milestones: {
+              currentStage: 'DRAFTING',
+              votingRecord: { ayes: 0, nays: 0, abstentions: 0 },
+              lceAction: 'PENDING',
+              firstReadingDate: '2026-02-31',
+            },
+          },
+        },
+        userId,
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+    expectDefined(prisma._state.drafts.get(root.id)).content = {
+      body: 'Working draft',
+      milestones: {
+        currentStage: 'TRANSMITTED_TO_LCE',
+        thirdReadingDate: '2026-08-03',
+        transmittedDate: '2026-08-04',
+        transmittalDeadline: '2026-08-14',
+        votingRecord: {
+          totalMembership: 12,
+          membersPresent: 10,
+          ayes: 6,
+          nays: 3,
+          abstentions: 1,
+          rollCallRecorded: true,
+        },
+        lceAction: 'PENDING',
+      },
+    };
+    prisma.user.findUnique.mockResolvedValue({ id: userId, role: 'LCE_OFFICE' });
+
+    await expect(
+      service.update(
+        root.id,
+        {
+          content: {
+            body: 'Working draft',
+            milestones: {
+              ...(expectDefined(prisma._state.drafts.get(root.id)).content as { milestones: Record<string, unknown> })
+                .milestones,
+              currentStage: 'TRANSMITTED_TO_LCE',
+              lceAction: 'APPROVED',
+              lceActionDate: '2026-08-05',
+              enactmentBasis: 'LCE_APPROVAL',
+            },
+          },
+        },
+        userId,
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });
 

@@ -3,13 +3,14 @@
 import {
   calculateTransmittalDeadline,
   getDefaultMilestones,
+  getLegislativeStages,
   type JurisdictionLevel,
-  LEGISLATIVE_STAGES,
   type LegislativeMilestones,
   type LegislativeStage,
   SANGGUNIAN_ROLE_LABELS,
   type SanggunianRole,
   validateStageTransition,
+  type VotingRecord,
 } from '@lexigov/shared';
 import { Badge } from '@lexigov/ui/components/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@lexigov/ui/components/card';
@@ -21,14 +22,25 @@ import { useEffect, useState } from 'react';
 
 type LegislativeTrackerPanelProps = {
   jurisdiction: string;
+  documentType?: string;
   milestones?: LegislativeMilestones;
   currentUserRole?: SanggunianRole;
   onUpdateMilestones?: (milestones: LegislativeMilestones) => void;
   readOnly?: boolean;
 };
 
+const EMPTY_VOTE: VotingRecord = {
+  totalMembership: 0,
+  membersPresent: 0,
+  ayes: 0,
+  nays: 0,
+  abstentions: 0,
+  rollCallRecorded: false,
+};
+
 export function LegislativeTrackerPanel({
   jurisdiction,
+  documentType = 'ORDINANCE',
   milestones: initialMilestones,
   currentUserRole = 'LEGISLATIVE_STAFF',
   onUpdateMilestones,
@@ -36,54 +48,150 @@ export function LegislativeTrackerPanel({
 }: LegislativeTrackerPanelProps) {
   const [milestones, setMilestones] = useState<LegislativeMilestones>(initialMilestones || getDefaultMilestones());
   const [validationError, setValidationError] = useState<string | null>(null);
+  const jurisdictionLevel = (jurisdiction as JurisdictionLevel) || 'city';
+  const stages = getLegislativeStages(jurisdictionLevel, documentType);
 
   useEffect(() => {
     setMilestones(initialMilestones || getDefaultMilestones());
     setValidationError(null);
   }, [initialMilestones]);
 
-  const currentStageInfo = LEGISLATIVE_STAGES.find((s) => s.stage === milestones.currentStage) || LEGISLATIVE_STAGES[0];
+  const currentStageInfo = stages.find((stage) => stage.stage === milestones.currentStage) ?? stages[0];
   const roleInfo = SANGGUNIAN_ROLE_LABELS[currentUserRole] || SANGGUNIAN_ROLE_LABELS.LEGISLATIVE_STAFF;
 
+  const updateMilestones = (updated: LegislativeMilestones) => {
+    setValidationError(null);
+    setMilestones(updated);
+    onUpdateMilestones?.(updated);
+  };
+
   const handleStageChange = (newStage: LegislativeStage) => {
+    const updated = { ...milestones, currentStage: newStage };
+    if (newStage === 'ENACTED' && milestones.currentStage === 'AWAITING_PUNONG_BARANGAY_SIGNATURE') {
+      updated.enactmentBasis = 'BARANGAY_MAJORITY_AND_SIGNATURE';
+    } else if (newStage === 'ENACTED' && milestones.currentStage === 'VETOED') {
+      updated.enactmentBasis = 'VETO_OVERRIDE';
+    }
     const validation = validateStageTransition(
       milestones,
       newStage,
       currentUserRole,
-      (jurisdiction as JurisdictionLevel) || 'city',
+      jurisdictionLevel,
+      updated,
+      documentType,
     );
 
     if (!validation.isValid) {
       setValidationError(validation.error || 'Unauthorized or invalid stage transition.');
       return;
     }
-
-    setValidationError(null);
-    const updated = { ...milestones, currentStage: newStage };
-    setMilestones(updated);
-    onUpdateMilestones?.(updated);
+    updateMilestones(updated);
   };
 
   const handleFieldChange = (field: keyof LegislativeMilestones, value: unknown) => {
-    setValidationError(null);
     const updated = { ...milestones, [field]: value };
-    if (field === 'transmittedDate' && typeof value === 'string' && value) {
-      updated.transmittalDeadline = calculateTransmittalDeadline(value, (jurisdiction as JurisdictionLevel) || 'city');
+    if (field === 'transmittedDate') {
+      updated.transmittalDeadline =
+        typeof value === 'string' && value ? calculateTransmittalDeadline(value, jurisdictionLevel) : undefined;
     }
-    setMilestones(updated);
-    onUpdateMilestones?.(updated);
+    if (field === 'lceAction') {
+      updated.enactmentBasis = value === 'APPROVED' ? 'LCE_APPROVAL' : undefined;
+      if (value !== 'VETOED') updated.vetoMessageReference = undefined;
+    }
+    updateMilestones(updated);
   };
 
-  const handleVotingChange = (field: 'ayes' | 'nays' | 'abstentions', value: number) => {
-    setValidationError(null);
-    const currentVoting = milestones.votingRecord || { ayes: 0, nays: 0, abstentions: 0 };
-    const updated = {
+  const handleVotingChange = (
+    recordField: 'votingRecord' | 'vetoOverrideVotingRecord',
+    field: keyof VotingRecord,
+    value: number | boolean,
+  ) => {
+    const currentVoting = milestones[recordField] || EMPTY_VOTE;
+    updateMilestones({
       ...milestones,
-      votingRecord: { ...currentVoting, [field]: Math.max(0, value) },
-    };
-    setMilestones(updated);
-    onUpdateMilestones?.(updated);
+      [recordField]: {
+        ...currentVoting,
+        [field]: typeof value === 'number' ? Math.max(0, value) : value,
+      },
+    });
   };
+
+  const renderVotingRecord = (
+    recordField: 'votingRecord' | 'vetoOverrideVotingRecord',
+    title: string,
+  ) => {
+    const voting = milestones[recordField] || EMPTY_VOTE;
+    return (
+      <div className='space-y-2.5'>
+        <div className='font-semibold text-foreground flex items-center gap-1.5'>
+          <Vote className='h-3.5 w-3.5 text-emerald-600' /> {title}
+        </div>
+        <div className='grid grid-cols-2 gap-2'>
+          <div>
+            <Label className='text-[10px] text-muted-foreground'>Total elected and qualified membership</Label>
+            <Input
+              type='number'
+              min={0}
+              className='h-7 text-xs'
+              value={voting.totalMembership || 0}
+              onChange={(event) =>
+                handleVotingChange(recordField, 'totalMembership', Number.parseInt(event.target.value, 10) || 0)
+              }
+              disabled={readOnly}
+            />
+          </div>
+          <div>
+            <Label className='text-[10px] text-muted-foreground'>Members present</Label>
+            <Input
+              type='number'
+              min={0}
+              className='h-7 text-xs'
+              value={voting.membersPresent || 0}
+              onChange={(event) =>
+                handleVotingChange(recordField, 'membersPresent', Number.parseInt(event.target.value, 10) || 0)
+              }
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+        <div className='grid grid-cols-3 gap-2'>
+          {(['ayes', 'nays', 'abstentions'] as const).map((field) => (
+            <div key={field}>
+              <Label className='text-[10px] text-muted-foreground capitalize'>{field}</Label>
+              <Input
+                type='number'
+                min={0}
+                className='h-7 text-xs'
+                value={voting[field] || 0}
+                onChange={(event) =>
+                  handleVotingChange(recordField, field, Number.parseInt(event.target.value, 10) || 0)
+                }
+                disabled={readOnly}
+              />
+            </div>
+          ))}
+        </div>
+        <label className='flex items-start gap-2 rounded border bg-muted/20 p-2 text-[11px] text-muted-foreground'>
+          <input
+            type='checkbox'
+            className='mt-0.5'
+            checked={voting.rollCallRecorded === true}
+            onChange={(event) => handleVotingChange(recordField, 'rollCallRecorded', event.target.checked)}
+            disabled={readOnly}
+          />
+          The nominal roll-call entry is supported by a separately retained legislative record.
+        </label>
+      </div>
+    );
+  };
+
+  const showsVote = ['THIRD_READING', 'TRANSMITTED_TO_LCE', 'AWAITING_PUNONG_BARANGAY_SIGNATURE', 'ADOPTED', 'ENACTED', 'VETOED'].includes(
+    milestones.currentStage,
+  );
+  const showsLce =
+    jurisdictionLevel !== 'barangay' &&
+    documentType.toUpperCase() === 'ORDINANCE' &&
+    ['THIRD_READING', 'TRANSMITTED_TO_LCE', 'VETOED', 'ENACTED'].includes(milestones.currentStage);
 
   return (
     <Card className='border-border/70 shadow-sm'>
@@ -91,18 +199,18 @@ export function LegislativeTrackerPanel({
         <div className='flex items-center justify-between gap-2'>
           <div className='flex items-center gap-2'>
             <Landmark className='h-5 w-5 text-primary' />
-            <CardTitle className='text-base font-semibold'>Sanggunian Legislative Tracker</CardTitle>
+            <CardTitle className='text-base font-semibold'>Sanggunian Milestone Tracker</CardTitle>
           </div>
           <Badge variant='outline' className='text-xs font-mono'>
-            RA 7160 § 54
+            Advisory record
           </Badge>
         </div>
-        <div className='flex items-center justify-between pt-1 text-xs text-muted-foreground'>
-          <span>Track formal 3-Reading milestones and LCE transmittal.</span>
-        </div>
+        <p className='pt-1 text-xs text-muted-foreground'>
+          Unverified workspace entries do not replace official journals, minutes, signatures, or legal review.
+        </p>
         <div className='flex items-center gap-1.5 pt-1'>
           <ShieldCheck className='h-3.5 w-3.5 text-primary' />
-          <span className='text-[11px] text-muted-foreground'>Active Statutory Role:</span>
+          <span className='text-[11px] text-muted-foreground'>Workspace role:</span>
           <Badge data-testid='legislative.tracker.active-role' variant='secondary' className='text-[10px] py-0 px-2'>
             {roleInfo.label}
           </Badge>
@@ -116,16 +224,15 @@ export function LegislativeTrackerPanel({
           >
             <AlertCircle className='h-4 w-4 shrink-0 mt-0.5' />
             <div>
-              <p className='font-semibold'>Statutory Action Required</p>
+              <p className='font-semibold'>Workflow evidence required</p>
               <p className='text-[11px]'>{validationError}</p>
             </div>
           </div>
         ) : null}
 
-        {/* Stage Milestone Steps */}
         <div className='flex items-center justify-between rounded-lg border bg-muted/20 p-2.5 text-xs'>
           <div className='font-medium text-foreground'>
-            Step {currentStageInfo.stepNumber} of 7: {currentStageInfo.label}
+            Milestone {currentStageInfo?.stepNumber ?? 1}: {currentStageInfo?.label ?? 'Preparation & Drafting'}
           </div>
           <Badge
             data-testid='legislative.tracker.stage-badge'
@@ -135,88 +242,102 @@ export function LegislativeTrackerPanel({
           </Badge>
         </div>
 
-        {/* Quick Stage Selector */}
         <div className='space-y-1.5'>
           <Label htmlFor='advance-stage-select' className='text-xs text-muted-foreground'>
-            Advance Legislative Stage
+            Record next milestone
           </Label>
           <Select
             value={milestones.currentStage}
-            onValueChange={(val) => handleStageChange(val as LegislativeStage)}
+            onValueChange={(value) => handleStageChange(value as LegislativeStage)}
             disabled={readOnly}
           >
-            <SelectTrigger
-              id='advance-stage-select'
-              data-testid='legislative.tracker.stage-select'
-              className='h-9 text-xs'
-            >
+            <SelectTrigger id='advance-stage-select' data-testid='legislative.tracker.stage-select' className='h-9 text-xs'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {LEGISLATIVE_STAGES.map((s) => (
-                <SelectItem key={s.stage} value={s.stage} className='text-xs'>
-                  {s.stepNumber}. {s.label}
+              {stages.map((stage) => (
+                <SelectItem key={stage.stage} value={stage.stage} className='text-xs'>
+                  {stage.stepNumber}. {stage.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Dynamic Milestone Details */}
         <div className='rounded-lg border p-3 text-xs space-y-3 bg-card'>
-          {milestones.currentStage === 'FIRST_READING' || milestones.firstReadingDate ? (
-            <div className='space-y-2 border-b pb-2.5'>
+          <div className='space-y-2 border-b pb-2.5'>
               <div className='font-semibold text-foreground flex items-center gap-1.5'>
-                <FileCheck className='h-3.5 w-3.5 text-primary' /> 1st Reading & Committee Referral
+                <FileCheck className='h-3.5 w-3.5 text-primary' /> Reading and referral record
               </div>
               <div className='grid grid-cols-2 gap-2'>
                 <div>
-                  <Label className='text-[10px] text-muted-foreground'>Date of 1st Reading</Label>
+                  <Label className='text-[10px] text-muted-foreground'>First-reading date</Label>
                   <Input
                     type='date'
                     className='h-7 text-xs'
                     value={milestones.firstReadingDate || ''}
-                    onChange={(e) => handleFieldChange('firstReadingDate', e.target.value)}
+                    onChange={(event) => handleFieldChange('firstReadingDate', event.target.value)}
                     disabled={readOnly}
                   />
                 </div>
                 <div>
-                  <Label className='text-[10px] text-muted-foreground'>Referred Committee</Label>
+                  <Label className='text-[10px] text-muted-foreground'>Referred committee</Label>
                   <Input
-                    placeholder='e.g. Laws & Rules'
+                    placeholder='Committee shown in record'
                     className='h-7 text-xs'
                     value={milestones.referredCommittee || ''}
-                    onChange={(e) => handleFieldChange('referredCommittee', e.target.value)}
+                    onChange={(event) => handleFieldChange('referredCommittee', event.target.value)}
                     disabled={readOnly}
                   />
                 </div>
               </div>
             </div>
-          ) : null}
 
-          {milestones.currentStage === 'COMMITTEE_REVIEW' || milestones.committeeHearingDate ? (
+          {['COMMITTEE_REVIEW', 'SECOND_READING', 'THIRD_READING', 'TRANSMITTED_TO_LCE', 'AWAITING_PUNONG_BARANGAY_SIGNATURE', 'ADOPTED', 'VETOED', 'ENACTED'].includes(
+            milestones.currentStage,
+          ) || milestones.committeeHearingDate ? (
             <div className='space-y-2 border-b pb-2.5'>
               <div className='font-semibold text-foreground flex items-center gap-1.5'>
-                <Clock className='h-3.5 w-3.5 text-sky-600' /> Committee Hearing & Public Consultation
+                <Clock className='h-3.5 w-3.5 text-sky-600' /> Committee and reading dates
               </div>
               <div className='grid grid-cols-2 gap-2'>
                 <div>
-                  <Label className='text-[10px] text-muted-foreground'>Hearing Date</Label>
+                  <Label className='text-[10px] text-muted-foreground'>Hearing date, if documented</Label>
                   <Input
                     type='date'
                     className='h-7 text-xs'
                     value={milestones.committeeHearingDate || ''}
-                    onChange={(e) => handleFieldChange('committeeHearingDate', e.target.value)}
+                    onChange={(event) => handleFieldChange('committeeHearingDate', event.target.value)}
                     disabled={readOnly}
                   />
                 </div>
                 <div>
-                  <Label className='text-[10px] text-muted-foreground'>Committee Report No.</Label>
+                  <Label className='text-[10px] text-muted-foreground'>Committee report reference</Label>
                   <Input
-                    placeholder='e.g. CR-2025-014'
+                    placeholder='Reference shown in record'
                     className='h-7 text-xs'
                     value={milestones.committeeReportNo || ''}
-                    onChange={(e) => handleFieldChange('committeeReportNo', e.target.value)}
+                    onChange={(event) => handleFieldChange('committeeReportNo', event.target.value)}
+                    disabled={readOnly}
+                  />
+                </div>
+                <div>
+                  <Label className='text-[10px] text-muted-foreground'>Second-reading date</Label>
+                  <Input
+                    type='date'
+                    className='h-7 text-xs'
+                    value={milestones.secondReadingDate || ''}
+                    onChange={(event) => handleFieldChange('secondReadingDate', event.target.value)}
+                    disabled={readOnly}
+                  />
+                </div>
+                <div>
+                  <Label className='text-[10px] text-muted-foreground'>Third-reading date</Label>
+                  <Input
+                    type='date'
+                    className='h-7 text-xs'
+                    value={milestones.thirdReadingDate || ''}
+                    onChange={(event) => handleFieldChange('thirdReadingDate', event.target.value)}
                     disabled={readOnly}
                   />
                 </div>
@@ -224,100 +345,116 @@ export function LegislativeTrackerPanel({
             </div>
           ) : null}
 
-          {milestones.currentStage === 'THIRD_READING' || milestones.votingRecord?.ayes ? (
-            <div className='space-y-2 border-b pb-2.5'>
-              <div className='font-semibold text-foreground flex items-center gap-1.5'>
-                <Vote className='h-3.5 w-3.5 text-emerald-600' /> 3rd Reading Nominal Voting Record
-              </div>
-              <div className='grid grid-cols-3 gap-2'>
-                <div>
-                  <Label className='text-[10px] text-emerald-600 font-medium'>Ayes</Label>
-                  <Input
-                    type='number'
-                    className='h-7 text-xs'
-                    value={milestones.votingRecord?.ayes || 0}
-                    onChange={(e) => handleVotingChange('ayes', parseInt(e.target.value, 10) || 0)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div>
-                  <Label className='text-[10px] text-rose-600 font-medium'>Nays</Label>
-                  <Input
-                    type='number'
-                    className='h-7 text-xs'
-                    value={milestones.votingRecord?.nays || 0}
-                    onChange={(e) => handleVotingChange('nays', parseInt(e.target.value, 10) || 0)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div>
-                  <Label className='text-[10px] text-amber-600 font-medium'>Abstain</Label>
-                  <Input
-                    type='number'
-                    className='h-7 text-xs'
-                    value={milestones.votingRecord?.abstentions || 0}
-                    onChange={(e) => handleVotingChange('abstentions', parseInt(e.target.value, 10) || 0)}
-                    disabled={readOnly}
-                  />
-                </div>
-              </div>
+          {showsVote ? <div className='border-b pb-2.5'>{renderVotingRecord('votingRecord', 'Recorded vote details')}</div> : null}
+
+          {milestones.currentStage === 'AWAITING_PUNONG_BARANGAY_SIGNATURE' ||
+          (jurisdictionLevel === 'barangay' && milestones.currentStage === 'ENACTED') ? (
+            <div className='space-y-2'>
+              <div className='font-semibold'>Punong Barangay signature record</div>
+              <Input
+                type='date'
+                className='h-7 text-xs'
+                value={milestones.punongBarangaySignatureDate || ''}
+                onChange={(event) => {
+                  handleFieldChange('punongBarangaySignatureDate', event.target.value);
+                }}
+                disabled={readOnly}
+              />
+              <p className='text-[10px] text-muted-foreground'>
+                Enter the supported date first. Selecting ENACTED records the barangay majority-and-signature basis.
+              </p>
             </div>
           ) : null}
 
-          {milestones.currentStage === 'TRANSMITTED_TO_LCE' ||
-          milestones.currentStage === 'ENACTED' ||
-          milestones.transmittedDate ? (
+          {showsLce ? (
             <div className='space-y-2'>
               <div className='font-semibold text-foreground flex items-center gap-1.5'>
-                <Send className='h-3.5 w-3.5 text-purple-600' /> Transmittal to Mayor / Governor
+                <Send className='h-3.5 w-3.5 text-purple-600' /> Mayor/Governor action record
               </div>
               <div className='grid grid-cols-2 gap-2'>
                 <div>
-                  <Label className='text-[10px] text-muted-foreground'>Transmitted Date</Label>
+                  <Label className='text-[10px] text-muted-foreground'>Transmittal date</Label>
                   <Input
                     type='date'
                     className='h-7 text-xs'
                     value={milestones.transmittedDate || ''}
-                    onChange={(e) => handleFieldChange('transmittedDate', e.target.value)}
+                    onChange={(event) => handleFieldChange('transmittedDate', event.target.value)}
                     disabled={readOnly}
                   />
                 </div>
                 <div>
-                  <Label className='text-[10px] text-muted-foreground'>10/15-Day Deadline</Label>
+                  <Label className='text-[10px] text-muted-foreground'>Indicative 10/15-day date</Label>
                   <div className='h-7 rounded border bg-muted/30 px-2 flex items-center text-[11px] font-mono'>
                     {milestones.transmittalDeadline || 'Set transmittal date'}
                   </div>
                 </div>
+                {milestones.currentStage !== 'THIRD_READING' ? (
+                  <>
+                    <div>
+                      <Label className='text-[10px] text-muted-foreground'>Executive action date</Label>
+                      <Input
+                        type='date'
+                        className='h-7 text-xs'
+                        value={milestones.lceActionDate || ''}
+                        onChange={(event) => handleFieldChange('lceActionDate', event.target.value)}
+                        disabled={readOnly}
+                      />
+                    </div>
+                    <div>
+                      <Label className='text-[10px] text-muted-foreground'>Recorded action</Label>
+                      <Select
+                        value={milestones.lceAction || 'PENDING'}
+                        onValueChange={(value) => handleFieldChange('lceAction', value)}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className='h-7 text-xs'><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='PENDING' className='text-xs'>Pending</SelectItem>
+                          <SelectItem value='APPROVED' className='text-xs'>Approval/signature recorded</SelectItem>
+                          <SelectItem value='VETOED' className='text-xs'>Veto recorded</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : null}
               </div>
-              <div className='pt-1'>
-                <Label className='text-[10px] text-muted-foreground'>Chief Executive Action</Label>
-                <Select
-                  value={milestones.lceAction || 'PENDING'}
-                  onValueChange={(val) => handleFieldChange('lceAction', val)}
+              {milestones.lceAction === 'VETOED' || milestones.currentStage === 'VETOED' ? (
+                <div>
+                  <Label className='text-[10px] text-muted-foreground'>Written veto objections reference</Label>
+                  <Input
+                    placeholder='Document or records-system reference'
+                    className='h-7 text-xs'
+                    value={milestones.vetoMessageReference || ''}
+                    onChange={(event) => handleFieldChange('vetoMessageReference', event.target.value)}
+                    disabled={readOnly}
+                  />
+                </div>
+              ) : null}
+              <p className='text-[10px] text-muted-foreground'>
+                The displayed deadline is a calendar-date aid only. Verify legal time computation independently.
+              </p>
+            </div>
+          ) : null}
+
+          {milestones.currentStage === 'VETOED' ? (
+            <div className='space-y-2 border-t pt-3'>
+              <div>
+                <Label className='text-[10px] text-muted-foreground'>Veto-override date</Label>
+                <Input
+                  type='date'
+                  className='h-7 text-xs'
+                  value={milestones.vetoOverrideDate || ''}
+                  onChange={(event) => handleFieldChange('vetoOverrideDate', event.target.value)}
                   disabled={readOnly}
-                >
-                  <SelectTrigger className='h-7 text-xs'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='PENDING' className='text-xs'>
-                      Pending Signature
-                    </SelectItem>
-                    <SelectItem value='APPROVED' className='text-xs'>
-                      Approved & Signed
-                    </SelectItem>
-                    <SelectItem value='VETOED' className='text-xs'>
-                      Vetoed with Objections
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                />
               </div>
+              {renderVotingRecord('vetoOverrideVotingRecord', 'Recorded veto-override vote')}
             </div>
           ) : null}
 
           {milestones.currentStage === 'DRAFTING' ? (
             <p className='text-muted-foreground text-center py-2'>
-              Advance to <strong>1st Reading</strong> once this measure is formally introduced to the Sanggunian.
+              Record the first-reading date from the appropriate source record before advancing.
             </p>
           ) : null}
         </div>

@@ -118,7 +118,11 @@ export function buildDefaultDocumentFormatConfig(
   milestones?: LegislativeMilestones,
 ): DocumentFormatConfig {
   const signatories = inferDefaultSignatories(jurisdiction, jurisdictionName);
-  if (milestones?.lceActionDate) {
+  if (
+    milestones?.lceAction === 'APPROVED' &&
+    milestones.enactmentBasis === 'LCE_APPROVAL' &&
+    milestones.lceActionDate
+  ) {
     signatories.approvalDate = milestones.lceActionDate;
   }
 

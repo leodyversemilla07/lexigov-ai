@@ -57,14 +57,17 @@ export {
 } from './draft-content';
 // Sanggunian Legislative Tracker & RBAC
 export type {
+  EnactmentBasis,
   LegislativeMilestones,
   LegislativeStage,
+  LegislativeStageMetadata,
   StageValidationResult,
   VotingRecord,
 } from './legislative-tracker';
 export {
   calculateTransmittalDeadline,
   getDefaultMilestones,
+  getLegislativeStages,
   LEGISLATIVE_STAGES,
   SANGGUNIAN_ROLE_LABELS,
   STAGE_TRANSITION_ROLES,

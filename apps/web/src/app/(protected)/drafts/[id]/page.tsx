@@ -428,13 +428,16 @@ export default function DraftEditorPage() {
         <div className='space-y-6'>
           <WorkflowPanel draft={draft} status={status} onStatusChange={setStatus} readOnly={isReadOnly} />
 
-          <LegislativeTrackerPanel
-            jurisdiction={draft.jurisdiction}
-            milestones={milestones}
-            currentUserRole={draft.effectiveRole ?? undefined}
-            onUpdateMilestones={setMilestones}
-            readOnly={isReadOnly}
-          />
+          {['ORDINANCE', 'RESOLUTION'].includes(draft.documentType.toUpperCase()) ? (
+            <LegislativeTrackerPanel
+              jurisdiction={draft.jurisdiction}
+              documentType={draft.documentType}
+              milestones={milestones}
+              currentUserRole={draft.effectiveRole ?? undefined}
+              onUpdateMilestones={setMilestones}
+              readOnly={isReadOnly}
+            />
+          ) : null}
 
           <CompliancePulsePanel
             latestCompliance={latestCompliance}

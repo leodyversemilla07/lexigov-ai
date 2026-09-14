@@ -36,7 +36,7 @@ describe('WorkflowPanel (Colocated Unit Test)', () => {
       <WorkflowPanel draft={mockDraft as unknown as import('./types').Draft} status='DRAFT' onStatusChange={vi.fn()} />,
     );
 
-    expect(screen.getByText('Workflow')).toBeInTheDocument();
-    expect(screen.getByText('Keep the draft status and context accurate before review.')).toBeInTheDocument();
+    expect(screen.getByText('Editing workflow')).toBeInTheDocument();
+    expect(screen.getByText('Track internal drafting state separately from legislative milestones.')).toBeInTheDocument();
   });
 });

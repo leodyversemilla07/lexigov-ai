@@ -79,20 +79,10 @@ export type DraftEditorState = {
 };
 
 export const STATUS_OPTIONS = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'FIRST_READING', label: '1st Reading (Calendar)' },
-  { value: 'COMMITTEE_REVIEW', label: 'Committee Review' },
-  { value: 'SECOND_READING', label: '2nd Reading (Floor Debate)' },
-  { value: 'THIRD_READING', label: '3rd Reading (Final Vote)' },
-  { value: 'SANGGUNIAN_ENACTED', label: 'Sanggunian Enacted' },
-  { value: 'LCE_REVIEW', label: 'Mayor/Governor Review' },
-  { value: 'LCE_APPROVED', label: 'Approved by LCE' },
-  { value: 'LCE_VETOED', label: 'Vetoed by LCE' },
-  { value: 'HIGHER_SANGGUNIAN_REVIEW', label: 'Higher LGU Validity Review' },
-  { value: 'ENACTED_PUBLISHED', label: 'Published / In Effect' },
-  { value: 'REVIEW', label: 'General Review' },
-  { value: 'FINAL', label: 'Final' },
-  { value: 'ARCHIVED', label: 'Archived' },
+  { value: 'DRAFT', label: 'Draft in progress' },
+  { value: 'REVIEW', label: 'Internal review' },
+  { value: 'FINAL', label: 'Editing complete (working draft)' },
+  { value: 'ARCHIVED', label: 'Archived working draft' },
 ] as const;
 
 export const STATUS_CLASSES: Record<string, string> = {
