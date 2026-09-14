@@ -34,8 +34,7 @@ describe("shared schema enums", () => {
         expect(documentStatusValues).toContain("REVIEW");
         expect(documentStatusValues).toContain("FINAL");
         expect(documentStatusValues).toContain("ARCHIVED");
-        expect(documentStatusValues).toContain("FIRST_READING");
-        expect(documentStatusValues).toContain("SANGGUNIAN_ENACTED");
+        expect(documentStatusValues).toEqual(["DRAFT", "REVIEW", "FINAL", "ARCHIVED"]);
         expect(templateCategoryValues).toContain("Public Safety");
     });
 });

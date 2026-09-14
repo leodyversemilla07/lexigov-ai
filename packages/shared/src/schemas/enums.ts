@@ -14,23 +14,8 @@ export const documentTypeValues = ['ORDINANCE', 'RESOLUTION', 'MEMORANDUM', 'POL
 export const documentTypeSchema = z.enum(documentTypeValues);
 export type DocumentType = z.infer<typeof documentTypeSchema>;
 
-// Document status workflow (combines MVP statuses and formal RA 7160 legislative stages)
-export const documentStatusValues = [
-  'DRAFT',
-  'REVIEW',
-  'FINAL',
-  'ARCHIVED',
-  'FIRST_READING',
-  'COMMITTEE_REVIEW',
-  'SECOND_READING',
-  'THIRD_READING',
-  'SANGGUNIAN_ENACTED',
-  'LCE_REVIEW',
-  'LCE_APPROVED',
-  'LCE_VETOED',
-  'HIGHER_SANGGUNIAN_REVIEW',
-  'ENACTED_PUBLISHED',
-] as const;
+// Internal editing status. Legislative milestones are tracked separately and do not establish official status.
+export const documentStatusValues = ['DRAFT', 'REVIEW', 'FINAL', 'ARCHIVED'] as const;
 export const documentStatusSchema = z.enum(documentStatusValues);
 export type DocumentStatus = z.infer<typeof documentStatusSchema>;
 

@@ -59,14 +59,14 @@ describe('@lexigov/shared Test Data Factories', () => {
     it('creates a complete structured draft with sections and milestones', () => {
       const draft = createMockDraft();
       expect(draft.id).toBe('draft_test_001');
-      expect(draft.status).toBe('FIRST_READING');
+      expect(draft.status).toBe('REVIEW');
       expect(draft.content.sections.length).toBe(3);
       expect(draft.content.milestones?.currentStage).toBe('FIRST_READING');
     });
 
     it('allows overriding status and version for OCC testing', () => {
-      const draft = createMockDraft({ status: 'ENACTED_PUBLISHED', version: 5 });
-      expect(draft.status).toBe('ENACTED_PUBLISHED');
+      const draft = createMockDraft({ status: 'FINAL', version: 5 });
+      expect(draft.status).toBe('FINAL');
       expect(draft.version).toBe(5);
     });
   });

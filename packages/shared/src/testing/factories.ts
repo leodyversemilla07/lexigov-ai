@@ -129,7 +129,7 @@ export function createMockDraft(overrides: Partial<MockDraft> = {}): MockDraft {
     documentType: 'ORDINANCE',
     jurisdiction: 'city',
     jurisdictionName: 'City of Pasig',
-    status: 'FIRST_READING',
+    status: 'REVIEW',
     version: 1,
     aiGenerated: false,
     content: {
