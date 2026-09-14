@@ -212,8 +212,8 @@ export default function DraftEditorPage() {
     if (!draft || isReadOnly) return;
     setIsRestoringVersionId(versionId);
     try {
-      await saveCurrentDraft();
-      await api.post(`/drafts/${draftId}/restore`, { versionId });
+      const savedDraft = await saveCurrentDraft();
+      await api.post(`/drafts/${draftId}/restore`, { versionId, expectedVersion: savedDraft.version });
       await Promise.all([refetchDraft(), refetchVersions(), refetchComplianceHistory()]);
       setShowCompliance(false);
       setComplianceResult(null);

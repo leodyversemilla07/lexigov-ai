@@ -70,7 +70,7 @@ export const updateDraftSchema = z.object({
   status: documentStatusSchema.optional(),
   commitMessage: z.string().max(500).optional(),
   aiGenerated: z.boolean().optional(),
-  expectedVersion: z.number().int().positive().optional(),
+  expectedVersion: z.number().int().positive(),
 });
 export type UpdateDraftInput = z.infer<typeof updateDraftSchema>;
 

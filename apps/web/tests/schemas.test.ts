@@ -79,9 +79,10 @@ describe("draftComposerSchema", () => {
 });
 
 describe("updateDraftSchema", () => {
-    it("accepts only valid workflow statuses", () => {
-        expect(updateDraftSchema.parse({ status: "REVIEW" }).status).toBe("REVIEW");
-        expect(() => updateDraftSchema.parse({ status: "PUBLISHED" })).toThrow(ZodError);
+    it("requires a positive concurrency version and accepts only valid workflow statuses", () => {
+        expect(updateDraftSchema.parse({ status: "REVIEW", expectedVersion: 3 }).status).toBe("REVIEW");
+        expect(() => updateDraftSchema.parse({ status: "REVIEW" })).toThrow(ZodError);
+        expect(() => updateDraftSchema.parse({ status: "PUBLISHED", expectedVersion: 3 })).toThrow(ZodError);
     });
 });
 

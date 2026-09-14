@@ -6,6 +6,7 @@ import {
   Get,
   Inject,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -63,9 +64,14 @@ export class DraftsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a draft' })
+  @ApiQuery({ name: 'expectedVersion', required: true, type: Number, minimum: 1 })
   @ApiResponse({ status: 200, description: 'Draft deleted' })
-  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.draftsService.remove(id, user.userId);
+  remove(
+    @Param('id') id: string,
+    @Query('expectedVersion', ParseIntPipe) expectedVersion: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.draftsService.remove(id, user.userId, expectedVersion);
   }
 
   @Get(':id/versions')

@@ -235,10 +235,37 @@ describe('DraftsController (e2e)', () => {
 
       const res = await request(app.getHttpServer())
         .patch(`/drafts/${draftId}`)
-        .send({ title: 'After Update' })
+        .send({ title: 'After Update', expectedVersion: createRes.body.version })
         .expect(200);
 
       expect(res.body.title).toBe('After Update');
+    });
+
+    it('rejects an update without an optimistic-concurrency precondition', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/drafts')
+        .send({ title: 'Versioned Draft', documentType: 'ORDINANCE', jurisdiction: 'barangay', jurisdictionName: 'Test' });
+
+      await request(app.getHttpServer())
+        .patch(`/drafts/${createRes.body.id}`)
+        .send({ title: 'Unsafe Update' })
+        .expect(400);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // POST /api/drafts/:id/restore
+  // -----------------------------------------------------------------------
+  describe('POST /api/drafts/:id/restore', () => {
+    it('rejects a restore without an optimistic-concurrency precondition', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/drafts')
+        .send({ title: 'Restore Guard Draft', documentType: 'ORDINANCE', jurisdiction: 'barangay', jurisdictionName: 'Test' });
+
+      await request(app.getHttpServer())
+        .post(`/drafts/${createRes.body.id}/restore`)
+        .send({ versionId: createRes.body.id })
+        .expect(400);
     });
   });
 
@@ -254,12 +281,21 @@ describe('DraftsController (e2e)', () => {
       const draftId = createRes.body.id;
 
       await request(app.getHttpServer())
-        .delete(`/drafts/${draftId}`)
+        .delete(`/drafts/${draftId}?expectedVersion=${createRes.body.version}`)
         .expect(200);
 
       await request(app.getHttpServer())
         .get(`/drafts/${draftId}`)
         .expect(404);
+    });
+
+    it('rejects deletion without an optimistic-concurrency precondition', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/drafts')
+        .send({ title: 'Protected Delete', documentType: 'ORDINANCE', jurisdiction: 'barangay', jurisdictionName: 'Test' });
+
+      await request(app.getHttpServer()).delete(`/drafts/${createRes.body.id}`).expect(400);
+      await request(app.getHttpServer()).get(`/drafts/${createRes.body.id}`).expect(200);
     });
   });
 });

@@ -151,7 +151,7 @@ export class DraftsService {
       }
 
       const actorRole = await requireDraftWriteRole(tx, draft.organizationId, userId);
-      if (dto.expectedVersion !== undefined && draft.version !== dto.expectedVersion) {
+      if (draft.version !== dto.expectedVersion) {
         throw new ConflictException(
           `Draft was modified by another user (expected v${dto.expectedVersion}, current is v${draft.version})`,
         );
@@ -276,11 +276,17 @@ export class DraftsService {
     });
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string, expectedVersion: number) {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.getAccessibleDraft(tx, id, userId);
       if (draft.parentDraftId) {
         throw new NotFoundException('Saved revisions cannot be deleted directly');
+      }
+
+      if (draft.version !== expectedVersion) {
+        throw new ConflictException(
+          `Draft was modified by another user (expected v${expectedVersion}, current is v${draft.version})`,
+        );
       }
 
       const actorRole = await requireDraftWriteRole(tx, draft.organizationId, userId);
@@ -337,7 +343,7 @@ export class DraftsService {
     }));
   }
 
-  async restoreVersion(draftId: string, versionId: string, userId: string, expectedVersion?: number) {
+  async restoreVersion(draftId: string, versionId: string, userId: string, expectedVersion: number) {
     return this.prisma.$transaction(async (tx) => {
       const draft = await this.getAccessibleDraft(tx, draftId, userId);
       if (draft.parentDraftId) {
@@ -345,7 +351,7 @@ export class DraftsService {
       }
 
       await requireDraftWriteRole(tx, draft.organizationId, userId);
-      if (expectedVersion !== undefined && expectedVersion !== draft.version) {
+      if (expectedVersion !== draft.version) {
         throw new ConflictException('Draft was modified by another session');
       }
       const versionDraft = await tx.draft.findFirst({

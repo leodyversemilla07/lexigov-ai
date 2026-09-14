@@ -322,7 +322,11 @@ describe('DraftsService.update', () => {
     const original = await service.create(baseCreateInput, userId);
     const originalVersion = original.version; // capture before mutation
 
-    const update: UpdateDraftDto = { title: 'Barangay Curfew Ordinance (Revised)', commitMessage: 'tweaks' };
+    const update: UpdateDraftDto = {
+      title: 'Barangay Curfew Ordinance (Revised)',
+      commitMessage: 'tweaks',
+      expectedVersion: 1,
+    };
     const updated = await service.update(original.id, update, userId);
 
     expect(updated.version).toBe(originalVersion + 1);
@@ -348,7 +352,7 @@ describe('DraftsService.update', () => {
     prisma.draft.create.mockClear();
 
     // No-op update: same title, no content change
-    const result = await service.update(original.id, { title: original.title }, userId);
+    const result = await service.update(original.id, { title: original.title, expectedVersion: 1 }, userId);
 
     expect(result.version).toBe(original.version);
     expect(prisma.draft.create).not.toHaveBeenCalled();
@@ -366,7 +370,9 @@ describe('DraftsService.update', () => {
       version: 1,
     });
 
-    await expect(service.update(revisionId, { title: 'changed' }, userId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.update(revisionId, { title: 'changed', expectedVersion: 1 }, userId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('derives the indicative LCE deadline on the server from complete vote and transmittal evidence', async () => {
@@ -388,6 +394,7 @@ describe('DraftsService.update', () => {
     const updated = await service.update(
       root.id,
       {
+        expectedVersion: 1,
         content: {
           body: 'Working draft',
           milestones: {
@@ -425,6 +432,7 @@ describe('DraftsService.update', () => {
       service.update(
         root.id,
         {
+          expectedVersion: 1,
           content: {
             body: 'Working draft',
             milestones: {
@@ -463,6 +471,7 @@ describe('DraftsService.update', () => {
       service.update(
         root.id,
         {
+          expectedVersion: 1,
           content: {
             body: 'Working draft',
             milestones: {
@@ -492,7 +501,7 @@ describe('DraftsService.remove', () => {
       parentDraftId: draft.id,
     });
 
-    const result = await service.remove(draft.id, userId);
+    const result = await service.remove(draft.id, userId, draft.version);
 
     expect(result).toEqual({ success: true });
     expect(prisma._state.drafts.has(draft.id)).toBe(false);
@@ -512,7 +521,7 @@ describe('DraftsService.remove', () => {
     const revisionId = 'draft_revision_1';
     prisma._state.drafts.set(revisionId, { ...root, id: revisionId, parentDraftId: root.id });
 
-    await expect(service.remove(revisionId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.remove(revisionId, userId, root.version)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
@@ -593,7 +602,7 @@ describe('DraftsService.restoreVersion', () => {
     );
 
     // Apply an update so a revision row exists
-    const updated = await service.update(root.id, { title: 'Title 2' }, userId);
+    const updated = await service.update(root.id, { title: 'Title 2', expectedVersion: 1 }, userId);
     // Capture the version as a primitive so the later restore (which mutates
     // the same draft object via Object.assign) can't shift the comparison.
     const versionAfterUpdate = updated.version;
@@ -604,7 +613,7 @@ describe('DraftsService.restoreVersion', () => {
 
     // Restore from the snapshot
     const snapshotRecord = expectDefined(snapshot);
-    const result = await service.restoreVersion(root.id, snapshotRecord.id, userId);
+    const result = await service.restoreVersion(root.id, snapshotRecord.id, userId, versionAfterUpdate);
 
     expect(result.success).toBe(true);
     expect(result.restoredFromVersion).toBe(snapshotRecord.version);
@@ -627,7 +636,7 @@ describe('DraftsService.restoreVersion', () => {
     const { service, prisma } = buildService();
     const root = await service.create(baseCreateInput, userId);
 
-    const result = await service.restoreVersion(root.id, root.id, userId);
+    const result = await service.restoreVersion(root.id, root.id, userId, root.version);
 
     expect(result).toEqual({ success: true, version: root.version });
     // No new snapshot row should be created in the no-op path
@@ -641,20 +650,22 @@ describe('DraftsService.restoreVersion', () => {
     // Some other draft, unrelated
     const other = await service.create({ ...baseCreateInput, title: 'Other' }, 'user_other');
 
-    await expect(service.restoreVersion(root.id, other.id, userId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.restoreVersion(root.id, other.id, userId, root.version)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('refuses to restore on a saved revision (only root drafts can be restored)', async () => {
     const { service, prisma } = buildService();
     const root = await service.create(baseCreateInput, userId);
-    await service.update(root.id, { title: 'Title 2' }, userId);
+    await service.update(root.id, { title: 'Title 2', expectedVersion: 1 }, userId);
     const snapshot = Array.from(prisma._state.drafts.values()).find((d) => d.parentDraftId === root.id);
 
     // Try to restore on the snapshot (which is itself a revision)
     const snapshotRecord = expectDefined(snapshot);
-    await expect(service.restoreVersion(snapshotRecord.id, snapshotRecord.id, userId)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.restoreVersion(snapshotRecord.id, snapshotRecord.id, userId, snapshotRecord.version),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
@@ -733,7 +744,9 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
       'author_user',
     );
 
-    await expect(service.remove(sharedDraft.id, 'member_user')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.remove(sharedDraft.id, 'member_user', sharedDraft.version)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
     expect(prisma._state.drafts.has(sharedDraft.id)).toBe(true);
   });
 
@@ -747,7 +760,7 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
       .mockResolvedValueOnce({ organizationId: 'org_1', userId: 'admin_user', role: 'owner' } as never)
       .mockResolvedValueOnce({ organizationId: 'org_1', userId: 'admin_user', role: 'owner' } as never);
 
-    await expect(service.remove(sharedDraft.id, 'admin_user')).resolves.toEqual({ success: true });
+    await expect(service.remove(sharedDraft.id, 'admin_user', sharedDraft.version)).resolves.toEqual({ success: true });
     expect(prisma._state.drafts.has(sharedDraft.id)).toBe(false);
   });
 
@@ -783,6 +796,14 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('rejects deletion when the expected version is stale', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    await expect(service.remove(draft.id, userId, 99)).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma._state.drafts.has(draft.id)).toBe(true);
+  });
+
   it('succeeds update when expectedVersion matches current draft version', async () => {
     const { service } = buildService();
     const draft = await service.create(baseCreateInput, userId);
@@ -798,7 +819,7 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
 
     await service.update(
       draft.id,
-      { status: 'REVIEW', commitMessage: 'Submitted for draft review' },
+      { status: 'REVIEW', commitMessage: 'Submitted for draft review', expectedVersion: 1 },
       userId,
     );
 
