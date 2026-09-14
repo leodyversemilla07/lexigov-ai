@@ -136,12 +136,13 @@ describe('@lexigov/ai Provider Suite', () => {
 
     it('builds section assistance prompt', () => {
       const { systemPrompt } = buildSectionAssistPrompt('Body', 'Formalize', 'city');
-      expect(systemPrompt).toContain('Philippine legislative drafting attorney');
+      expect(systemPrompt).toContain('advisory Philippine legislative drafting assistant');
+      expect(systemPrompt).toContain('not an attorney');
     });
 
     it('builds summary prompt', () => {
       const { systemPrompt } = buildSummaryPrompt('Ordinance body');
-      expect(systemPrompt).toContain('executive summary');
+      expect(systemPrompt).toContain('without asserting that it is valid');
     });
 
     it('builds compliance analysis prompt', () => {

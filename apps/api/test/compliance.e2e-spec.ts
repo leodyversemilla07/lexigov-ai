@@ -4,9 +4,9 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AuthGuard } from '../src/auth/auth.guard';
 import { PrismaService } from '../src/prisma/prisma.service';
-import type { AuthenticatedUser } from '../src/auth/current-user.decorator';
+import type { AuthenticatedUser } from '../src/auth/auth.service';
 
-const testUser: AuthenticatedUser = { id: 'e2e_user_1', email: 'test@lexigov.ph', role: 'user' };
+const testUser: AuthenticatedUser = { userId: 'e2e_user_1', email: 'test@lexigov.ph', role: 'user' };
 
 const mockAuthGuardInstance = {
   canActivate: async (context: any) => {
@@ -23,6 +23,11 @@ function mockPrismaService() {
   const mocks = {
     $transaction: jest.fn(async (cb: (prisma: any) => any) => cb(mocks)),
     auditLog: { create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => data) },
+    user: {
+      findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
+        where.id === testUser.userId ? { id: testUser.userId, role: testUser.role } : null,
+      ),
+    },
     complianceReport: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
         const record = { id: `cr_${complianceReports.length + 1}`, ...data };

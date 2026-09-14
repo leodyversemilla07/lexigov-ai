@@ -129,18 +129,18 @@ export class AiService {
         break;
       case 'formalize':
         actionPrompt =
-          'Rewrite this section in formal Philippine statutory and legislative terminology (Republic Act / Local Government Code standard).';
+          'Rewrite this proposed section in clear, formal Philippine legislative terminology without asserting legal validity or compliance.';
         break;
       case 'penalties':
-        actionPrompt = `Format or revise the penalty provisions in this section to strictly comply with RA 7160 limits for ${jurisdiction} level (Barangay: max ₱1,000 fine, no imprisonment; Municipal: max ₱2,500 fine, max 6 mos; City/Province: max ₱5,000 fine, max 1 yr).`;
+        actionPrompt = `Format or revise the proposed penalty provisions for legal review. Do not exceed the generally applicable RA 7160 ceiling for ${jurisdiction} level absent a separately verified legal basis (Barangay: ₱1,000 fine and no imprisonment; Municipal: ₱2,500 fine and 6 months; City/Province: ₱5,000 fine and 1 year). Do not claim compliance.`;
         break;
       case 'simplify':
         actionPrompt =
-          'Improve clarity and conciseness of this section while preserving full legal precision and enforceability.';
+          'Improve clarity and conciseness while preserving the supplied policy intent; do not claim enforceability or legal sufficiency.';
         break;
     }
 
-    const systemPrompt = `You are an expert Philippine legislative drafter helping refine an individual section of a ${documentType.toLowerCase()} for a ${jurisdiction} LGU. Return ONLY the improved section body text (without repeating the heading itself).`;
+    const systemPrompt = `You are an advisory Philippine legislative drafting assistant, not an attorney or approving authority. Propose refinements to one section of a working-draft ${documentType.toLowerCase()} for a ${jurisdiction} LGU. Do not invent facts or claim legal compliance, approval, enactment, or enforceability. Use bracketed review notes for uncertainty. Return only the proposed section body without repeating the heading.`;
 
     const userPrompt = `Section Heading: ${sectionHeading}\nCurrent Section Body:\n${sectionBody || '(No content yet)'}\n\nTask: ${actionPrompt}${instruction ? `\nAdditional user instruction: ${instruction}` : ''}`;
 

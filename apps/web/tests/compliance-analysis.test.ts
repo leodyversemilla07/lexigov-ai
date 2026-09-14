@@ -357,7 +357,7 @@ describe("compliance issue merging", () => {
         );
     });
 
-    it("flags appropriation ordinances lacking the mandatory 5% Calamity/LDRRMF allocation (RA 7160 § 324(d))", () => {
+    it("flags appropriation ordinances lacking the current 5% LDRRMF allocation (RA 10121 § 21)", () => {
         const content = [
             "Republic of the Philippines",
             "Municipality of Sample",

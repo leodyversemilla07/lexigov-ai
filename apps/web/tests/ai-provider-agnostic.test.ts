@@ -186,14 +186,15 @@ describe('@lexigov/ai Legislative Prompt Builders', () => {
       'municipal',
     );
 
-    expect(systemPrompt).toContain('Philippine legislative drafting attorney');
+    expect(systemPrompt).toContain('advisory Philippine legislative drafting assistant');
+    expect(systemPrompt).toContain('not an attorney');
     expect(userPrompt).toContain('Fines will be paid by violators');
     expect(userPrompt).toContain('municipal penalty limit');
   });
 
   it('builds an executive summary prompt', () => {
     const { systemPrompt, userPrompt } = buildSummaryPrompt('Ordinance body text...');
-    expect(systemPrompt).toContain('executive summary');
+    expect(systemPrompt).toContain('without asserting that it is valid');
     expect(userPrompt).toBe('Ordinance body text...');
   });
 

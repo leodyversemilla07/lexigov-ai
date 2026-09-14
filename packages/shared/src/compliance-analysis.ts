@@ -343,27 +343,27 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         title: 'Tax/revenue measure lacks public hearing recital',
         description: 'Tax and revenue ordinances require prior public hearings pursuant to RA 7160, Section 187.',
         suggestion:
-          'Add a recital in the preamble or section citing the conduct of public hearings prior to enactment.',
+          'Confirm and document the required public-hearing process. Add a recital only after the hearing has actually occurred and the statement has been verified.',
       });
     }
 
-    if (!mentionsTaxPublication) {
+    if (jurisdiction !== 'barangay' && !mentionsTaxPublication) {
       issues.push({
         type: 'warning',
         section: 'Final Provisions',
-        title: 'Tax ordinance requires special publication/posting terms',
+        title: 'Tax ordinance requires special publication/posting review',
         description:
-          'Under RA 7160 Section 188, tax ordinances must be published within 10 days in a local newspaper or posted in at least 2 prominent places for 3 consecutive weeks.',
-        suggestion: 'Incorporate the statutory publication and posting timeline into the effectivity clause.',
+          'RA 7160 Section 188 requires certified true copies of provincial, city, and municipal tax ordinances or revenue measures to be published in full within 10 days after approval for 3 consecutive days in a newspaper of local circulation. Where no such newspaper exists, posting in at least 2 conspicuous and publicly accessible places is the statutory alternative.',
+        suggestion:
+          'Have authorized counsel confirm the applicable Section 188 publication or alternative-posting process; do not represent that publication or posting has occurred until it is documented.',
       });
     }
   }
 
-  // RA 7160, Sections 305-334: Appropriations and Budget Set-Asides
+  // RA 10121, Section 21: current LDRRMF minimum for local appropriations
   const isAppropriation =
     /\b(annual budget|supplemental budget|appropriation ordinance|appropriating the (?:amount|sum))\b/i.test(content);
   const mentionsCalamityFund = /\b(calamity fund|ldrr?mf|disaster risk reduction|5%|five percent)\b/i.test(content);
-  const mentionsDevelopmentFund = /\b(20%|twenty percent|development fund|gad|gender and development)\b/i.test(content);
 
   if (isAppropriation) {
     if (!mentionsCalamityFund) {
@@ -372,21 +372,12 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         section: 'Appropriation Provisions',
         title: 'Mandatory 5% Calamity / LDRRMF set-aside check',
         description:
-          'RA 7160, Section 324(d) mandates setting aside not less than 5% of estimated revenue for local disaster risk management.',
-        suggestion: 'Ensure the appropriation ordinance includes the mandatory 5% LDRRMF / Calamity Fund allocation.',
+          'RA 10121 Section 21 requires an LDRRM Fund of not less than 5% of estimated revenue from regular sources.',
+        suggestion:
+          'Confirm the current budget base and applicable accounting guidance, then include the required LDRRMF allocation for authorized review.',
       });
     }
 
-    if (!mentionsDevelopmentFund) {
-      issues.push({
-        type: 'suggestion',
-        section: 'Appropriation Provisions',
-        title: 'Statutory Development & GAD allocations',
-        description:
-          'Local budget measures must allocate 20% for local development and 5% for Gender and Development (GAD).',
-        suggestion: 'Verify statutory set-asides for the 20% Development Fund, 5% GAD, and 1% LCPC/Senior Citizens.',
-      });
-    }
   }
 
   // RA 7160, Sections 54-57: Sanggunian Review Transmittal

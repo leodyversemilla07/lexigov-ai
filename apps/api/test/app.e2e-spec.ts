@@ -4,9 +4,9 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AuthGuard } from '../src/auth/auth.guard';
 import { PrismaService } from '../src/prisma/prisma.service';
-import type { AuthenticatedUser } from '../src/auth/current-user.decorator';
+import type { AuthenticatedUser } from '../src/auth/auth.service';
 
-const testUser: AuthenticatedUser = { id: 'e2e_user_1', email: 'test@lexigov.ph', role: 'user' };
+const testUser: AuthenticatedUser = { userId: 'e2e_user_1', email: 'test@lexigov.ph', role: 'user' };
 
 const mockAuthGuardInstance = {
   canActivate: async (context: any) => {

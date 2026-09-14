@@ -4,13 +4,13 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AuthGuard } from '../src/auth/auth.guard';
 import { PrismaService } from '../src/prisma/prisma.service';
-import type { AuthenticatedUser } from '../src/auth/current-user.decorator';
+import type { AuthenticatedUser } from '../src/auth/auth.service';
 
 // ---------------------------------------------------------------------------
 // Mock authenticated user injected by the overridden AuthGuard
 // ---------------------------------------------------------------------------
 const testUser: AuthenticatedUser = {
-  id: 'e2e_user_1',
+  userId: 'e2e_user_1',
   email: 'test@lexigov.ph',
   role: 'user',
 };
@@ -36,6 +36,11 @@ function mockPrismaService() {
     }),
     auditLog: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => data),
+    },
+    user: {
+      findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
+        where.id === testUser.userId ? { id: testUser.userId, role: testUser.role } : null,
+      ),
     },
     complianceReport: { deleteMany: jest.fn(async () => ({ count: 0 })) },
     exportHistory: { deleteMany: jest.fn(async () => ({ count: 0 })) },
