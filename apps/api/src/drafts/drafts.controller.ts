@@ -89,16 +89,18 @@ export class DraftsController {
   @Get(':id/export')
   @ApiOperation({ summary: 'Export draft as txt or md' })
   @ApiQuery({ name: 'format', required: false, enum: ['txt', 'md'] })
+  @ApiQuery({ name: 'expectedVersion', required: true, type: Number, minimum: 1 })
   exportDraft(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('expectedVersion', ParseIntPipe) expectedVersion: number,
     @Query('format') format: string = 'txt',
   ) {
     if (format !== 'txt' && format !== 'md') {
       throw new BadRequestException('Export format must be txt or md');
     }
 
-    return this.draftsService.exportDraft(id, user.userId, format);
+    return this.draftsService.exportDraft(id, user.userId, format, expectedVersion);
   }
 
   @Post(':id/export')

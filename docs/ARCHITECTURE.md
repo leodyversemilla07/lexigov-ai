@@ -47,7 +47,7 @@ Compliance scores are advisory drafting signals. They cannot establish validity,
 
 ## Export and verification boundary
 
-TXT, Markdown, DOCX, PDF, and print exports are generated locally or returned by the API. Every export is marked as a working draft. User-controlled print content is HTML-escaped and printed under a restrictive CSP.
+TXT, Markdown, DOCX, PDF, and print exports are generated locally or returned by the API. Every export is marked as a working draft. Export requests require the version used to render the file; stale versions are rejected, and telemetry stores the exact draft version and title snapshot. User-controlled print content is HTML-escaped and printed under a restrictive CSP.
 
 The `/verify` page fails closed and explains that no authoritative registry exists. The shared package can calculate a SHA-256 content fingerprint for diagnostics, but a fingerprint is not a digital signature or proof of authenticity.
 

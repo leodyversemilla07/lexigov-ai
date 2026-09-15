@@ -562,7 +562,7 @@ describe('DraftsService.exportDraft', () => {
       userId,
     );
 
-    const result = await service.exportDraft(draft.id, userId, 'md');
+    const result = await service.exportDraft(draft.id, userId, 'md', draft.version);
 
     expect(result.mimeType).toBe('text/markdown');
     expect(result.content).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
@@ -576,7 +576,7 @@ describe('DraftsService.exportDraft', () => {
     const { service } = buildService();
     const draft = await service.create({ ...baseCreateInput, content: { body: 'SECTION 1. Body text.' } }, userId);
 
-    const result = await service.exportDraft(draft.id, userId, 'txt');
+    const result = await service.exportDraft(draft.id, userId, 'txt', draft.version);
 
     expect(result.mimeType).toBe('text/plain');
     expect(result.content).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
@@ -590,11 +590,33 @@ describe('DraftsService.logExport', () => {
     const { service, prisma } = buildService();
     const draft = await service.create(baseCreateInput, userId);
 
-    const dto: LogExportDto = { format: 'pdf', fileSize: 12_345, pageCount: 4 };
+    const dto: LogExportDto = { format: 'pdf', expectedVersion: draft.version, fileSize: 12_345, pageCount: 4 };
     const result = await service.logExport(draft.id, userId, dto);
 
-    expect(result).toEqual({ success: true });
-    expect(prisma._state.exportHistory).toEqual([expect.objectContaining({ draftId: draft.id, exportType: 'PDF' })]);
+    expect(result).toEqual({
+      success: true,
+      draftId: draft.id,
+      draftVersion: draft.version,
+      titleSnapshot: draft.title,
+    });
+    expect(prisma._state.exportHistory).toEqual([
+      expect.objectContaining({
+        draftId: draft.id,
+        draftVersion: draft.version,
+        titleSnapshot: draft.title,
+        exportType: 'PDF',
+      }),
+    ]);
+  });
+
+  it('rejects telemetry for a stale draft version', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    await expect(
+      service.logExport(draft.id, userId, { format: 'pdf', expectedVersion: draft.version + 1 }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma._state.exportHistory).toEqual([]);
   });
 });
 

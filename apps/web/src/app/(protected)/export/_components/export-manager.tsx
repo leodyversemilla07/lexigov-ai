@@ -388,14 +388,22 @@ export function ExportPageContent() {
         const filename = `${sanitizeFilename(selectedDraft.title)}_v${selectedVersion.version}.docx`;
         downloadBlob(blob, filename);
 
-        await api.post(`/drafts/${selectedDraft.id}/export`, { format: 'docx', fileSize: blob.size });
+        await api.post(`/drafts/${selectedDraft.id}/export`, {
+          format: 'docx',
+          expectedVersion: selectedDraft.version,
+          fileSize: blob.size,
+        });
         toast.success(`Exported ${filename}`);
       } else if (selectedFormat === 'pdf') {
         const blob = await buildPdfBlob(selectedDraft, selectedVersion);
         const filename = `${sanitizeFilename(selectedDraft.title)}_v${selectedVersion.version}.pdf`;
         downloadBlob(blob, filename);
 
-        await api.post(`/drafts/${selectedDraft.id}/export`, { format: 'pdf', fileSize: blob.size });
+        await api.post(`/drafts/${selectedDraft.id}/export`, {
+          format: 'pdf',
+          expectedVersion: selectedDraft.version,
+          fileSize: blob.size,
+        });
         toast.success(`Exported ${filename}`);
       } else {
         const content = buildTextExportContent(selectedDraft, selectedVersion, selectedFormat);
@@ -404,7 +412,11 @@ export function ExportPageContent() {
         const blob = new Blob([content], { type: mimeType });
         downloadBlob(blob, filename);
 
-        await api.post(`/drafts/${selectedDraft.id}/export`, { format: selectedFormat, fileSize: blob.size });
+        await api.post(`/drafts/${selectedDraft.id}/export`, {
+          format: selectedFormat,
+          expectedVersion: selectedDraft.version,
+          fileSize: blob.size,
+        });
         toast.success(`Exported ${filename}`);
       }
 

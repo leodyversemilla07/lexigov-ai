@@ -274,6 +274,8 @@ model ExportHistory {
     draftId   String
     draft     Draft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
     exportType String
+    draftVersion Int
+    titleSnapshot String
     fileUrl   String?
     fileSize  Int?
     pageCount Int?
@@ -286,6 +288,7 @@ model ExportHistory {
     createdAt DateTime @default(now())
 
     @@index([draftId])
+    @@index([draftId, draftVersion])
     @@index([organizationId, createdAt])
 }
 

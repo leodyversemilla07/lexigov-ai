@@ -462,8 +462,13 @@ export class DraftsService {
     });
   }
 
-  async exportDraft(id: string, userId: string, format: 'txt' | 'md') {
+  async exportDraft(id: string, userId: string, format: 'txt' | 'md', expectedVersion: number) {
     const draft = await this.findOne(id, userId);
+    if (draft.version !== expectedVersion) {
+      throw new ConflictException(
+        `Draft was modified before export (expected v${expectedVersion}, current is v${draft.version})`,
+      );
+    }
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
     const warning = 'WORKING DRAFT — NOT AN OFFICIAL RECORD\nThis export has not been authenticated or legally certified by LexiGov.\n\n';
@@ -477,6 +482,8 @@ export class DraftsService {
       data: {
         draftId: id,
         exportType: format.toUpperCase(),
+        draftVersion: draft.version,
+        titleSnapshot: draft.title,
         exportedBy: userId,
         organizationId: draft.organizationId,
         createdAt: new Date(),
@@ -484,6 +491,9 @@ export class DraftsService {
     });
 
     return {
+      draftId: draft.id,
+      draftVersion: draft.version,
+      titleSnapshot: draft.title,
       filename: `${draft.title.replace(/[^a-z0-9]/gi, '_')}_v${draft.version}.${format}`,
       content: formatted,
       mimeType: format === 'md' ? 'text/markdown' : 'text/plain',
@@ -492,11 +502,18 @@ export class DraftsService {
 
   async logExport(id: string, userId: string, dto: LogExportDto) {
     const draft = await this.findOne(id, userId);
+    if (draft.version !== dto.expectedVersion) {
+      throw new ConflictException(
+        `Draft was modified before export (expected v${dto.expectedVersion}, current is v${draft.version})`,
+      );
+    }
 
     await this.prisma.exportHistory.create({
       data: {
         draftId: draft.id,
         exportType: dto.format.toUpperCase(),
+        draftVersion: draft.version,
+        titleSnapshot: draft.title,
         fileSize: dto.fileSize,
         pageCount: dto.pageCount,
         exportedBy: userId,
@@ -505,6 +522,11 @@ export class DraftsService {
       },
     });
 
-    return { success: true };
+    return {
+      success: true,
+      draftId: draft.id,
+      draftVersion: draft.version,
+      titleSnapshot: draft.title,
+    };
   }
 }
