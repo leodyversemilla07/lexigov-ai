@@ -29,4 +29,4 @@ RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lexigov pnpm --fi
 
 EXPOSE 4000
 
-CMD ["node", "apps/api/dist/apps/api/src/main.js"]
+CMD ["sh", "-c", "pnpm --filter @lexigov/api exec prisma migrate deploy && exec node apps/api/dist/apps/api/src/main.js"]

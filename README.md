@@ -192,14 +192,10 @@ A `docker-compose.yml` is provided for running the full stack (PostgreSQL + API 
 
 ### Setup
 
-Create a `.env` file in the project root with at minimum:
+Copy the deployment template and replace every `CHANGE_ME` value. Use public HTTPS URLs for the web/API origins and a database URL whose host is `db` inside Compose.
 
-```env
-BETTER_AUTH_SECRET=generate-with-openssl-rand-base64-32
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_API_VERSION=2024-10-21
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
+```bash
+cp .env.compose.example .env
 ```
 
 Then run:
@@ -208,16 +204,12 @@ Then run:
 docker compose up -d
 ```
 
-This starts:
-- PostgreSQL on port `5432`
-- NestJS API on port `4000`
-- Next.js web app on port `3000`
+This starts PostgreSQL on the private Compose network and binds the API/web ports to loopback for a host reverse proxy. PostgreSQL is not published to the host. The API runs `prisma migrate deploy` before startup, and the web service waits for API/database readiness.
 
-### Initialise the database
+Seed data only when explicitly required:
 
 ```bash
-docker compose exec api npx prisma migrate deploy
-docker compose exec -w /app/apps/api api npx prisma db seed
+docker compose exec -w /app/apps/api api pnpm exec prisma db seed
 ```
 
 ---

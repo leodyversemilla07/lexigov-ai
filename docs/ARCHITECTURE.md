@@ -54,8 +54,8 @@ The `/verify` page fails closed and explains that no authoritative registry exis
 ## Deployment
 
 - Node.js 22 or later and pnpm 11 are required.
-- Apply committed Prisma migrations before starting applications.
-- Web and API must share `DATABASE_URL` and `BETTER_AUTH_SECRET`.
+- Apply committed Prisma migrations before starting applications. The API container runs `prisma migrate deploy` before launching.
+- Web and API must share `DATABASE_URL` and `BETTER_AUTH_SECRET`; Compose requires these values rather than supplying default credentials.
 - Configure `CORS_ORIGIN` and Better Auth trusted origins explicitly in production.
 - Configure a transactional email provider; console email and mock AI are rejected in production.
-- Dockerfiles build the web and API applications independently from the workspace.
+- Dockerfiles build the web and API applications independently from the workspace. Compose keeps PostgreSQL private, binds application ports to loopback, checks database/API/web readiness, and waits for healthy dependencies.

@@ -1,7 +1,9 @@
 FROM node:22-alpine
 
 ARG NEXT_PUBLIC_API_URL
+ARG APP_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV APP_URL=$APP_URL
 
 RUN corepack enable && corepack prepare pnpm@11 --activate
 WORKDIR /app
@@ -29,8 +31,11 @@ COPY packages packages
 # Generate the API Prisma client used by Better Auth in the web app
 RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lexigov pnpm --filter @lexigov/api db:generate
 
-# Build the Next.js app
-RUN pnpm --filter @lexigov/web build
+# Build with a non-runtime placeholder secret so Better Auth can initialize during
+# static analysis without embedding the deployment secret in an image layer.
+RUN BETTER_AUTH_URL=$APP_URL \
+    BETTER_AUTH_SECRET=build-time-placeholder-only-32chars \
+    pnpm --filter @lexigov/web build
 
 EXPOSE 3000
 

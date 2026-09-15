@@ -1,22 +1,19 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: lexigov
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: "${POSTGRES_USER:-lexigov}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+      POSTGRES_DB: "${POSTGRES_DB:-lexigov}"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   api:
     build:
@@ -28,34 +25,56 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/lexigov?schema=public
+      DATABASE_URL: "${DATABASE_URL:?DATABASE_URL must use the Compose db hostname}"
       API_PORT: 4000
-      CORS_ORIGIN: "http://localhost:3000"
-      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
-      AZURE_OPENAI_ENDPOINT: "${AZURE_OPENAI_ENDPOINT}"
-      AZURE_OPENAI_API_KEY: "${AZURE_OPENAI_API_KEY}"
-      AZURE_OPENAI_API_VERSION: "${AZURE_OPENAI_API_VERSION}"
-      AZURE_OPENAI_DEPLOYMENT: "${AZURE_OPENAI_DEPLOYMENT}"
-      SENTRY_DSN: "${SENTRY_DSN}"
+      CORS_ORIGIN: "${CORS_ORIGIN:?CORS_ORIGIN is required}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}"
+      AI_PROVIDER: "${AI_PROVIDER:-azure}"
+      AI_FALLBACK_PROVIDERS: "${AI_FALLBACK_PROVIDERS:-}"
+      AZURE_OPENAI_ENDPOINT: "${AZURE_OPENAI_ENDPOINT:-}"
+      AZURE_OPENAI_API_KEY: "${AZURE_OPENAI_API_KEY:-}"
+      AZURE_OPENAI_API_VERSION: "${AZURE_OPENAI_API_VERSION:-}"
+      AZURE_OPENAI_DEPLOYMENT: "${AZURE_OPENAI_DEPLOYMENT:-}"
+      SENTRY_DSN: "${SENTRY_DSN:-}"
     ports:
-      - "4000:4000"
+      - "127.0.0.1:${API_PUBLISHED_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:4000/api/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
       args:
-        NEXT_PUBLIC_API_URL: "http://localhost:4000/api"
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required at build time}"
+        APP_URL: "${APP_URL:?APP_URL is required at build time}"
     restart: unless-stopped
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       NODE_ENV: production
-      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
-      BETTER_AUTH_URL: "http://localhost:3000"
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/lexigov?schema=public
+      APP_URL: "${APP_URL:?APP_URL is required}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}"
+      BETTER_AUTH_URL: "${BETTER_AUTH_URL:?BETTER_AUTH_URL is required}"
+      BETTER_AUTH_TRUSTED_ORIGINS: "${BETTER_AUTH_TRUSTED_ORIGINS:?BETTER_AUTH_TRUSTED_ORIGINS is required}"
+      DATABASE_URL: "${DATABASE_URL:?DATABASE_URL must use the Compose db hostname}"
+      EMAIL_PROVIDER: "${EMAIL_PROVIDER:?EMAIL_PROVIDER is required}"
+      EMAIL_FROM: "${EMAIL_FROM:?EMAIL_FROM is required}"
+      RESEND_API_KEY: "${RESEND_API_KEY:?RESEND_API_KEY is required when using Resend}"
+      SENTRY_DSN: "${SENTRY_DSN:-}"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${WEB_PUBLISHED_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3000/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 volumes:
   pgdata:
