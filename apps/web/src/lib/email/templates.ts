@@ -99,6 +99,29 @@ export function renderPasswordReset({ name, url }: { name?: string; url: string 
   return { subject, html, text };
 }
 
+export function renderOrganizationInvitation({
+  organizationName,
+  inviterName,
+  roleLabel,
+  url,
+}: {
+  organizationName: string;
+  inviterName: string;
+  roleLabel: string;
+  url: string;
+}) {
+  const subject = `Invitation to join ${organizationName} on LexiGov AI`;
+  const html = shell(
+    subject,
+    `<p>${escapeHtml(inviterName)} invited you to join <strong>${escapeHtml(organizationName)}</strong> as ${escapeHtml(roleLabel)}.</p>
+         <p>Accept only if you recognize the organization and expected this invitation. Workspace roles control access inside LexiGov but do not establish public office or legal authority.</p>
+         ${ctaButton(url, 'Review invitation')}
+         <p>This invitation expires. If you did not expect it, you can ignore this email.</p>`,
+  );
+  const text = `${inviterName} invited you to join ${organizationName} as ${roleLabel} on LexiGov AI. Workspace roles do not establish public office or legal authority. Review the invitation:\n${url}`;
+  return { subject, html, text };
+}
+
 export function renderTwoFactorCode({ name, code }: { name?: string; code: string }) {
   const greeting = name ? `Hi ${escapeHtml(name)},` : 'Hi,';
   const subject = `${code} is your LexiGov AI verification code`;

@@ -176,7 +176,7 @@ function buildPrismaDouble() {
   const member = {
     findUnique: jest.fn(async ({ where }: { where: { organizationId_userId: { organizationId: string; userId: string } } }) => ({
       ...where.organizationId_userId,
-      role: 'member',
+      role: 'legislative_staff',
     })),
   };
   const user = {
@@ -721,7 +721,26 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
     );
   });
 
-  it('allows a persisted organization member to read and update another member\'s draft', async () => {
+  it('keeps a generic organization member read-only', async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    prisma.member.findUnique.mockResolvedValue({ organizationId: 'org_1', userId: 'viewer', role: 'member' } as never);
+
+    await expect(service.findOne(sharedDraft.id, 'viewer')).resolves.toMatchObject({
+      id: sharedDraft.id,
+      effectiveRole: null,
+      canEdit: false,
+      canDelete: false,
+    });
+    await expect(
+      service.update(sharedDraft.id, { title: 'Viewer Edit Blocked', expectedVersion: 1 }, 'viewer'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows a persisted organization drafting member to read and update another member\'s draft', async () => {
     const { service } = buildService();
     const sharedDraft = await service.create(
       { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },

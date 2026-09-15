@@ -1,7 +1,7 @@
 import { analyzeDeterministicCompliance, extractDraftBody } from '@lexigov/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
-import { hasOrganizationResourceAccess } from '../auth/organization-access';
+import { hasOrganizationResourceAccess, requireDraftWriteRole } from '../auth/organization-access';
 import { isJurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -14,6 +14,7 @@ export class ComplianceService {
     if (!draft || !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))) {
       throw new NotFoundException('Draft not found');
     }
+    await requireDraftWriteRole(this.prisma, draft.organizationId, userId);
 
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 

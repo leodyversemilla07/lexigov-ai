@@ -1,4 +1,5 @@
 import type { ComplianceResult } from '@lexigov/shared';
+import { ForbiddenException } from '@nestjs/common';
 import { ComplianceService } from './compliance.service';
 
 interface DraftRecord {
@@ -26,6 +27,7 @@ interface ComplianceReportRecord {
 interface PrismaDouble {
   draft: { findUnique: jest.Mock };
   member: { findUnique: jest.Mock };
+  user: { findUnique: jest.Mock };
   complianceReport: {
     create: jest.Mock;
     findMany: jest.Mock;
@@ -50,8 +52,11 @@ function buildPrismaDouble(): PrismaDouble {
   const member = {
     findUnique: jest.fn(async ({ where }: { where: { organizationId_userId: { organizationId: string; userId: string } } }) => ({
       ...where.organizationId_userId,
-      role: 'member',
+      role: 'legislative_staff',
     })),
+  };
+  const user = {
+    findUnique: jest.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id, role: 'user' })),
   };
 
   const complianceReport = {
@@ -101,6 +106,7 @@ function buildPrismaDouble(): PrismaDouble {
   return {
     ...tx,
     member,
+    user,
     $transaction: jest.fn(async <T>(callback: (transaction: typeof tx) => Promise<T>) => callback(tx)),
     state: { drafts, reports, auditLogs },
   };
@@ -173,7 +179,7 @@ describe('ComplianceService.checkDraft', () => {
     expect(prisma.state.auditLogs).toHaveLength(0);
   });
 
-  it('allows an organization member to check another member\'s organization draft', async () => {
+  it('allows an explicitly assigned drafting member to check a shared draft', async () => {
     const { service, prisma } = buildService();
     prisma.state.drafts.set('shared_draft', {
       id: 'shared_draft',
@@ -186,6 +192,23 @@ describe('ComplianceService.checkDraft', () => {
 
     await expect(service.checkDraft('shared_draft', 'member_user')).resolves.toHaveProperty('overallScore');
     expect(prisma.state.reports).toHaveLength(1);
+  });
+
+  it('allows a viewer to read reports but not create a shared compliance report', async () => {
+    const { service, prisma } = buildService();
+    prisma.state.drafts.set('shared_draft', {
+      id: 'shared_draft',
+      userId: 'author_user',
+      organizationId: 'org_1',
+      jurisdiction: 'barangay',
+      content: { body: wellFormedBarangay },
+      version: 1,
+    });
+    prisma.member.findUnique.mockResolvedValue({ organizationId: 'org_1', userId: 'viewer', role: 'member' });
+
+    await expect(service.getReports('shared_draft', 'viewer')).resolves.toEqual([]);
+    await expect(service.checkDraft('shared_draft', 'viewer')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.state.reports).toHaveLength(0);
   });
 
   it('does not reveal an organization draft to a non-member', async () => {

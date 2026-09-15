@@ -2,7 +2,13 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin, bearer, organization, twoFactor } from 'better-auth/plugins';
 import { sendEmail } from './email';
-import { renderEmailVerification, renderPasswordReset, renderTwoFactorCode } from './email/templates';
+import {
+  renderEmailVerification,
+  renderOrganizationInvitation,
+  renderPasswordReset,
+  renderTwoFactorCode,
+} from './email/templates';
+import { assignableOrganizationRoles, organizationAccessControl, organizationRoles } from './organization-permissions';
 import { prisma } from './prisma';
 
 const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',')
@@ -44,6 +50,24 @@ export const auth = betterAuth({
     }),
     organization({
       allowUserToCreateOrganization: true,
+      ac: organizationAccessControl,
+      roles: organizationRoles,
+      requireEmailVerificationOnInvitation: true,
+      async sendInvitationEmail(data) {
+        const configuredBaseUrl =
+          process.env.APP_URL ?? process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
+        const invitationUrl = new URL('/accept-invitation', configuredBaseUrl);
+        invitationUrl.searchParams.set('id', data.id);
+        const roleLabel =
+          assignableOrganizationRoles.find((role) => role.value === data.role)?.label ?? 'workspace member';
+        const { subject, html, text } = renderOrganizationInvitation({
+          organizationName: data.organization.name,
+          inviterName: data.inviter.user.name || data.inviter.user.email,
+          roleLabel,
+          url: invitationUrl.toString(),
+        });
+        await sendEmail({ to: data.email, subject, html, text });
+      },
     }),
     admin(),
     bearer(),

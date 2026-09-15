@@ -78,6 +78,21 @@ describe("email templates", () => {
         expect(result.text).toContain("https://example.com/reset?token=xyz");
     });
 
+    it("renders and escapes an organization invitation without asserting official authority", async () => {
+        const { renderOrganizationInvitation } = await import("@/lib/email/templates");
+        const result = renderOrganizationInvitation({
+            organizationName: "<City Council>",
+            inviterName: "Maria & Jose",
+            roleLabel: "Committee chairperson",
+            url: "https://example.com/accept-invitation?id=abc",
+        });
+
+        expect(result.html).toContain("&lt;City Council&gt;");
+        expect(result.html).toContain("Maria &amp; Jose");
+        expect(result.text).toContain("do not establish public office or legal authority");
+        expect(result.text).toContain("accept-invitation?id=abc");
+    });
+
     it("renders a 2FA code template that surfaces the code in both html and text", async () => {
         const { renderTwoFactorCode } = await import("@/lib/email/templates");
         const result = renderTwoFactorCode({ code: "123456" });

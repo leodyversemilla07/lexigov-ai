@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
 const protectedRoutePrefixes = [
+  '/accept-invitation',
   '/account',
   '/ai',
   '/compare',

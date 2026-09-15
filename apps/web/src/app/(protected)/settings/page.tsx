@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { authClient, signOut, useSession } from '@/lib/auth-client';
+import { OrganizationManagement } from './_components/organization-management';
 
 function getInitials(name: string | null | undefined, email: string | null | undefined) {
   if (name) {
@@ -124,22 +125,26 @@ export default function SettingsPage() {
               maxLength={200}
             />
           </div>
-          {!isOrganizationLoading && !organization ? (
-            <p className='text-sm text-muted-foreground'>Select or join an organization from your account workspace first.</p>
+          {organization ? (
+            <Button
+              onClick={saveOrganization}
+              disabled={
+                isOrganizationLoading ||
+                isSavingOrganization ||
+                !organizationName.trim() ||
+                organizationName.trim() === organization.name
+              }
+            >
+              {isSavingOrganization ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+              Save Changes
+            </Button>
           ) : null}
-          <Button
-            onClick={saveOrganization}
-            disabled={
-              isOrganizationLoading ||
-              isSavingOrganization ||
-              !organization ||
-              !organizationName.trim() ||
-              organizationName.trim() === organization.name
-            }
-          >
-            {isSavingOrganization ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
-            Save Changes
-          </Button>
+          {!isOrganizationLoading ? (
+            <>
+              <Separator />
+              <OrganizationManagement organization={organization} onOrganizationChanged={refetchOrganization} />
+            </>
+          ) : null}
         </CardContent>
       </Card>
 

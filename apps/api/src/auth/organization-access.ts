@@ -9,7 +9,9 @@ export function resolveStoredRole(value: unknown): SanggunianRole | null {
   if (isSanggunianRole(role)) return role;
   if (role === 'ADMIN' || role === 'OWNER') return 'LGU_ADMIN';
   if (role === 'BARANGAY_SECRETARY') return 'SANGGUNIAN_SECRETARY';
-  if (['USER', 'MEMBER', 'CITY_COUNCIL'].includes(role)) return 'LEGISLATIVE_STAFF';
+  // Personal accounts retain drafting access through the core `user` role. Generic organization
+  // members and ambiguous legacy council labels are intentionally read-only.
+  if (role === 'USER') return 'LEGISLATIVE_STAFF';
   return null;
 }
 
