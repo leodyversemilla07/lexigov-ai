@@ -50,6 +50,8 @@ function mockPrismaService() {
           id: `draft_${++draftSeq}`,
           ...data,
           parentDraftId: (data.parentDraftId as string | null) ?? null,
+          deletedAt: null,
+          deletedBy: null,
           userId: data.userId as string,
           createdAt: new Date(),
           updatedAt: new Date(),

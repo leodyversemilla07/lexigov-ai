@@ -11,7 +11,11 @@ export class ComplianceService {
 
   async checkDraft(draftId: string, userId: string) {
     const draft = await this.prisma.draft.findUnique({ where: { id: draftId } });
-    if (!draft || !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))) {
+    if (
+      !draft ||
+      draft.deletedAt ||
+      !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))
+    ) {
       throw new NotFoundException('Draft not found');
     }
     await requireDraftWriteRole(this.prisma, draft.organizationId, userId);
@@ -32,6 +36,7 @@ export class ComplianceService {
         data: {
           draftId,
           draftVersion: draft.version,
+          organizationId: draft.organizationId,
           overallScore: deterministic.overallScore,
           isValid: deterministic.isValid,
           issuesCount: deterministic.issues.length,
@@ -47,6 +52,7 @@ export class ComplianceService {
           entityType: 'drafts',
           entityId: draftId,
           userId,
+          organizationId: draft.organizationId,
           changes: {
             complianceReportId: report.id,
             draftVersion: draft.version,
@@ -61,7 +67,11 @@ export class ComplianceService {
 
   async getReports(draftId: string, userId: string) {
     const draft = await this.prisma.draft.findUnique({ where: { id: draftId } });
-    if (!draft || !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))) {
+    if (
+      !draft ||
+      draft.deletedAt ||
+      !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))
+    ) {
       return [];
     }
 

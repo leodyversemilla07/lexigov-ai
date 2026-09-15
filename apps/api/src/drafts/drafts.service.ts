@@ -39,7 +39,11 @@ export class DraftsService {
     userId: string,
   ) {
     const draft = await prisma.draft.findUnique({ where: { id } });
-    if (!draft || !(await hasOrganizationResourceAccess(prisma, draft.organizationId, draft.userId, userId))) {
+    if (
+      !draft ||
+      draft.deletedAt ||
+      !(await hasOrganizationResourceAccess(prisma, draft.organizationId, draft.userId, userId))
+    ) {
       throw new NotFoundException('Draft not found');
     }
     return draft;
@@ -77,6 +81,7 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: draft.id,
           userId,
+          organizationId: draft.organizationId,
           createdAt: now,
         },
       });
@@ -89,7 +94,7 @@ export class DraftsService {
     const query = typeof queryOrStatus === 'string' ? { status: queryOrStatus } : queryOrStatus;
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
-    const where: Record<string, unknown> = { parentDraftId: null };
+    const where: Record<string, unknown> = { parentDraftId: null, deletedAt: null };
     const actorRole = await resolveDraftResourceRole(this.prisma, query.organizationId, userId);
 
     if (query.organizationId) {
@@ -250,6 +255,7 @@ export class DraftsService {
             fromStatus: stageChanged ? previousMilestones.currentStage : previousStatus,
             toStatus: stageChanged ? targetStage : nextStatus,
             actorId: userId,
+            organizationId: draft.organizationId,
             remarks: dto.commitMessage ?? (actorRole ? `Stage updated by ${actorRole}` : null),
             createdAt: now,
           },
@@ -262,6 +268,7 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: id,
           userId,
+          organizationId: draft.organizationId,
           changes: {
             previousVersion,
             nextVersion: previousVersion + 1,
@@ -293,6 +300,30 @@ export class DraftsService {
       if (draft.organizationId && draft.userId !== userId && actorRole !== 'LGU_ADMIN') {
         throw new ForbiddenException('Only the draft owner or an organization administrator can delete this draft');
       }
+      if (draft.organizationId) {
+        await tx.draft.update({
+          where: { id, version: expectedVersion },
+          data: {
+            deletedAt: new Date(),
+            deletedBy: userId,
+            version: draft.version + 1,
+            updatedAt: new Date(),
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            action: 'DELETE',
+            entityType: 'drafts',
+            entityId: id,
+            userId,
+            organizationId: draft.organizationId,
+            changes: { retention: 'SOFT_DELETED_ORGANIZATION_DRAFT', previousVersion: draft.version },
+            createdAt: new Date(),
+          },
+        });
+        return { success: true };
+      }
+
       const revisions = await tx.draft.findMany({
         where: { parentDraftId: id },
       });
@@ -309,6 +340,7 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: id,
           userId,
+          organizationId: draft.organizationId,
           createdAt: new Date(),
         },
       });
@@ -414,6 +446,7 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: draftId,
           userId,
+          organizationId: draft.organizationId,
           changes: {
             previousVersion: draft.version,
             nextVersion: draft.version + 1,
@@ -445,6 +478,7 @@ export class DraftsService {
         draftId: id,
         exportType: format.toUpperCase(),
         exportedBy: userId,
+        organizationId: draft.organizationId,
         createdAt: new Date(),
       },
     });
@@ -466,6 +500,7 @@ export class DraftsService {
         fileSize: dto.fileSize,
         pageCount: dto.pageCount,
         exportedBy: userId,
+        organizationId: draft.organizationId,
         createdAt: new Date(),
       },
     });

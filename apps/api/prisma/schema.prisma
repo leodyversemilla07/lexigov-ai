@@ -121,6 +121,10 @@ model Organization {
     members     Member[]
     invitations Invitation[]
     drafts      Draft[]
+    workflowTransitions WorkflowTransition[]
+    complianceReports ComplianceReport[]
+    exportHistory ExportHistory[]
+    auditLogs AuditLog[]
 
     @@index([slug])
 }
@@ -171,10 +175,10 @@ model Draft {
     aiGenerated      Boolean  @default(false)
 
     userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
     organizationId String?
-    organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+    organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
     templateId String?
 
@@ -184,6 +188,8 @@ model Draft {
     revisions     Draft[] @relation("DraftVersions")
 
     commitMessage String?
+    deletedAt    DateTime?
+    deletedBy    String?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -197,6 +203,8 @@ model Draft {
     @@index([status])
     @@index([userId, status])
     @@index([parentDraftId])
+    @@index([organizationId, deletedAt, updatedAt])
+    @@index([userId, deletedAt, updatedAt])
 }
 
 model WorkflowTransition {
@@ -205,13 +213,16 @@ model WorkflowTransition {
     draft      Draft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
     fromStatus String
     toStatus   String
-    actorId    String
-    actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+    actorId    String?
+    actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+    organizationId String?
+    organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
     remarks    String?
     createdAt  DateTime @default(now())
 
     @@index([draftId])
     @@index([actorId])
+    @@index([organizationId, createdAt])
 }
 
 model Template {
@@ -250,9 +261,12 @@ model ComplianceReport {
     suggestionsCount Int
     issues           Json
 
+    organizationId String?
+    organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
     checkedAt DateTime @default(now())
 
     @@index([draftId])
+    @@index([organizationId, checkedAt])
 }
 
 model ExportHistory {
@@ -264,12 +278,15 @@ model ExportHistory {
     fileSize  Int?
     pageCount Int?
 
-    exportedBy   String
-    exportedByUser User @relation(fields: [exportedBy], references: [id], onDelete: Cascade)
+    exportedBy   String?
+    exportedByUser User? @relation(fields: [exportedBy], references: [id], onDelete: SetNull)
+    organizationId String?
+    organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
     createdAt DateTime @default(now())
 
     @@index([draftId])
+    @@index([organizationId, createdAt])
 }
 
 model AuditLog {
@@ -277,8 +294,10 @@ model AuditLog {
     action     String
     entityType String
     entityId   String
-    userId     String
-    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId     String?
+    user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+    organizationId String?
+    organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
     changes    Json?
     ipAddress  String?
 
@@ -286,4 +305,5 @@ model AuditLog {
 
     @@index([userId])
     @@index([entityType, entityId])
+    @@index([organizationId, createdAt])
 }

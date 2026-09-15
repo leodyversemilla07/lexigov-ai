@@ -24,6 +24,8 @@ interface DraftRecord {
   version: number;
   parentDraftId?: string | null;
   commitMessage?: string | null;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,8 @@ function buildPrismaDouble() {
         version: data.version ?? 1,
         parentDraftId: data.parentDraftId ?? null,
         commitMessage: data.commitMessage ?? null,
+        deletedAt: data.deletedAt ?? null,
+        deletedBy: data.deletedBy ?? null,
         createdAt: data.createdAt ?? new Date(),
         updatedAt: data.updatedAt ?? new Date(),
       };
@@ -303,6 +307,7 @@ describe('DraftsService.findAll', () => {
         userId: 'user_1',
         parentDraftId: null,
         organizationId: null,
+        deletedAt: null,
         documentType: 'RESOLUTION',
         OR: [
           { title: { contains: 'curfew', mode: 'insensitive' } },
@@ -716,6 +721,7 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
         where: {
           organizationId: 'org_1',
           parentDraftId: null,
+          deletedAt: null,
         },
       }),
     );
@@ -780,7 +786,13 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
       .mockResolvedValueOnce({ organizationId: 'org_1', userId: 'admin_user', role: 'owner' } as never);
 
     await expect(service.remove(sharedDraft.id, 'admin_user', sharedDraft.version)).resolves.toEqual({ success: true });
-    expect(prisma._state.drafts.has(sharedDraft.id)).toBe(false);
+    expect(prisma._state.drafts.get(sharedDraft.id)).toMatchObject({
+      deletedBy: 'admin_user',
+      version: 2,
+    });
+    expect(prisma._state.drafts.get(sharedDraft.id)?.deletedAt).toBeInstanceOf(Date);
+    await expect(service.findOne(sharedDraft.id, 'admin_user')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findAll('admin_user', { organizationId: 'org_1' })).resolves.toMatchObject({ data: [] });
   });
 
   it('returns not found for a non-member without exposing an organization draft', async () => {
