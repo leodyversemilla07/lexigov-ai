@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { AdminModule } from './admin/admin.module';
 import { AiModule } from './ai/ai.module';
 import { ArtifactModule } from './artifacts/artifact.module';
 import { AuthModule } from './auth/auth.module';
@@ -31,6 +32,7 @@ import { TemplatesModule } from './templates/templates.module';
     }),
     PrismaModule,
     ArtifactModule,
+    AdminModule,
     AuthModule,
     DraftsModule,
     TemplatesModule,
