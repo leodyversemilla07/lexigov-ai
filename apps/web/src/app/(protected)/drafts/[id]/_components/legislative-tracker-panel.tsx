@@ -9,8 +9,8 @@ import {
   type LegislativeStage,
   SANGGUNIAN_ROLE_LABELS,
   type SanggunianRole,
-  validateStageTransition,
   type VotingRecord,
+  validateStageTransition,
 } from '@lexigov/shared';
 import { Badge } from '@lexigov/ui/components/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@lexigov/ui/components/card';
@@ -116,10 +116,7 @@ export function LegislativeTrackerPanel({
     });
   };
 
-  const renderVotingRecord = (
-    recordField: 'votingRecord' | 'vetoOverrideVotingRecord',
-    title: string,
-  ) => {
+  const renderVotingRecord = (recordField: 'votingRecord' | 'vetoOverrideVotingRecord', title: string) => {
     const voting = milestones[recordField] || EMPTY_VOTE;
     return (
       <div className='space-y-2.5'>
@@ -185,9 +182,14 @@ export function LegislativeTrackerPanel({
     );
   };
 
-  const showsVote = ['THIRD_READING', 'TRANSMITTED_TO_LCE', 'AWAITING_PUNONG_BARANGAY_SIGNATURE', 'ADOPTED', 'ENACTED', 'VETOED'].includes(
-    milestones.currentStage,
-  );
+  const showsVote = [
+    'THIRD_READING',
+    'TRANSMITTED_TO_LCE',
+    'AWAITING_PUNONG_BARANGAY_SIGNATURE',
+    'ADOPTED',
+    'ENACTED',
+    'VETOED',
+  ].includes(milestones.currentStage);
   const showsLce =
     jurisdictionLevel !== 'barangay' &&
     documentType.toUpperCase() === 'ORDINANCE' &&
@@ -251,7 +253,11 @@ export function LegislativeTrackerPanel({
             onValueChange={(value) => handleStageChange(value as LegislativeStage)}
             disabled={readOnly}
           >
-            <SelectTrigger id='advance-stage-select' data-testid='legislative.tracker.stage-select' className='h-9 text-xs'>
+            <SelectTrigger
+              id='advance-stage-select'
+              data-testid='legislative.tracker.stage-select'
+              className='h-9 text-xs'
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -266,36 +272,43 @@ export function LegislativeTrackerPanel({
 
         <div className='rounded-lg border p-3 text-xs space-y-3 bg-card'>
           <div className='space-y-2 border-b pb-2.5'>
-              <div className='font-semibold text-foreground flex items-center gap-1.5'>
-                <FileCheck className='h-3.5 w-3.5 text-primary' /> Reading and referral record
+            <div className='font-semibold text-foreground flex items-center gap-1.5'>
+              <FileCheck className='h-3.5 w-3.5 text-primary' /> Reading and referral record
+            </div>
+            <div className='grid grid-cols-2 gap-2'>
+              <div>
+                <Label className='text-[10px] text-muted-foreground'>First-reading date</Label>
+                <Input
+                  type='date'
+                  className='h-7 text-xs'
+                  value={milestones.firstReadingDate || ''}
+                  onChange={(event) => handleFieldChange('firstReadingDate', event.target.value)}
+                  disabled={readOnly}
+                />
               </div>
-              <div className='grid grid-cols-2 gap-2'>
-                <div>
-                  <Label className='text-[10px] text-muted-foreground'>First-reading date</Label>
-                  <Input
-                    type='date'
-                    className='h-7 text-xs'
-                    value={milestones.firstReadingDate || ''}
-                    onChange={(event) => handleFieldChange('firstReadingDate', event.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
-                <div>
-                  <Label className='text-[10px] text-muted-foreground'>Referred committee</Label>
-                  <Input
-                    placeholder='Committee shown in record'
-                    className='h-7 text-xs'
-                    value={milestones.referredCommittee || ''}
-                    onChange={(event) => handleFieldChange('referredCommittee', event.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
+              <div>
+                <Label className='text-[10px] text-muted-foreground'>Referred committee</Label>
+                <Input
+                  placeholder='Committee shown in record'
+                  className='h-7 text-xs'
+                  value={milestones.referredCommittee || ''}
+                  onChange={(event) => handleFieldChange('referredCommittee', event.target.value)}
+                  disabled={readOnly}
+                />
               </div>
             </div>
+          </div>
 
-          {['COMMITTEE_REVIEW', 'SECOND_READING', 'THIRD_READING', 'TRANSMITTED_TO_LCE', 'AWAITING_PUNONG_BARANGAY_SIGNATURE', 'ADOPTED', 'VETOED', 'ENACTED'].includes(
-            milestones.currentStage,
-          ) || milestones.committeeHearingDate ? (
+          {[
+            'COMMITTEE_REVIEW',
+            'SECOND_READING',
+            'THIRD_READING',
+            'TRANSMITTED_TO_LCE',
+            'AWAITING_PUNONG_BARANGAY_SIGNATURE',
+            'ADOPTED',
+            'VETOED',
+            'ENACTED',
+          ].includes(milestones.currentStage) || milestones.committeeHearingDate ? (
             <div className='space-y-2 border-b pb-2.5'>
               <div className='font-semibold text-foreground flex items-center gap-1.5'>
                 <Clock className='h-3.5 w-3.5 text-sky-600' /> Committee and reading dates
@@ -345,7 +358,9 @@ export function LegislativeTrackerPanel({
             </div>
           ) : null}
 
-          {showsVote ? <div className='border-b pb-2.5'>{renderVotingRecord('votingRecord', 'Recorded vote details')}</div> : null}
+          {showsVote ? (
+            <div className='border-b pb-2.5'>{renderVotingRecord('votingRecord', 'Recorded vote details')}</div>
+          ) : null}
 
           {milestones.currentStage === 'AWAITING_PUNONG_BARANGAY_SIGNATURE' ||
           (jurisdictionLevel === 'barangay' && milestones.currentStage === 'ENACTED') ? (
@@ -407,11 +422,19 @@ export function LegislativeTrackerPanel({
                         onValueChange={(value) => handleFieldChange('lceAction', value)}
                         disabled={readOnly}
                       >
-                        <SelectTrigger className='h-7 text-xs'><SelectValue /></SelectTrigger>
+                        <SelectTrigger className='h-7 text-xs'>
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value='PENDING' className='text-xs'>Pending</SelectItem>
-                          <SelectItem value='APPROVED' className='text-xs'>Approval/signature recorded</SelectItem>
-                          <SelectItem value='VETOED' className='text-xs'>Veto recorded</SelectItem>
+                          <SelectItem value='PENDING' className='text-xs'>
+                            Pending
+                          </SelectItem>
+                          <SelectItem value='APPROVED' className='text-xs'>
+                            Approval/signature recorded
+                          </SelectItem>
+                          <SelectItem value='VETOED' className='text-xs'>
+                            Veto recorded
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

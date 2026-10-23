@@ -99,16 +99,31 @@ export function inferDefaultSignatories(
 ): DocumentSignatories {
   const lgu = jurisdictionName.trim();
   const titles: Record<JurisdictionLevel, [string, string, string]> = {
-    provincial: ['Secretary to the Sangguniang Panlalawigan', 'Provincial Vice Governor & Presiding Officer', `Provincial Governor, Province of ${lgu}`],
-    city: ['Secretary to the Sangguniang Panlungsod', 'City Vice Mayor & Presiding Officer', `City Mayor, City of ${lgu}`],
-    municipal: ['Secretary to the Sangguniang Bayan', 'Municipal Vice Mayor & Presiding Officer', `Municipal Mayor, Municipality of ${lgu}`],
+    provincial: [
+      'Secretary to the Sangguniang Panlalawigan',
+      'Provincial Vice Governor & Presiding Officer',
+      `Provincial Governor, Province of ${lgu}`,
+    ],
+    city: [
+      'Secretary to the Sangguniang Panlungsod',
+      'City Vice Mayor & Presiding Officer',
+      `City Mayor, City of ${lgu}`,
+    ],
+    municipal: [
+      'Secretary to the Sangguniang Bayan',
+      'Municipal Vice Mayor & Presiding Officer',
+      `Municipal Mayor, Municipality of ${lgu}`,
+    ],
     barangay: ['Barangay Secretary', 'Punong Barangay & Presiding Officer', `Punong Barangay, Barangay ${lgu}`],
   };
   const [secretaryTitle, presidingOfficerTitle, chiefExecutiveTitle] = titles[jurisdiction];
   return {
-    secretaryName: '', secretaryTitle,
-    presidingOfficerName: '', presidingOfficerTitle,
-    chiefExecutiveName: '', chiefExecutiveTitle,
+    secretaryName: '',
+    secretaryTitle,
+    presidingOfficerName: '',
+    presidingOfficerTitle,
+    chiefExecutiveName: '',
+    chiefExecutiveTitle,
   };
 }
 
@@ -165,8 +180,14 @@ export function extractWhereAsClausesAndBody(draftBody: string): ParsedOrdinance
   const pushSection = () => {
     if (!currentHeading) return;
     sections.push({
-      heading: currentHeading.replace(/\s*(?:\.\s*)?[—–-]\s*$/, '').replace(/\.\s*$/, '').trim(),
-      body: currentBodyLines.join('\n').trim().replace(/^[—–-]\s*/, ''),
+      heading: currentHeading
+        .replace(/\s*(?:\.\s*)?[—–-]\s*$/, '')
+        .replace(/\.\s*$/, '')
+        .trim(),
+      body: currentBodyLines
+        .join('\n')
+        .trim()
+        .replace(/^[—–-]\s*/, ''),
     });
     currentBodyLines = [];
   };

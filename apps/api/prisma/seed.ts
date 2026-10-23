@@ -147,8 +147,7 @@ const templates: TemplateSeed[] = [
     subcategory: 'Legislative resolution',
     jurisdiction: ['barangay', 'municipal', 'city', 'provincial'],
     documentType: 'RESOLUTION',
-    description:
-      'Reusable working-draft resolution structure for proposing endorsement, authorization, or support.',
+    description: 'Reusable working-draft resolution structure for proposing endorsement, authorization, or support.',
     prompt:
       'Prepare a proposed local government resolution. Include WHEREAS clauses based only on supplied facts and verified legal references, proposed resolved clauses, implementation instructions, and an explicit working-draft disclaimer. Do not include certification, signature, adoption, or approval claims.',
     body: [

@@ -8,10 +8,7 @@ import { Loader2, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
-import {
-  assignableOrganizationRoles,
-  type AssignableOrganizationRole,
-} from '@/lib/organization-permissions';
+import { type AssignableOrganizationRole, assignableOrganizationRoles } from '@/lib/organization-permissions';
 
 interface OrganizationMemberView {
   id: string;

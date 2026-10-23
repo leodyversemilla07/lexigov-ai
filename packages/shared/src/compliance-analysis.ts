@@ -210,9 +210,17 @@ function readImprisonmentMonths(content: string) {
       const wordText = match[1]?.toLowerCase();
       const quantityText = match[2];
       const unitText = match[3];
-      if ((!quantityText && !wordText) || !unitText) return Number.NaN;
+      if (!unitText) return Number.NaN;
 
-      const quantity = quantityText ? Number.parseInt(quantityText, 10) : (numberWords[wordText!] ?? Number.NaN);
+      let quantity: number;
+      if (quantityText) {
+        quantity = Number.parseInt(quantityText, 10);
+      } else if (wordText) {
+        quantity = numberWords[wordText] ?? Number.NaN;
+      } else {
+        return Number.NaN;
+      }
+
       const unit = unitText.toLowerCase();
 
       if (unit.startsWith('day')) {

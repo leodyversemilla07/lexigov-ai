@@ -18,17 +18,7 @@ import { Input } from '@lexigov/ui/components/input';
 import { Label } from '@lexigov/ui/components/label';
 import { ScrollArea } from '@lexigov/ui/components/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@lexigov/ui/components/select';
-import {
-  Check,
-  Copy,
-  Download,
-  FileText,
-  Landmark,
-  Loader2,
-  Printer,
-  ScrollText,
-  Users,
-} from 'lucide-react';
+import { Check, Copy, Download, FileText, Landmark, Loader2, Printer, ScrollText, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -127,7 +117,8 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
               <div>
                 <DialogTitle className='text-lg font-semibold'>Government Document Draft Exporter</DialogTitle>
                 <DialogDescription className='text-xs'>
-                  Export a working draft for authorized review. This does not certify enactment, authenticity, or legal compliance.
+                  Export a working draft for authorized review. This does not certify enactment, authenticity, or legal
+                  compliance.
                 </DialogDescription>
               </div>
             </div>
@@ -297,7 +288,9 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                       />
                       <span>Include proposed signatory placeholders</span>
                     </label>
-                    <p className='text-muted-foreground'>Placeholders do not record a signature, adoption, or approval.</p>
+                    <p className='text-muted-foreground'>
+                      Placeholders do not record a signature, adoption, or approval.
+                    </p>
                   </div>
                 </div>
               ) : null}

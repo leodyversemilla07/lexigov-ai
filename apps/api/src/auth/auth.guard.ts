@@ -33,12 +33,20 @@ export class AuthGuard implements CanActivate {
       ]
         .flatMap((value) => value?.split(',') ?? [])
         .map((value) => {
-          try { return new URL(value.trim()).origin; } catch { return ''; }
+          try {
+            return new URL(value.trim()).origin;
+          } catch {
+            return '';
+          }
         })
         .filter(Boolean);
       let requestOrigin = '';
       if (typeof request.headers.origin === 'string') {
-        try { requestOrigin = new URL(request.headers.origin).origin; } catch { requestOrigin = ''; }
+        try {
+          requestOrigin = new URL(request.headers.origin).origin;
+        } catch {
+          requestOrigin = '';
+        }
       }
       if (!requestOrigin || !trustedOrigins.includes(requestOrigin)) {
         throw new ForbiddenException('Untrusted request origin');

@@ -29,7 +29,8 @@ export class SanggunianRolesGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<SanggunianRole[]>(SANGGUNIAN_ROLES_KEY, [
-      context.getHandler(), context.getClass(),
+      context.getHandler(),
+      context.getClass(),
     ]);
     if (!requiredRoles?.length) return true;
 

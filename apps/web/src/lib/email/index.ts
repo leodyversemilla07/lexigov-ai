@@ -21,7 +21,9 @@ function buildProvider(): EmailProvider {
       if (process.env.NODE_ENV === 'production') {
         throw new Error('RESEND_API_KEY is required when EMAIL_PROVIDER=resend in production.');
       }
-      console.warn('[email] EMAIL_PROVIDER=resend but RESEND_API_KEY is missing — using console provider in development.');
+      console.warn(
+        '[email] EMAIL_PROVIDER=resend but RESEND_API_KEY is missing — using console provider in development.',
+      );
       cachedProvider = new ConsoleEmailProvider();
       return cachedProvider;
     }

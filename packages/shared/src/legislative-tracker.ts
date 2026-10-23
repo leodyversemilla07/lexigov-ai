@@ -13,11 +13,7 @@ export type LegislativeStage =
   | 'VETOED'
   | 'LAPSED_INTO_LAW';
 
-export type EnactmentBasis =
-  | 'LCE_APPROVAL'
-  | 'VETO_OVERRIDE'
-  | 'DEEMED_APPROVED'
-  | 'BARANGAY_MAJORITY_AND_SIGNATURE';
+export type EnactmentBasis = 'LCE_APPROVAL' | 'VETO_OVERRIDE' | 'DEEMED_APPROVED' | 'BARANGAY_MAJORITY_AND_SIGNATURE';
 
 export interface VotingRecord {
   totalMembership?: number;
@@ -118,13 +114,15 @@ export const LEGISLATIVE_STAGES: LegislativeStageMetadata[] = [
   {
     stage: 'ENACTED',
     label: 'Enactment Recorded',
-    description: 'An approval, barangay signature, or veto-override basis has been recorded but not independently verified.',
+    description:
+      'An approval, barangay signature, or veto-override basis has been recorded but not independently verified.',
     stepNumber: 7,
   },
   {
     stage: 'LAPSED_INTO_LAW',
     label: 'Deemed Approval Recorded',
-    description: 'Reserved for a separately verified statutory deadline and review process; unavailable in draft editing.',
+    description:
+      'Reserved for a separately verified statutory deadline and review process; unavailable in draft editing.',
     stepNumber: 7,
   },
 ];
@@ -207,7 +205,8 @@ export const SANGGUNIAN_ROLE_LABELS: Record<
   LGU_ADMIN: {
     label: 'LGU Administrator',
     statutoryTitle: 'Workspace & System Administrator',
-    description: 'Administers organization drafts and role assignments; this role does not itself prove legal authority.',
+    description:
+      'Administers organization drafts and role assignments; this role does not itself prove legal authority.',
   },
   LEGISLATIVE_STAFF: {
     label: 'Legislative Staff / Researcher',
@@ -259,11 +258,7 @@ function parseDate(value?: string): Date | null {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split('-').map(Number);
   const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 0));
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() + 1 !== month ||
-    date.getUTCDate() !== day
-  ) {
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) {
     return null;
   }
   return date;
@@ -385,10 +380,9 @@ function validateVotingEvidence(
     if (voting.ayes < requiredAyes) {
       return {
         isValid: false,
-        error:
-          requiresMajorityOfAll
-            ? 'A barangay ordinance requires recorded approval by a majority of all Sanggunian members.'
-            : 'The recorded affirmative votes do not constitute a majority of members present.',
+        error: requiresMajorityOfAll
+          ? 'A barangay ordinance requires recorded approval by a majority of all Sanggunian members.'
+          : 'The recorded affirmative votes do not constitute a majority of members present.',
       };
     }
   }
@@ -413,9 +407,15 @@ export function validateStageTransition(
 
   const changesStage = targetStage !== currentMilestones.currentStage;
   if (changesStage && !['ORDINANCE', 'RESOLUTION'].includes(documentType.toUpperCase())) {
-    return { isValid: false, error: 'This legislative milestone workflow is only available for ordinances and resolutions.' };
+    return {
+      isValid: false,
+      error: 'This legislative milestone workflow is only available for ordinances and resolutions.',
+    };
   }
-  if (changesStage && !getNextStages(currentMilestones.currentStage, jurisdiction, documentType).includes(targetStage)) {
+  if (
+    changesStage &&
+    !getNextStages(currentMilestones.currentStage, jurisdiction, documentType).includes(targetStage)
+  ) {
     return { isValid: false, error: 'Legislative stages cannot be skipped or rolled back through draft editing.' };
   }
 
@@ -464,10 +464,7 @@ export function validateStageTransition(
   const changesVotingRecord =
     !recordsEqual(proposedMilestones.votingRecord, currentMilestones.votingRecord) ||
     !recordsEqual(proposedMilestones.vetoOverrideVotingRecord, currentMilestones.vetoOverrideVotingRecord);
-  if (
-    changesVotingRecord &&
-    !['PRESIDING_OFFICER', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'].includes(actorRole)
-  ) {
+  if (changesVotingRecord && !['PRESIDING_OFFICER', 'SANGGUNIAN_SECRETARY', 'LGU_ADMIN'].includes(actorRole)) {
     return { isValid: false, error: 'Only the presiding officer, secretary, or LGU administrator can record votes.' };
   }
   if (!changesStage) return { isValid: true };
@@ -507,9 +504,7 @@ export function validateStageTransition(
     return { isValid: false, error: 'Record the third-reading date before advancing the workflow.' };
   }
 
-  if (
-    ['TRANSMITTED_TO_LCE', 'AWAITING_PUNONG_BARANGAY_SIGNATURE', 'ADOPTED'].includes(targetStage)
-  ) {
+  if (['TRANSMITTED_TO_LCE', 'AWAITING_PUNONG_BARANGAY_SIGNATURE', 'ADOPTED'].includes(targetStage)) {
     if (!proposedMilestones.thirdReadingDate) {
       return { isValid: false, error: 'Record the third-reading date before recording the post-vote milestone.' };
     }
@@ -531,7 +526,10 @@ export function validateStageTransition(
     }
     const expectedDeadline = calculateTransmittalDeadline(proposedMilestones.transmittedDate, jurisdiction);
     if (proposedMilestones.transmittalDeadline !== expectedDeadline) {
-      return { isValid: false, error: 'The indicative Section 54 deadline does not match the recorded transmittal date.' };
+      return {
+        isValid: false,
+        error: 'The indicative Section 54 deadline does not match the recorded transmittal date.',
+      };
     }
   }
 
@@ -591,7 +589,8 @@ export function validateStageTransition(
   if (targetStage === 'LAPSED_INTO_LAW' || proposedMilestones.enactmentBasis === 'DEEMED_APPROVED') {
     return {
       isValid: false,
-      error: 'Deemed approval requires a separately verified deadline and legal review and is unavailable in draft editing.',
+      error:
+        'Deemed approval requires a separately verified deadline and legal review and is unavailable in draft editing.',
     };
   }
 

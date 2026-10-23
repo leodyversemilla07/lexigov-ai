@@ -54,8 +54,7 @@ export const auth = betterAuth({
       roles: organizationRoles,
       requireEmailVerificationOnInvitation: true,
       async sendInvitationEmail(data) {
-        const configuredBaseUrl =
-          process.env.APP_URL ?? process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
+        const configuredBaseUrl = process.env.APP_URL ?? process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
         const invitationUrl = new URL('/accept-invitation', configuredBaseUrl);
         invitationUrl.searchParams.set('id', data.id);
         const roleLabel =

@@ -22,9 +22,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api-client';
 import { useAllDrafts } from '@/hooks/useAllDrafts';
 import { useDraftScope } from '@/hooks/useDraftScope';
+import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
 import type { ApiDraft, ApiDraftVersion } from '@/types';
 
@@ -324,7 +324,12 @@ export function ExportPageContent() {
   const initialDraftId = searchParams.get('draft');
 
   const { organizationId, isLoading: isScopeLoading } = useDraftScope();
-  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts({
+  const {
+    data: drafts,
+    error: draftsError,
+    isLoading,
+    refetch: refetchDrafts,
+  } = useAllDrafts({
     organizationId,
     enabled: !isScopeLoading,
   });
@@ -465,7 +470,9 @@ export function ExportPageContent() {
               ) : draftsError ? (
                 <div className='space-y-3 text-sm text-destructive'>
                   <p>Unable to load the complete draft list.</p>
-                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>Retry</Button>
+                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>
+                    Retry
+                  </Button>
                 </div>
               ) : !drafts || drafts.length === 0 ? (
                 <div className='text-center py-4'>
@@ -586,7 +593,8 @@ export function ExportPageContent() {
                 </CardTitle>
               </CardHeader>
               <CardContent className='text-xs text-muted-foreground'>
-                Exports do not certify enactment, signatures, or legal compliance. Obtain the official record from the issuing LGU.
+                Exports do not certify enactment, signatures, or legal compliance. Obtain the official record from the
+                issuing LGU.
               </CardContent>
             </Card>
           )}

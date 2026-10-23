@@ -16,7 +16,9 @@ type SessionRecord = {
 };
 
 interface PrismaLike {
-  session: { findUnique: jest.Mock<Promise<SessionRecord | null>, [{ where: { token: string }; include: { user: true } }]> };
+  session: {
+    findUnique: jest.Mock<Promise<SessionRecord | null>, [{ where: { token: string }; include: { user: true } }]>;
+  };
 }
 
 function buildSession(overrides: Partial<SessionRecord> = {}): SessionRecord {
@@ -40,7 +42,10 @@ describe('AuthService', () => {
   it('loads a valid raw bearer session from the database', async () => {
     prisma.session.findUnique.mockResolvedValue(buildSession());
     await expect(service.verifySession('session_token_abc', 'bearer')).resolves.toEqual({
-      userId: 'user_1', email: 'user@example.com', name: 'Maria Santos', role: 'user',
+      userId: 'user_1',
+      email: 'user@example.com',
+      name: 'Maria Santos',
+      role: 'user',
     });
   });
 
@@ -72,9 +77,17 @@ describe('AuthService', () => {
     prisma.session.findUnique.mockResolvedValueOnce(buildSession({ expiresAt: new Date(Date.now() - 1) }));
     await expect(service.verifySession('expired', 'bearer')).rejects.toBeInstanceOf(UnauthorizedException);
 
-    prisma.session.findUnique.mockResolvedValueOnce(buildSession({ user: {
-      id: 'u', email: 'u@example.com', name: null, banned: true, banExpires: null,
-    } }));
+    prisma.session.findUnique.mockResolvedValueOnce(
+      buildSession({
+        user: {
+          id: 'u',
+          email: 'u@example.com',
+          name: null,
+          banned: true,
+          banExpires: null,
+        },
+      }),
+    );
     await expect(service.verifySession('banned', 'bearer')).rejects.toBeInstanceOf(UnauthorizedException);
   });
 

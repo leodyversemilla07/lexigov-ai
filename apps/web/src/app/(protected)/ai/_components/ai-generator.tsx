@@ -36,8 +36,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Controller } from 'react-hook-form';
 import { toast } from 'sonner';
-import { useDraftScope } from '@/hooks/useDraftScope';
 import { useZodForm } from '@/hooks/use-zod-form';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
 
@@ -640,7 +640,12 @@ export function AIPageContent() {
                 <p className='text-center text-xs text-muted-foreground'>
                   Saving to {organization?.name ?? 'your personal workspace'}.
                 </p>
-                <Button onClick={handleSaveDraft} disabled={isSubmitting || isScopeLoading} className='w-full' size='lg'>
+                <Button
+                  onClick={handleSaveDraft}
+                  disabled={isSubmitting || isScopeLoading}
+                  className='w-full'
+                  size='lg'
+                >
                   {isSubmitting ? (
                     <>
                       <Loader2 className='mr-2 h-4 w-4 animate-spin' />

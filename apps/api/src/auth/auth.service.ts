@@ -13,7 +13,10 @@ export interface AuthenticatedUser {
 export class AuthService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async verifySession(sessionToken: string, source: SessionCredential['source'] = 'bearer'): Promise<AuthenticatedUser> {
+  async verifySession(
+    sessionToken: string,
+    source: SessionCredential['source'] = 'bearer',
+  ): Promise<AuthenticatedUser> {
     const token = resolveSessionToken(
       { token: sessionToken, source },
       process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_SECRET,

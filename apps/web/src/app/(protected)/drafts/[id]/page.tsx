@@ -25,8 +25,8 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ApiError, api } from '@/lib/api-client';
-import { useSession } from '@/lib/auth-client';
 import { useApiQuery } from '@/lib/api-hooks';
+import { useSession } from '@/lib/auth-client';
 import {
   CompliancePulsePanel,
   type ComplianceReport,

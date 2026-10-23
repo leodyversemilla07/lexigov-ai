@@ -13,9 +13,7 @@ import type { ApiDraft, PaginatedResponse } from '@/types';
 export default function DashboardPage() {
   const { organization, organizationId, isLoading: isScopeLoading } = useDraftScope();
   const draftsPath = appendDraftScope('/drafts?limit=5', organizationId);
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(
-    isScopeLoading ? null : draftsPath,
-  );
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(isScopeLoading ? null : draftsPath);
   const { data: templatesPage } = useApiQuery<PaginatedResponse<unknown>>('/templates?publicOnly=true');
   const drafts = draftsPage?.data ?? [];
   const templates = templatesPage?.data ?? [];

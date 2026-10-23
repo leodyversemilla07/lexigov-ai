@@ -6,11 +6,7 @@ const calendarDate = z
   .refine((value) => {
     const [year, month, day] = value.split('-').map(Number);
     const parsed = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 0));
-    return (
-      parsed.getUTCFullYear() === year &&
-      parsed.getUTCMonth() + 1 === month &&
-      parsed.getUTCDate() === day
-    );
+    return parsed.getUTCFullYear() === year && parsed.getUTCMonth() + 1 === month && parsed.getUTCDate() === day;
   }, 'Use a valid calendar date');
 
 const optionalDate = z.union([z.literal(''), calendarDate]).optional();

@@ -32,8 +32,8 @@ export default function Home() {
           <span className='text-primary'>with AI Precision</span>
         </h1>
         <p className='text-xl text-muted-foreground mb-10 max-w-2xl mx-auto'>
-          Create local government ordinance drafts with RA 7160-aware guidance. AI-assisted drafting, advisory checks, and
-          template library for Philippine LGUs.
+          Create local government ordinance drafts with RA 7160-aware guidance. AI-assisted drafting, advisory checks,
+          and template library for Philippine LGUs.
         </p>
         <div className='flex items-center justify-center gap-4'>
           <HomeHeroActions />

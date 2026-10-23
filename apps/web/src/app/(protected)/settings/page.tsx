@@ -29,8 +29,11 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export default function SettingsPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { data: organization, isPending: isOrganizationLoading, refetch: refetchOrganization } =
-    authClient.useActiveOrganization();
+  const {
+    data: organization,
+    isPending: isOrganizationLoading,
+    refetch: refetchOrganization,
+  } = authClient.useActiveOrganization();
   const [organizationName, setOrganizationName] = useState('');
   const [isSavingOrganization, setIsSavingOrganization] = useState(false);
   const user = session?.user;

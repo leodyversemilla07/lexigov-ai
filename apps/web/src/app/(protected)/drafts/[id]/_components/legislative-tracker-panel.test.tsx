@@ -23,12 +23,7 @@ describe('LegislativeTrackerPanel (Colocated Unit Test)', () => {
     });
 
     render(
-      <LegislativeTrackerPanel
-        jurisdiction='city'
-        milestones={milestones}
-        onUpdateMilestones={vi.fn()}
-        readOnly
-      />,
+      <LegislativeTrackerPanel jurisdiction='city' milestones={milestones} onUpdateMilestones={vi.fn()} readOnly />,
     );
 
     expect(screen.getByTestId('legislative.tracker.stage-select')).toBeDisabled();

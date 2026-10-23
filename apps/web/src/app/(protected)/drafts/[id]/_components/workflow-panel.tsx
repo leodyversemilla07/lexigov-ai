@@ -15,7 +15,10 @@ type WorkflowPanelProps = {
 
 export function WorkflowPanel({ draft, status, onStatusChange, readOnly = false }: WorkflowPanelProps) {
   return (
-    <SidePanelCard title='Editing workflow' description='Track internal drafting state separately from legislative milestones.'>
+    <SidePanelCard
+      title='Editing workflow'
+      description='Track internal drafting state separately from legislative milestones.'
+    >
       <div className='space-y-4'>
         <div className='space-y-2'>
           <div className='flex items-center justify-between gap-3'>

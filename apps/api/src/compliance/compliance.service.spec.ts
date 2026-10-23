@@ -50,10 +50,12 @@ function buildPrismaDouble(): PrismaDouble {
     findUnique: jest.fn(async ({ where }: { where: { id: string } }) => drafts.get(where.id) ?? null),
   };
   const member = {
-    findUnique: jest.fn(async ({ where }: { where: { organizationId_userId: { organizationId: string; userId: string } } }) => ({
-      ...where.organizationId_userId,
-      role: 'legislative_staff',
-    })),
+    findUnique: jest.fn(
+      async ({ where }: { where: { organizationId_userId: { organizationId: string; userId: string } } }) => ({
+        ...where.organizationId_userId,
+        role: 'legislative_staff',
+      }),
+    ),
   };
   const user = {
     findUnique: jest.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id, role: 'user' })),

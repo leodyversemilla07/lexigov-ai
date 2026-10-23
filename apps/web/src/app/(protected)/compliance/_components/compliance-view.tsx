@@ -22,7 +22,12 @@ export function CompliancePageContent() {
   const initialDraftId = searchParams.get('draft');
 
   const { organizationId, isLoading: isScopeLoading } = useDraftScope();
-  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts({
+  const {
+    data: drafts,
+    error: draftsError,
+    isLoading,
+    refetch: refetchDrafts,
+  } = useAllDrafts({
     organizationId,
     enabled: !isScopeLoading,
   });
@@ -33,6 +38,7 @@ export function CompliancePageContent() {
   const checkRequestRef = useRef(0);
   const previousScopeRef = useRef(organizationId);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedDraftId is an intentional reset trigger; removing it would skip the reset when the reviewed draft changes.
   useEffect(() => {
     checkRequestRef.current += 1;
     setResult(null);
@@ -106,7 +112,9 @@ export function CompliancePageContent() {
     <div className='space-y-6'>
       <div>
         <h1 className='text-3xl font-bold tracking-tight'>Advisory Compliance Review</h1>
-        <p className='text-muted-foreground'>Automated RA 7160 drafting checks; authorized legal review is still required.</p>
+        <p className='text-muted-foreground'>
+          Automated RA 7160 drafting checks; authorized legal review is still required.
+        </p>
       </div>
 
       <div className='grid gap-6 lg:grid-cols-4'>
@@ -127,7 +135,9 @@ export function CompliancePageContent() {
               ) : draftsError ? (
                 <div className='space-y-3 text-sm text-destructive'>
                   <p>Unable to load the complete draft list.</p>
-                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>Retry</Button>
+                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>
+                    Retry
+                  </Button>
                 </div>
               ) : !drafts || drafts.length === 0 ? (
                 <div className='text-center py-4'>

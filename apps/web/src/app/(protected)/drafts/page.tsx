@@ -56,9 +56,7 @@ export default function DraftsPage() {
   if (typeFilter !== 'ALL') queryParams.set('documentType', typeFilter);
 
   const apiPath = appendDraftScope(`/drafts?${queryParams.toString()}`, organizationId);
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(
-    isScopeLoading ? null : apiPath,
-  );
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(isScopeLoading ? null : apiPath);
   const drafts = draftsPage?.data ?? [];
   const totalCount = draftsPage?.total ?? 0;
 

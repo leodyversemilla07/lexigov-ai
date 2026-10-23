@@ -17,7 +17,11 @@ import type { ApiDraft, ApiDraftVersion } from '@/types';
 function ComparePageContent() {
   const searchParams = useSearchParams();
   const { organizationId, isLoading: isScopeLoading } = useDraftScope();
-  const { data: drafts, error: draftsError, refetch: refetchDrafts } = useAllDrafts({
+  const {
+    data: drafts,
+    error: draftsError,
+    refetch: refetchDrafts,
+  } = useAllDrafts({
     organizationId,
     enabled: !isScopeLoading,
   });
@@ -85,7 +89,9 @@ function ComparePageContent() {
               ) : draftsError ? (
                 <div className='space-y-3 text-sm text-destructive'>
                   <p>Unable to load the complete draft list.</p>
-                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>Retry</Button>
+                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>
+                    Retry
+                  </Button>
                 </div>
               ) : (
                 <Select

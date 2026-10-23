@@ -37,6 +37,8 @@ describe('WorkflowPanel (Colocated Unit Test)', () => {
     );
 
     expect(screen.getByText('Editing workflow')).toBeInTheDocument();
-    expect(screen.getByText('Track internal drafting state separately from legislative milestones.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Track internal drafting state separately from legislative milestones.'),
+    ).toBeInTheDocument();
   });
 });

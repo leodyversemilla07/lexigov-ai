@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexigov/ui';
 import { ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
 
 /** Fail closed until an authoritative, versioned publication registry is implemented. */
 export default function VerifyOrdinancePage() {

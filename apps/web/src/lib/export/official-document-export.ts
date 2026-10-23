@@ -364,12 +364,18 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
     );
   }
 
-  paragraphs.unshift(new Paragraph({
-    children: [new TextRun({ text: 'WORKING DRAFT — NOT AN OFFICIAL RECORD', bold: true })],
-  }));
-  paragraphs.push(new Paragraph({
-    children: [new TextRun({ text: 'This export has not been authenticated or legally certified by LexiGov.', size: 16 })],
-  }));
+  paragraphs.unshift(
+    new Paragraph({
+      children: [new TextRun({ text: 'WORKING DRAFT — NOT AN OFFICIAL RECORD', bold: true })],
+    }),
+  );
+  paragraphs.push(
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'This export has not been authenticated or legally certified by LexiGov.', size: 16 }),
+      ],
+    }),
+  );
 
   const doc = new Document({
     sections: [

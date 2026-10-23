@@ -32,7 +32,11 @@ export function OrganizationSwitcher() {
   };
 
   return (
-    <Select value={organization?.id ?? PERSONAL_WORKSPACE} onValueChange={handleChange} disabled={isLoading || isListLoading || isSwitching}>
+    <Select
+      value={organization?.id ?? PERSONAL_WORKSPACE}
+      onValueChange={handleChange}
+      disabled={isLoading || isListLoading || isSwitching}
+    >
       <SelectTrigger className='h-8 w-[135px] sm:w-[190px]' aria-label='Active workspace'>
         <Building2 className='h-3.5 w-3.5 shrink-0' />
         <SelectValue placeholder='Select workspace' />
