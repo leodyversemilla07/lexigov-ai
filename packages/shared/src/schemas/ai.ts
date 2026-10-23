@@ -26,6 +26,17 @@ export const aiDraftFormSchema = generateOrdinanceSchema.omit({ templateId: true
 });
 export type AIDraftFormInput = z.infer<typeof aiDraftFormSchema>;
 
+export const complianceIssueSchema = z.object({
+  type: z.enum(['critical', 'warning', 'suggestion']),
+  section: z.string().max(500).optional(),
+  title: z.string().min(1).max(500),
+  description: z.string().min(1).max(5000),
+  suggestion: z.string().min(1).max(5000),
+}).strict();
+export const aiComplianceResultSchema = z.object({
+  issues: z.array(complianceIssueSchema).max(8),
+}).strict();
+
 // Compliance check schema
 export const complianceCheckSchema = z.object({
   content: z.string().min(1, 'Draft content is required'),

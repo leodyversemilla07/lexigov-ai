@@ -48,16 +48,27 @@ describe('Official Philippine Government Document Formatter Suite', () => {
   });
 
   describe('buildDefaultDocumentFormatConfig()', () => {
-    it('constructs default A4 Book Antiqua configuration with session roster', () => {
+    it('constructs a safe default configuration without invented official records', () => {
       const config = buildDefaultDocumentFormatConfig('city', 'Pasig');
       expect(config.paperSize).toBe('A4');
       expect(config.fontFamily).toBe('Book Antiqua');
       expect(config.fontSizePt).toBe(11);
       expect(config.lineSpacing).toBe(1.15);
       expect(config.includeSeals).toBe(true);
-      expect(config.includeSessionExcerpt).toBe(true);
-      expect(config.includeSignatures).toBe(true);
-      expect(config.sessionDetails?.presentMembers.length).toBeGreaterThan(0);
+      expect(config.includeSessionExcerpt).toBe(false);
+      expect(config.includeSignatures).toBe(false);
+      expect(config.includeQrVerification).toBe(false);
+      expect(config.sessionDetails?.presentMembers).toEqual([]);
+      expect(config.signatories.secretaryName).toBe('');
+    });
+
+    it('does not present a veto date as an approval date', () => {
+      const config = buildDefaultDocumentFormatConfig('city', 'Pasig', {
+        currentStage: 'VETOED',
+        lceAction: 'VETOED',
+        lceActionDate: '2026-08-05',
+      });
+      expect(config.signatories.approvalDate).toBeUndefined();
     });
   });
 
@@ -85,7 +96,7 @@ SECTION 3. PENALTIES. — Violators shall be fined PHP 5,000.
   });
 
   describe('generateOfficialDocumentText()', () => {
-    it('generates complete legislative transcript with all statutory blocks', () => {
+    it('generates an explicitly unverified working draft by default', () => {
       const config = buildDefaultDocumentFormatConfig('city', 'Pasig');
       const text = generateOfficialDocumentText(
         {
@@ -102,14 +113,35 @@ SECTION 3. PENALTIES. — Violators shall be fined PHP 5,000.
       );
 
       expect(text).toContain('REPUBLIC OF THE PHILIPPINES');
-      expect(text).toContain('EXCERPT FROM THE MINUTES');
       expect(text).toContain('ORDINANCE NO. 2026-042');
       expect(text).toContain('AN ORDINANCE INSTITUTING CITIZEN CHARTER');
       expect(text).toContain('WHEREAS, public service is a public trust.');
-      expect(text).toContain('I HEREBY CERTIFY to the correctness');
-      expect(text).toContain('ATTESTED AND CERTIFIED TO BE DULY ADOPTED');
-      expect(text).toContain('APPROVED:');
-      expect(text).toContain('LXG-2026-7F83B165');
+      expect(text).not.toContain('I HEREBY CERTIFY to the correctness');
+      expect(text).not.toContain('LXG-2026-7F83B165');
+      expect(text).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
+      expect(text).toContain('not been authenticated or legally certified');
+    });
+
+    it('renders optional signatories only as non-attesting draft placeholders', () => {
+      const config = buildDefaultDocumentFormatConfig('city', 'Pasig');
+      config.includeSignatures = true;
+      config.signatories.secretaryName = 'Sample Secretary';
+      config.includeSessionExcerpt = true;
+      const text = generateOfficialDocumentText(
+        {
+          title: 'Sample Working Draft',
+          documentType: 'ORDINANCE',
+          jurisdiction: 'city',
+          jurisdictionName: 'City of Pasig',
+          body: 'SECTION 1. SAMPLE. — Draft text.',
+        },
+        config,
+      );
+
+      expect(text).toContain('DRAFT SIGNATORY PLACEHOLDERS');
+      expect(text).toContain('Proposed Sanggunian Secretary: SAMPLE SECRETARY');
+      expect(text).toContain('DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES');
+      expect(text).not.toMatch(/I HEREBY CERTIFY|DULY ADOPTED|APPROVED:|EXCERPT FROM THE MINUTES/);
     });
   });
 });

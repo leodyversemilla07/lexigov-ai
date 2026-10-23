@@ -1,43 +1,88 @@
-# Azure OpenAI Integration Guide
+# AI Provider Setup Guide
 
-## Overview
+LexiGov’s provider-neutral AI layer is implemented in `packages/ai`. NestJS consumes it from `apps/api/src/ai/ai.service.ts`. No Convex runtime is used.
 
-LexiGov AI uses Azure OpenAI for ordinance generation, compliance checking, and summarization. The backend integration is implemented with the official `openai` TypeScript SDK and Azure OpenAI credentials.
+## Select a provider
 
-## Configuration
+Set `AI_PROVIDER` in the API environment to one of:
 
-Set these environment variables in the project root `.env.local` and in your Convex deployment environment:
+- `azure`
+- `openai`
+- `gemini`
+- `anthropic`
+- `openai-compatible`
+- `mock` (development and tests only)
 
-```bash
-AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-AZURE_OPENAI_API_KEY="..."
-AZURE_OPENAI_API_VERSION="..."
-AZURE_OPENAI_DEPLOYMENT="..."
+`AI_MODEL` optionally overrides the provider’s default model. `AI_FALLBACK_PROVIDERS` accepts a comma-separated fallback provider list. In production, startup fails if no configured provider can be created; mock fallback is intentionally disabled.
+
+## Azure OpenAI
+
+```env
+AI_PROVIDER=azure
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_API_VERSION=2024-10-21
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
 ```
 
-## Deployment Requirement
+The deployment must support chat completion for the requested workload.
 
-`AZURE_OPENAI_DEPLOYMENT` must be the name of an Azure OpenAI chat-model deployment that supports ordinance drafting and compliance analysis for your workload.
+## OpenAI
 
-## Service Implementation
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+AI_MODEL=gpt-4o
+# Optional proxy-compatible endpoint:
+# OPENAI_BASE_URL=https://api.openai.com/v1
+```
 
-The core logic is in `convex/ai.ts`.
+## Gemini
 
-It exports:
-- `generateOrdinance`
-- `checkCompliance`
-- `generateSummary`
+```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+AI_MODEL=gemini-2.0-flash
+```
 
-## Usage Notes
+## Anthropic
 
-- The Convex node actions call Azure OpenAI directly from the server.
-- Draft metadata stores the deployment name returned by the generation flow.
-- The frontend labels are provider-agnostic except where Azure OpenAI is shown explicitly.
+```env
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=...
+AI_MODEL=claude-sonnet-4-5
+```
+
+## OpenAI-compatible services
+
+Use this adapter for a compatible sovereign cloud, vLLM, Ollama gateway, or other approved endpoint:
+
+```env
+AI_PROVIDER=openai-compatible
+CUSTOM_AI_BASE_URL=https://approved-endpoint.example/v1
+CUSTOM_AI_API_KEY=...
+CUSTOM_AI_MODEL=approved-model
+```
+
+## Fallback example
+
+```env
+AI_PROVIDER=azure
+AI_FALLBACK_PROVIDERS=openai,anthropic
+```
+
+Only fully configured providers enter the chain. Streaming falls back only before any output has been emitted; after partial output, the request fails rather than concatenating responses from different models.
+
+## Validation and legal boundary
+
+Compliance augmentation must return the runtime-validated issue contract defined in `packages/shared/src/schemas/ai.ts`. Invalid provider output is discarded in favor of deterministic analysis.
+
+AI output and automated compliance scores are advisory. They require review by an authorized LGU official or legal officer and do not certify enactment, publication, authenticity, or legal validity.
 
 ## Troubleshooting
 
-If requests fail:
-1. Confirm the Azure OpenAI resource endpoint is correct and includes `https://`.
-2. Confirm the API key is active for that resource.
-3. Confirm `AZURE_OPENAI_API_VERSION` matches a version supported by your Azure resource.
-4. Confirm `AZURE_OPENAI_DEPLOYMENT` matches an existing deployment name, not just a base model family name.
+1. Confirm API environment variables are set in `apps/api/.env` or the deployment environment.
+2. Verify the selected provider’s credentials and endpoint.
+3. Confirm the configured model/deployment supports chat completions.
+4. Check NestJS logs for provider configuration errors.
+5. Test provider behavior with `pnpm --filter @lexigov/ai test`.

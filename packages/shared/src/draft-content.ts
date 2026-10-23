@@ -83,13 +83,17 @@ export function buildDraftSectionsFromBody(body: string): DraftSection[] {
     return [];
   }
 
-  const sectionRegex = /(SECTION\s+\d+[\s.:)-]*[^\n]*)([\s\S]*?)(?=\nSECTION\s+\d+[\s.:)-]*|\s*$)/gi;
-  const matches = Array.from(normalizedBody.matchAll(sectionRegex));
+  // Statutory headings must begin a line and use uppercase SECTION. This avoids
+  // treating prose citations such as “under Section 16 of RA 7160” as editable headings.
+  const sectionHeadingRegex = /^SECTION\s+\d+(?:\s*[.:)-]\s*|\s+)[^\n]*$/gm;
+  const matches = Array.from(normalizedBody.matchAll(sectionHeadingRegex));
 
   if (matches.length > 0) {
     return matches.map((match, index) => {
-      const rawHeading = match[1] ?? '';
-      const rawBody = match[2] ?? '';
+      const rawHeading = match[0] ?? '';
+      const bodyStart = (match.index ?? 0) + rawHeading.length;
+      const bodyEnd = matches[index + 1]?.index ?? normalizedBody.length;
+      const rawBody = normalizedBody.slice(bodyStart, bodyEnd);
       const heading = buildSectionHeading(rawHeading, index);
       const sectionBody = rawBody.trim();
 
@@ -231,7 +235,10 @@ export function updateDraftSectionsContent(content: unknown, sections: DraftSect
       body: section.body.trim(),
     }))
     .filter((section) => section.heading || section.body);
-  const body = composeDraftBodyFromSections(cleanedSections);
+  const sectionBody = composeDraftBodyFromSections(cleanedSections);
+  const firstHeading = /^SECTION\s+\d+(?:\s*[.:)-]\s*|\s+)[^\n]*$/m.exec(normalized.body);
+  const leadingText = firstHeading?.index ? normalized.body.slice(0, firstHeading.index).trim() : '';
+  const body = [leadingText, sectionBody].filter(Boolean).join('\n\n');
 
   return {
     ...normalized,

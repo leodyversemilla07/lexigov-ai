@@ -98,54 +98,18 @@ export function inferDefaultSignatories(
   jurisdictionName: string,
 ): DocumentSignatories {
   const lgu = jurisdictionName.trim();
-
-  switch (jurisdiction) {
-    case 'provincial':
-      return {
-        secretaryName: 'ATTY. MARIA ELEANOR SANTOS',
-        secretaryTitle: 'Secretary to the Sangguniang Panlalawigan',
-        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
-        presidingOfficerTitle: `Provincial Vice Governor & Presiding Officer`,
-        chiefExecutiveName: 'HON. ROBERTO V. MENDOZA',
-        chiefExecutiveTitle: `Provincial Governor, Province of ${lgu}`,
-      };
-    case 'city':
-      return {
-        secretaryName: 'ATTY. MARIA ELEANOR SANTOS',
-        secretaryTitle: 'Secretary to the Sangguniang Panlungsod',
-        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
-        presidingOfficerTitle: `City Vice Mayor & Presiding Officer`,
-        chiefExecutiveName: 'HON. VICTOR MA. REGIS SOTTO',
-        chiefExecutiveTitle: `City Mayor, City of ${lgu}`,
-      };
-    case 'municipal':
-      return {
-        secretaryName: 'MARIA ELEANOR SANTOS',
-        secretaryTitle: 'Secretary to the Sangguniang Bayan',
-        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
-        presidingOfficerTitle: `Municipal Vice Mayor & Presiding Officer`,
-        chiefExecutiveName: 'HON. ROBERTO V. MENDOZA',
-        chiefExecutiveTitle: `Municipal Mayor, Municipality of ${lgu}`,
-      };
-    case 'barangay':
-      return {
-        secretaryName: 'MARIA ELEANOR SANTOS',
-        secretaryTitle: 'Barangay Secretary',
-        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
-        presidingOfficerTitle: `Punong Barangay & Presiding Officer`,
-        chiefExecutiveName: 'HON. JUAN R. DELA CRUZ',
-        chiefExecutiveTitle: `Punong Barangay, Barangay ${lgu}`,
-      };
-    default:
-      return {
-        secretaryName: 'MARIA ELEANOR SANTOS',
-        secretaryTitle: 'Secretary to the Sanggunian',
-        presidingOfficerName: 'HON. JUAN R. DELA CRUZ',
-        presidingOfficerTitle: 'Presiding Officer',
-        chiefExecutiveName: 'HON. ROBERTO V. MENDOZA',
-        chiefExecutiveTitle: 'Local Chief Executive',
-      };
-  }
+  const titles: Record<JurisdictionLevel, [string, string, string]> = {
+    provincial: ['Secretary to the Sangguniang Panlalawigan', 'Provincial Vice Governor & Presiding Officer', `Provincial Governor, Province of ${lgu}`],
+    city: ['Secretary to the Sangguniang Panlungsod', 'City Vice Mayor & Presiding Officer', `City Mayor, City of ${lgu}`],
+    municipal: ['Secretary to the Sangguniang Bayan', 'Municipal Vice Mayor & Presiding Officer', `Municipal Mayor, Municipality of ${lgu}`],
+    barangay: ['Barangay Secretary', 'Punong Barangay & Presiding Officer', `Punong Barangay, Barangay ${lgu}`],
+  };
+  const [secretaryTitle, presidingOfficerTitle, chiefExecutiveTitle] = titles[jurisdiction];
+  return {
+    secretaryName: '', secretaryTitle,
+    presidingOfficerName: '', presidingOfficerTitle,
+    chiefExecutiveName: '', chiefExecutiveTitle,
+  };
 }
 
 export function buildDefaultDocumentFormatConfig(
@@ -154,11 +118,13 @@ export function buildDefaultDocumentFormatConfig(
   milestones?: LegislativeMilestones,
 ): DocumentFormatConfig {
   const signatories = inferDefaultSignatories(jurisdiction, jurisdictionName);
-  if (milestones?.lceActionDate) {
+  if (
+    milestones?.lceAction === 'APPROVED' &&
+    milestones.enactmentBasis === 'LCE_APPROVAL' &&
+    milestones.lceActionDate
+  ) {
     signatories.approvalDate = milestones.lceActionDate;
   }
-
-  const currentDate = new Date().toISOString().split('T')[0] ?? '2026-08-15';
 
   return {
     paperSize: 'A4',
@@ -166,23 +132,16 @@ export function buildDefaultDocumentFormatConfig(
     fontSizePt: 11,
     lineSpacing: 1.15,
     includeSeals: true,
-    includeSessionExcerpt: true,
-    includeSignatures: true,
-    includeQrVerification: true,
+    includeSessionExcerpt: false,
+    includeSignatures: false,
+    includeQrVerification: false,
     signatories,
     sessionDetails: {
       sessionType: 'REGULAR',
-      sessionDate: milestones?.thirdReadingDate || milestones?.firstReadingDate || currentDate,
-      sessionVenue: 'Legislative Session Hall',
-      presentMembers: [
-        `${signatories.presidingOfficerName} (Presiding Officer)`,
-        'Hon. Councilor Alicia Ramos (Floor Leader)',
-        'Hon. Councilor Marco Antonio Bautista',
-        'Hon. Councilor Carmela Reyes',
-        'Hon. Councilor Danilo Gomez',
-        'Hon. SK Federation President Mateo Tan',
-      ],
-      absentMembers: ['Hon. Councilor Ricardo Diaz (On Official Business)'],
+      sessionDate: milestones?.thirdReadingDate || milestones?.firstReadingDate || '',
+      sessionVenue: '',
+      presentMembers: [],
+      absentMembers: [],
     },
   };
 }
@@ -202,6 +161,15 @@ export function extractWhereAsClausesAndBody(draftBody: string): ParsedOrdinance
   let currentHeading = '';
   let currentBodyLines: string[] = [];
   let isParsingSections = false;
+
+  const pushSection = () => {
+    if (!currentHeading) return;
+    sections.push({
+      heading: currentHeading.replace(/\s*(?:\.\s*)?[—–-]\s*$/, '').replace(/\.\s*$/, '').trim(),
+      body: currentBodyLines.join('\n').trim().replace(/^[—–-]\s*/, ''),
+    });
+    currentBodyLines = [];
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i] ?? '';
@@ -226,13 +194,7 @@ export function extractWhereAsClausesAndBody(draftBody: string): ParsedOrdinance
     // Check for Section headers (e.g. "Section 1.", "SECTION 2 -", "## Section 1")
     const sectionMatch = line.match(/^(?:##\s*|#\s*)?(SECTION\s+\d+[.:-]?\s*[^.]*?)\.\s*(.*)$/i);
     if (sectionMatch) {
-      if (currentHeading) {
-        sections.push({
-          heading: currentHeading,
-          body: currentBodyLines.join('\n').trim(),
-        });
-        currentBodyLines = [];
-      }
+      if (currentHeading) pushSection();
       currentHeading = sectionMatch[1]?.trim() ?? 'SECTION';
       const remainder = sectionMatch[2]?.trim();
       if (remainder) {
@@ -253,12 +215,7 @@ export function extractWhereAsClausesAndBody(draftBody: string): ParsedOrdinance
     }
   }
 
-  if (currentHeading) {
-    sections.push({
-      heading: currentHeading,
-      body: currentBodyLines.join('\n').trim(),
-    });
-  }
+  pushSection();
 
   return {
     whereAsClauses,
@@ -274,18 +231,20 @@ export function generateOfficialDocumentText(data: FormattedDocumentData, config
   );
   const parsed = extractWhereAsClausesAndBody(data.body);
 
-  const lines: string[] = [];
+  const lines: string[] = ['WORKING DRAFT — NOT AN OFFICIAL RECORD\n'];
 
-  // 1. Official Header
-  lines.push('REPUBLIC OF THE PHILIPPINES');
-  lines.push(data.jurisdictionName.toUpperCase());
-  lines.push(officeName);
-  lines.push('------------------------------------------------------------\n');
+  // 1. Optional government-style header
+  if (config.includeSeals) {
+    lines.push('REPUBLIC OF THE PHILIPPINES');
+    lines.push(data.jurisdictionName.toUpperCase());
+    lines.push(officeName);
+    lines.push('------------------------------------------------------------\n');
+  }
 
   // 2. Session Minutes Excerpt
   if (config.includeSessionExcerpt && config.sessionDetails) {
     lines.push(
-      `EXCERPT FROM THE MINUTES OF THE ${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody} HELD AT ${config.sessionDetails.sessionVenue.toUpperCase()} ON ${config.sessionDetails.sessionDate}.\n`,
+      `DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES\n${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody}; VENUE: ${config.sessionDetails.sessionVenue.toUpperCase() || 'NOT PROVIDED'}; DATE: ${config.sessionDetails.sessionDate || 'NOT PROVIDED'}.\n`,
     );
     lines.push('PRESENT:');
     for (const member of config.sessionDetails.presentMembers) {
@@ -325,29 +284,19 @@ export function generateOfficialDocumentText(data: FormattedDocumentData, config
     lines.push(data.body);
   }
 
-  // 7. Signature Blocks
+  // 7. Proposed signatory placeholders. These never assert signature, adoption, or approval.
   if (config.includeSignatures) {
     lines.push('\n------------------------------------------------------------');
-    lines.push('I HEREBY CERTIFY to the correctness of the foregoing legislation.\n\n');
-    lines.push(`                                  ${config.signatories.secretaryName.toUpperCase()}`);
-    lines.push(`                              ${config.signatories.secretaryTitle}\n\n`);
-    lines.push('ATTESTED AND CERTIFIED TO BE DULY ADOPTED:\n\n');
-    lines.push(`                                  ${config.signatories.presidingOfficerName.toUpperCase()}`);
-    lines.push(`                              ${config.signatories.presidingOfficerTitle}\n\n`);
-    lines.push(`APPROVED: ${config.signatories.approvalDate || '________________'}\n\n`);
-    lines.push(`                                  ${config.signatories.chiefExecutiveName.toUpperCase()}`);
-    lines.push(`                              ${config.signatories.chiefExecutiveTitle}\n`);
+    lines.push('DRAFT SIGNATORY PLACEHOLDERS — NO SIGNATURE OR APPROVAL IS RECORDED\n');
+    lines.push(`Proposed Sanggunian Secretary: ${config.signatories.secretaryName.toUpperCase()}`);
+    lines.push(`${config.signatories.secretaryTitle}\n`);
+    lines.push(`Proposed Presiding Officer: ${config.signatories.presidingOfficerName.toUpperCase()}`);
+    lines.push(`${config.signatories.presidingOfficerTitle}\n`);
+    lines.push(`Proposed Local Chief Executive: ${config.signatories.chiefExecutiveName.toUpperCase()}`);
+    lines.push(`${config.signatories.chiefExecutiveTitle}\n`);
   }
 
-  // 8. Cryptographic Verification Stamp
-  if (config.includeQrVerification && data.verificationHash) {
-    lines.push('------------------------------------------------------------');
-    lines.push(`[SECURITY INTEGRITY STAMP]`);
-    lines.push(`Verification Hash: ${data.verificationHash}`);
-    if (data.verificationUrl) {
-      lines.push(`Verify Online: ${data.verificationUrl}`);
-    }
-  }
+  lines.push('\nThis export has not been authenticated or legally certified by LexiGov.');
 
   return lines.join('\n');
 }

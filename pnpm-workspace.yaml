@@ -2,6 +2,27 @@ packages:
   - "apps/*"
   - "packages/*"
 
+overrides:
+  "@babel/core": 7.29.6
+  "@hono/node-server": 1.19.15
+  "@vitest/mocker": 4.1.11
+  baseline-browser-mapping: 2.11.0
+  body-parser: 2.3.0
+  browserslist: 4.28.9
+  deepmerge-ts: 8.0.2
+  dompurify: 3.4.13
+  fast-uri: 3.1.6
+  form-data: 4.0.6
+  hono: 4.13.7
+  multer: 2.3.0
+  mysql2: 3.24.4
+  "nanoid@>=4": 5.1.16
+  qs: 6.16.0
+  undici: 7.29.0
+  valibot: 1.4.2
+  vite: 8.0.16
+  vitest: 4.1.11
+
 allowBuilds:
   '@nestjs/core': true
   '@prisma/client': true

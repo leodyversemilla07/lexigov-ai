@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Controller } from 'react-hook-form';
 import { toast } from 'sonner';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { useZodForm } from '@/hooks/use-zod-form';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
@@ -48,6 +49,7 @@ export function DraftComposerForm({ wrapped = true, submitLabel = 'Create Draft'
   const router = useRouter();
   const searchParams = useSearchParams();
   const [initialContent, setInitialContent] = useState('');
+  const { organization, organizationId, isLoading: isScopeLoading } = useDraftScope();
   const form = useZodForm({
     schema: draftComposerSchema,
     defaultValues: {
@@ -112,6 +114,7 @@ export function DraftComposerForm({ wrapped = true, submitLabel = 'Create Draft'
         ...values,
         content,
         templateId: selectedTemplate?.id,
+        organizationId,
       });
       if (selectedTemplate) {
         await api.post(`/templates/${selectedTemplate.id}/usage`);
@@ -125,6 +128,10 @@ export function DraftComposerForm({ wrapped = true, submitLabel = 'Create Draft'
 
   const formFields = (
     <div className='space-y-6'>
+      <div className='rounded-md border bg-muted/30 px-4 py-3 text-sm'>
+        Saving to <strong>{organization?.name ?? 'your personal workspace'}</strong>.
+      </div>
+
       <div className='space-y-2'>
         <Label htmlFor='title'>Document Title *</Label>
         <Input id='title' type='text' placeholder='e.g., Barangay Curfew Ordinance 2024' {...register('title')} />
@@ -216,7 +223,7 @@ export function DraftComposerForm({ wrapped = true, submitLabel = 'Create Draft'
         <Button variant='outline' asChild>
           <Link href='/drafts'>Cancel</Link>
         </Button>
-        <Button type='submit' disabled={isSubmitting}>
+        <Button type='submit' disabled={isSubmitting || isScopeLoading}>
           {isSubmitting ? 'Creating...' : submitLabel}
         </Button>
       </div>

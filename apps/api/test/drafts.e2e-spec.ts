@@ -4,13 +4,13 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AuthGuard } from '../src/auth/auth.guard';
 import { PrismaService } from '../src/prisma/prisma.service';
-import type { AuthenticatedUser } from '../src/auth/current-user.decorator';
+import type { AuthenticatedUser } from '../src/auth/auth.service';
 
 // ---------------------------------------------------------------------------
 // Mock authenticated user injected by the overridden AuthGuard
 // ---------------------------------------------------------------------------
 const testUser: AuthenticatedUser = {
-  id: 'e2e_user_1',
+  userId: 'e2e_user_1',
   email: 'test@lexigov.ph',
   role: 'user',
 };
@@ -37,6 +37,11 @@ function mockPrismaService() {
     auditLog: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => data),
     },
+    user: {
+      findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
+        where.id === testUser.userId ? { id: testUser.userId, role: testUser.role } : null,
+      ),
+    },
     complianceReport: { deleteMany: jest.fn(async () => ({ count: 0 })) },
     exportHistory: { deleteMany: jest.fn(async () => ({ count: 0 })) },
     draft: {
@@ -45,6 +50,8 @@ function mockPrismaService() {
           id: `draft_${++draftSeq}`,
           ...data,
           parentDraftId: (data.parentDraftId as string | null) ?? null,
+          deletedAt: null,
+          deletedBy: null,
           userId: data.userId as string,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -230,10 +237,37 @@ describe('DraftsController (e2e)', () => {
 
       const res = await request(app.getHttpServer())
         .patch(`/drafts/${draftId}`)
-        .send({ title: 'After Update' })
+        .send({ title: 'After Update', expectedVersion: createRes.body.version })
         .expect(200);
 
       expect(res.body.title).toBe('After Update');
+    });
+
+    it('rejects an update without an optimistic-concurrency precondition', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/drafts')
+        .send({ title: 'Versioned Draft', documentType: 'ORDINANCE', jurisdiction: 'barangay', jurisdictionName: 'Test' });
+
+      await request(app.getHttpServer())
+        .patch(`/drafts/${createRes.body.id}`)
+        .send({ title: 'Unsafe Update' })
+        .expect(400);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // POST /api/drafts/:id/restore
+  // -----------------------------------------------------------------------
+  describe('POST /api/drafts/:id/restore', () => {
+    it('rejects a restore without an optimistic-concurrency precondition', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/drafts')
+        .send({ title: 'Restore Guard Draft', documentType: 'ORDINANCE', jurisdiction: 'barangay', jurisdictionName: 'Test' });
+
+      await request(app.getHttpServer())
+        .post(`/drafts/${createRes.body.id}/restore`)
+        .send({ versionId: createRes.body.id })
+        .expect(400);
     });
   });
 
@@ -249,12 +283,21 @@ describe('DraftsController (e2e)', () => {
       const draftId = createRes.body.id;
 
       await request(app.getHttpServer())
-        .delete(`/drafts/${draftId}`)
+        .delete(`/drafts/${draftId}?expectedVersion=${createRes.body.version}`)
         .expect(200);
 
       await request(app.getHttpServer())
         .get(`/drafts/${draftId}`)
         .expect(404);
+    });
+
+    it('rejects deletion without an optimistic-concurrency precondition', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/drafts')
+        .send({ title: 'Protected Delete', documentType: 'ORDINANCE', jurisdiction: 'barangay', jurisdictionName: 'Test' });
+
+      await request(app.getHttpServer()).delete(`/drafts/${createRes.body.id}`).expect(400);
+      await request(app.getHttpServer()).get(`/drafts/${createRes.body.id}`).expect(200);
     });
   });
 });

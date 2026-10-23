@@ -19,6 +19,7 @@ type SectionEditorProps = {
   documentType?: string;
   onSectionChange: (sectionId: string, field: 'heading' | 'body', value: string) => void;
   onRemoveSection: (sectionId: string) => void;
+  readOnly?: boolean;
 };
 
 export function SectionEditor({
@@ -29,6 +30,7 @@ export function SectionEditor({
   documentType = 'ORDINANCE',
   onSectionChange,
   onRemoveSection,
+  readOnly = false,
 }: SectionEditorProps) {
   const [isAssisting, setIsAssisting] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export function SectionEditor({
               variant='outline'
               size='sm'
               onClick={() => onRemoveSection(selectedSection.id)}
-              disabled={totalSections <= 1}
+              disabled={readOnly || totalSections <= 1}
             >
               <Trash2 className='mr-2 h-4 w-4' />
               Remove section
@@ -101,6 +103,7 @@ export function SectionEditor({
                   value={selectedSection.heading}
                   onChange={(event) => onSectionChange(selectedSection.id, 'heading', event.target.value)}
                   className='h-12 text-base font-medium'
+                  readOnly={readOnly}
                 />
               </div>
 
@@ -114,7 +117,7 @@ export function SectionEditor({
                   variant='outline'
                   size='sm'
                   className='h-8 text-xs'
-                  disabled={isAssisting}
+                  disabled={readOnly || isAssisting}
                   onClick={() => handleAiAssist('expand')}
                 >
                   {isAssisting && activeAction === 'expand' ? (
@@ -128,7 +131,7 @@ export function SectionEditor({
                   variant='outline'
                   size='sm'
                   className='h-8 text-xs'
-                  disabled={isAssisting}
+                  disabled={readOnly || isAssisting}
                   onClick={() => handleAiAssist('formalize')}
                 >
                   {isAssisting && activeAction === 'formalize' ? (
@@ -142,7 +145,7 @@ export function SectionEditor({
                   variant='outline'
                   size='sm'
                   className='h-8 text-xs'
-                  disabled={isAssisting}
+                  disabled={readOnly || isAssisting}
                   onClick={() => handleAiAssist('penalties')}
                 >
                   {isAssisting && activeAction === 'penalties' ? (
@@ -156,7 +159,7 @@ export function SectionEditor({
                   variant='outline'
                   size='sm'
                   className='h-8 text-xs'
-                  disabled={isAssisting}
+                  disabled={readOnly || isAssisting}
                   onClick={() => handleAiAssist('simplify')}
                 >
                   {isAssisting && activeAction === 'simplify' ? (
@@ -177,6 +180,7 @@ export function SectionEditor({
                   rows={14}
                   className='min-h-[320px] font-mono text-sm leading-7'
                   placeholder='Write the text for this section...'
+                  readOnly={readOnly}
                 />
               </div>
             </div>

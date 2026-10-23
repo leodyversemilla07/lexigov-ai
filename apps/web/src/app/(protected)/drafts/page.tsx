@@ -24,23 +24,28 @@ import {
   Search,
   Shield,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Pagination } from '@/components/pagination';
 import { useDebounce } from '@/hooks/use-debounce';
+import { appendDraftScope, useDraftScope } from '@/hooks/useDraftScope';
 import { useApiQuery } from '@/lib/api-hooks';
+import { useSession } from '@/lib/auth-client';
 import type { ApiDraft, PaginatedResponse } from '@/types';
 
 const PAGE_SIZE = 20;
 
 export default function DraftsPage() {
+  const { data: session } = useSession();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
 
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const { organization, organizationId, isLoading: isScopeLoading } = useDraftScope();
 
   const queryParams = new URLSearchParams({
     page: String(currentPage),
@@ -50,8 +55,10 @@ export default function DraftsPage() {
   if (statusFilter !== 'ALL') queryParams.set('status', statusFilter);
   if (typeFilter !== 'ALL') queryParams.set('documentType', typeFilter);
 
-  const apiPath = `/drafts?${queryParams.toString()}`;
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(apiPath);
+  const apiPath = appendDraftScope(`/drafts?${queryParams.toString()}`, organizationId);
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(
+    isScopeLoading ? null : apiPath,
+  );
   const drafts = draftsPage?.data ?? [];
   const totalCount = draftsPage?.total ?? 0;
 
@@ -75,8 +82,14 @@ export default function DraftsPage() {
       {/* Header */}
       <div className='flex items-center justify-between'>
         <div>
-          <h1 className='text-3xl font-bold tracking-tight'>My Drafts</h1>
-          <p className='text-muted-foreground mt-1'>Manage and organize your ordinance drafts</p>
+          <h1 className='text-3xl font-bold tracking-tight'>
+            {organization ? `${organization.name} Drafts` : 'My Drafts'}
+          </h1>
+          <p className='text-muted-foreground mt-1'>
+            {organization
+              ? 'Manage drafts in the active organization workspace'
+              : 'Manage your personal ordinance drafts'}
+          </p>
         </div>
         <div className='flex gap-2'>
           <Button variant='outline' asChild>
@@ -170,7 +183,7 @@ export default function DraftsPage() {
       {/* Drafts List */}
       <Card>
         <CardContent className='p-0'>
-          {isLoading ? (
+          {isLoading || isScopeLoading ? (
             <div className='p-6 space-y-4'>
               {['draft-skeleton-1', 'draft-skeleton-2', 'draft-skeleton-3', 'draft-skeleton-4', 'draft-skeleton-5'].map(
                 (skeletonKey) => (
@@ -222,6 +235,12 @@ export default function DraftsPage() {
                               AI
                             </Badge>
                           )}
+                          {draft.organizationId && session?.user.id && draft.userId !== session.user.id ? (
+                            <Badge variant='outline' className='shrink-0'>
+                              <Users className='mr-1 h-3 w-3' />
+                              Shared by another member
+                            </Badge>
+                          ) : null}
                         </div>
                         <div className='flex items-center gap-3 text-sm text-muted-foreground flex-wrap'>
                           <span className='font-medium'>{draft.documentType}</span>
@@ -241,7 +260,7 @@ export default function DraftsPage() {
                       <div className='flex items-center gap-1'>
                         <Button variant='ghost' size='sm' asChild>
                           <Link href={`/drafts/${draft.id}`}>
-                            Edit
+                            {draft.canEdit === false ? 'View' : 'Edit'}
                             <ArrowRight className='ml-1 h-3 w-3' />
                           </Link>
                         </Button>

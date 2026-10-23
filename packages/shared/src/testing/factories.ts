@@ -41,7 +41,6 @@ export interface MockDraft {
   userId: string;
   organizationId?: string | null;
   templateId?: string | null;
-  documentHash?: string | null;
   createdAt: Date;
   updatedAt: Date;
   [key: string]: unknown;
@@ -130,7 +129,7 @@ export function createMockDraft(overrides: Partial<MockDraft> = {}): MockDraft {
     documentType: 'ORDINANCE',
     jurisdiction: 'city',
     jurisdictionName: 'City of Pasig',
-    status: 'FIRST_READING',
+    status: 'REVIEW',
     version: 1,
     aiGenerated: false,
     content: {
@@ -142,7 +141,6 @@ export function createMockDraft(overrides: Partial<MockDraft> = {}): MockDraft {
     userId: 'user_test_123',
     organizationId: 'org_pasig',
     templateId: null,
-    documentHash: 'LXG-A1B2C3D4E5F67890',
     createdAt: new Date('2026-08-01T00:00:00.000Z'),
     updatedAt: new Date('2026-08-01T00:00:00.000Z'),
     ...overrides,

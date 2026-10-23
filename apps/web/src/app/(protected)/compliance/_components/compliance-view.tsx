@@ -9,22 +9,41 @@ import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { AlertTriangle, CheckCircle, FileText, Loader2, RefreshCw, Scale, Shield, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useAllDrafts } from '@/hooks/useAllDrafts';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { ApiComplianceReport, ApiComplianceResult, ApiDraft, PaginatedResponse } from '@/types';
+import type { ApiComplianceReport, ApiComplianceResult, ApiDraft } from '@/types';
 
 export function CompliancePageContent() {
   const searchParams = useSearchParams();
   const initialDraftId = searchParams.get('draft');
 
-  const { data: draftsPage } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
-  const drafts = draftsPage?.data;
+  const { organizationId, isLoading: isScopeLoading } = useDraftScope();
+  const { data: drafts, error: draftsError, isLoading, refetch: refetchDrafts } = useAllDrafts({
+    organizationId,
+    enabled: !isScopeLoading,
+  });
 
   const [selectedDraftId, setSelectedDraftId] = useState<string>(initialDraftId || '');
   const [isChecking, setIsChecking] = useState(false);
   const [result, setResult] = useState<ApiComplianceResult | null>(null);
+  const checkRequestRef = useRef(0);
+  const previousScopeRef = useRef(organizationId);
+
+  useEffect(() => {
+    checkRequestRef.current += 1;
+    setResult(null);
+    setIsChecking(false);
+  }, [selectedDraftId]);
+
+  useEffect(() => {
+    if (previousScopeRef.current === organizationId) return;
+    previousScopeRef.current = organizationId;
+    setSelectedDraftId('');
+  }, [organizationId]);
 
   const selectedDraft = drafts?.find((d: ApiDraft) => d.id === selectedDraftId);
   const { data: reportHistory, refetch: refetchReportHistory } = useApiQuery<ApiComplianceReport[]>(
@@ -38,19 +57,23 @@ export function CompliancePageContent() {
   const handleCheckCompliance = async () => {
     if (!selectedDraft) return;
 
+    const requestId = checkRequestRef.current + 1;
+    checkRequestRef.current = requestId;
     setIsChecking(true);
     setResult(null);
 
     try {
       const complianceResult = await api.post<ApiComplianceResult>(`/compliance/${selectedDraft.id}/check`);
+      if (checkRequestRef.current !== requestId) return;
       setResult(complianceResult);
       await refetchReportHistory();
-      toast.success('Compliance check complete.');
+      toast.success('Advisory check complete.');
     } catch (error) {
+      if (checkRequestRef.current !== requestId) return;
       console.error('Failed to check compliance:', error);
-      toast.error('Failed to check compliance. Please try again.');
+      toast.error('Failed to run the advisory check. Please try again.');
     } finally {
-      setIsChecking(false);
+      if (checkRequestRef.current === requestId) setIsChecking(false);
     }
   };
 
@@ -79,13 +102,11 @@ export function CompliancePageContent() {
       }
     : { critical: 0, warning: 0, suggestion: 0 };
 
-  const isLoading = draftsPage === undefined;
-
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='text-3xl font-bold tracking-tight'>Compliance Check</h1>
-        <p className='text-muted-foreground'>Verify your drafts against RA 7160 (Local Government Code)</p>
+        <h1 className='text-3xl font-bold tracking-tight'>Advisory Compliance Review</h1>
+        <p className='text-muted-foreground'>Automated RA 7160 drafting checks; authorized legal review is still required.</p>
       </div>
 
       <div className='grid gap-6 lg:grid-cols-4'>
@@ -102,6 +123,11 @@ export function CompliancePageContent() {
                   <Skeleton className='h-10' />
                   <Skeleton className='h-10' />
                   <Skeleton className='h-10' />
+                </div>
+              ) : draftsError ? (
+                <div className='space-y-3 text-sm text-destructive'>
+                  <p>Unable to load the complete draft list.</p>
+                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>Retry</Button>
                 </div>
               ) : !drafts || drafts.length === 0 ? (
                 <div className='text-center py-4'>
@@ -167,7 +193,7 @@ export function CompliancePageContent() {
                   ) : (
                     <>
                       <Shield className='mr-2 h-4 w-4' />
-                      Check Compliance
+                      Run Advisory Check
                     </>
                   )}
                 </Button>
@@ -189,7 +215,7 @@ export function CompliancePageContent() {
                         v{report.draftVersion} · {report.overallScore}/100
                       </span>
                       <Badge variant={report.isValid ? 'default' : 'secondary'}>
-                        {report.isValid ? 'Compliant' : 'Needs Review'}
+                        {report.isValid ? 'No critical issues flagged' : 'Issues flagged'}
                       </Badge>
                     </div>
                     <div className='mt-2 text-muted-foreground'>{new Date(report.checkedAt).toLocaleString()}</div>
@@ -265,11 +291,11 @@ export function CompliancePageContent() {
                     <AlertTriangle className='h-8 w-8 text-yellow-600' />
                   )}
                   <div>
-                    <CardTitle>{result.isValid ? 'Compliant' : 'Needs Review'}</CardTitle>
+                    <CardTitle>{result.isValid ? 'No critical issues flagged' : 'Issues flagged for review'}</CardTitle>
                     <CardDescription>
                       {result.isValid
-                        ? 'This draft appears to comply with RA 7160 requirements'
-                        : 'This draft has issues that should be addressed'}
+                        ? 'This automated advisory check found no critical issues; it is not a legal certification.'
+                        : 'This automated advisory check found issues for an authorized reviewer to assess.'}
                     </CardDescription>
                   </div>
                 </div>
@@ -356,7 +382,7 @@ export function CompliancePageContent() {
                       </div>
                     </div>
                     <Badge variant={reportHistory[0].isValid ? 'default' : 'secondary'}>
-                      {reportHistory[0].isValid ? 'Compliant' : 'Needs Review'}
+                      {reportHistory[0].isValid ? 'No critical issues flagged' : 'Issues flagged'}
                     </Badge>
                   </div>
                   <div className='mt-4 flex flex-wrap gap-2 text-sm'>

@@ -18,8 +18,10 @@ function buildProvider(): EmailProvider {
   if (providerName === 'resend') {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-      // eslint-disable-next-line no-console
-      console.warn('[email] EMAIL_PROVIDER=resend but RESEND_API_KEY is missing — falling back to console provider.');
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('RESEND_API_KEY is required when EMAIL_PROVIDER=resend in production.');
+      }
+      console.warn('[email] EMAIL_PROVIDER=resend but RESEND_API_KEY is missing — using console provider in development.');
       cachedProvider = new ConsoleEmailProvider();
       return cachedProvider;
     }
@@ -27,6 +29,10 @@ function buildProvider(): EmailProvider {
     return cachedProvider;
   }
 
+  if (providerName !== 'console') throw new Error(`Unsupported EMAIL_PROVIDER: ${providerName}`);
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('EMAIL_PROVIDER=console is disabled in production. Configure a transactional email provider.');
+  }
   cachedProvider = new ConsoleEmailProvider();
   return cachedProvider;
 }
@@ -35,7 +41,9 @@ export type { EmailMessage, EmailProvider, EmailSendResult } from './types';
 
 export async function sendEmail(message: EmailMessage): Promise<EmailSendResult> {
   const provider = buildProvider();
-  return provider.send(message);
+  const result = await provider.send(message);
+  if (!result.success) throw new Error(result.error || `${provider.name} failed to deliver email.`);
+  return result;
 }
 
 export function getEmailProviderName(): string {

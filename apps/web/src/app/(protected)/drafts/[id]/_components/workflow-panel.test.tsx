@@ -6,7 +6,7 @@ import { WorkflowPanel } from './workflow-panel';
 describe('WorkflowPanel (Colocated Unit Test)', () => {
   it('renders the draft status badge and jurisdiction information', () => {
     const mockDraft = createMockDraft({
-      status: 'FIRST_READING',
+      status: 'REVIEW',
       jurisdiction: 'city',
       jurisdictionName: 'City of Pasig',
     });
@@ -14,13 +14,13 @@ describe('WorkflowPanel (Colocated Unit Test)', () => {
     render(
       <WorkflowPanel
         draft={mockDraft as unknown as import('./types').Draft}
-        status='FIRST_READING'
+        status='REVIEW'
         onStatusChange={vi.fn()}
       />,
     );
 
     const badge = screen.getByTestId('workflow.panel.status-badge');
-    expect(badge).toHaveTextContent('FIRST_READING');
+    expect(badge).toHaveTextContent('REVIEW');
 
     const jurisdiction = screen.getByTestId('workflow.panel.jurisdiction');
     expect(jurisdiction).toHaveTextContent('city');
@@ -36,7 +36,7 @@ describe('WorkflowPanel (Colocated Unit Test)', () => {
       <WorkflowPanel draft={mockDraft as unknown as import('./types').Draft} status='DRAFT' onStatusChange={vi.fn()} />,
     );
 
-    expect(screen.getByText('Workflow')).toBeInTheDocument();
-    expect(screen.getByText('Keep the draft status and context accurate before review.')).toBeInTheDocument();
+    expect(screen.getByText('Editing workflow')).toBeInTheDocument();
+    expect(screen.getByText('Track internal drafting state separately from legislative milestones.')).toBeInTheDocument();
   });
 });

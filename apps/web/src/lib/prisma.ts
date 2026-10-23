@@ -8,11 +8,10 @@ const globalForPrisma = globalThis as unknown as {
 const prismaClientSingleton = () => {
   const databaseUrl = process.env.DATABASE_URL;
 
-  // During build time, skip Prisma initialization if DATABASE_URL is not set
   if (!databaseUrl) {
-    // Return a mock client for build-time usage
-    // This allows the build to succeed without a real database connection
-    return {} as PrismaClient;
+    const isBuildOrTest = process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === 'test';
+    if (isBuildOrTest) return {} as PrismaClient;
+    throw new Error('DATABASE_URL is required to initialize Better Auth');
   }
 
   const adapter = new PrismaPg({ connectionString: databaseUrl });

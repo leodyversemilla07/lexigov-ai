@@ -1,59 +1,61 @@
-# LexiGov AI — System Architecture Specification
+# LexiGov AI — Implemented Architecture
 
-## 1. System Overview
+This document describes the code currently present in the repository. LexiGov is an AI-assisted drafting system; its automated checks and exports are **not legal certifications or authoritative government records**.
 
-**LexiGov AI** is an AI-assisted legislative drafting and compliance governance SaaS platform engineered specifically for Philippine Local Government Units (LGUs). It ensures all drafted Ordinances, Resolutions, Memorandums, and Policies strictly adhere to **Republic Act No. 7160 (The Local Government Code of 1991)** and related administrative issuances (DILG, Supreme Court jurisprudence).
+## Runtime topology
 
----
+- `apps/web`: Next.js 16 / React 19 frontend and Better Auth handler.
+- `apps/api`: NestJS 11 REST/SSE API.
+- PostgreSQL with Prisma stores authentication records, organizations, drafts, revision snapshots, reports, exports, and audit events.
+- `packages/shared`: schemas and deterministic drafting/workflow utilities.
+- `packages/ai`: provider-neutral AI contracts and provider implementations.
+- `packages/ui`: shared UI primitives.
+- `packages/env`: environment validation.
 
-## 2. Architectural Pillars & Decisions
+Redis, pgvector/RAG, object storage, CDN publication, collaborative presence, and a public enactment registry are **not implemented**.
 
-### 2.1 Full-Stack Topology & Distributed Auth Caching
-- **Frontend**: [Next.js 16](https://nextjs.org) (App Router, Turbopack, React 19) with Tailwind CSS v4, shadcn/ui primitives (`@lexigov/ui`), and shared business logic (`@lexigov/shared`).
-- **Backend API**: [NestJS 11](https://nestjs.com) REST and Server-Sent Events (SSE) microservices.
-- **Authentication**: [Better Auth](https://better-auth.com) with 2FA TOTP and Organization plugin on Next.js.
-- **Session Caching**: NestJS `AuthGuard` queries Redis for active session tokens (`session:<token>`) with a 5-minute sliding TTL before falling back to PostgreSQL, drastically mitigating DB IOPS under streaming AI generation.
+## Authentication and authorization
 
-### 2.2 LGU Multi-Tenancy & Sanggunian RBAC
-- **Tenant Model**: Drafts and templates are scoped to `organizationId` representing an LGU / Sanggunian body (Barangay, Municipality, City, Province).
-- **Legislative Roles**:
-  - `admin`: LGU IT / System administrator.
-  - `presiding_officer`: Vice Mayor / Vice Governor (signs enactments, committee referrals).
-  - `sanggunian_secretary`: Manages journal, numbering, and transmittals.
-  - `committee_chair`: Reviews and amends committee drafts.
-  - `legislative_staff`: Creates and edits drafts.
-  - `citizen_viewer`: Read-only access to published legislation.
+Better Auth runs in the web application with email/password, two-factor, organization, admin, and bearer plugins. The NestJS API accepts:
 
-### 2.3 Hybrid AI & Legal Intelligence Engine
-- **Deterministic Bounds**: Real-time statutory limit enforcement in `@lexigov/shared` (e.g. strict penalty ceilings under RA 7160 § 516: Barangay ₱1,000 max, Municipal ₱2,500 max / 6 mos, City/Province ₱5,000 max / 1 yr).
-- **Statutory Retrieval (RAG)**: `pgvector` index over RA 7160 provisions, DILG Memorandum Circulars, and historical LGU enactments to ground generation prompts.
-- **LLM Synthesis**: [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service) (GPT-4o) for high-precision section assistance, executive summaries, and legal drafting with streaming token SSE.
+- a raw bearer session token for non-browser clients; or
+- a Better Auth HMAC-signed session cookie.
 
-### 2.4 Document Editing, Concurrency & Versioning
-- **Optimistic Concurrency Control (OCC)**: Version-gated updates prevent silent overwrites; conflicts trigger visual side-by-side diff resolution.
-- **Presence Tracking**: Ephemeral Redis presence keys track active editors across sections.
-- **Immutable Revision Snapshots**: Substantive updates store immutable revision trees in PostgreSQL with audit log tracking.
+The API validates sessions against PostgreSQL on every request so logout, suspension, and role changes take effect immediately. Cookie-authenticated mutations require a configured trusted `Origin`.
 
-### 2.5 RA 7160 Legislative Workflow State Machine
-Formal 8-stage statutory lifecycle:
-`DRAFTING` → `FIRST_READING` → `COMMITTEE_REVIEW` → `SECOND_READING` → `THIRD_READING` → `SANGGUNIAN_ENACTED` → `LCE_REVIEW` (Mayor/Governor Approval or Veto) → `HIGHER_SANGGUNIAN_REVIEW` (Validity Review under RA 7160 § 56) → `ENACTED_PUBLISHED`.
+Personal drafts remain owner-scoped. Organization drafts are readable by persisted members, while the generic `member` role is deliberately read-only. Editing and compliance-report creation require an explicit legislative workspace role; deletion is limited to the draft owner or an organization administrator. Shared-draft deletion is a retained soft deletion: revisions, workflow transitions, compliance reports, export history, and audit entries remain organization-owned. Historical actor references are nullable so staff deletion does not cascade institutional records, while organization and draft-author deletion is restricted as long as retained drafts exist. Inaccessible resource IDs return a non-enumerating not-found response. The frontend’s active Better Auth organization scopes draft lists, selectors, dashboard counts, and newly created manual or AI drafts; users can create workspaces, accept emailed invitations, and manage members from Settings when Better Auth grants owner/admin permission. Legislative workflow permissions are derived from persisted user or membership roles; client role headers are not trusted, and workspace roles do not prove public office or legal authority.
 
-### 2.6 Export, Tamper-Evidence & Verification
-- **Artifact Storage**: Rendered PDF and DOCX documents stored in S3/Azure Blob Storage with official Republic letterheads and seals.
-- **Cryptographic Verification**: `SHA-256` content hashing embedded in QR codes linking to `/verify/:id` for public authentication.
+## Draft integrity and versioning
 
----
+Draft updates and restores use version-gated Prisma updates inside transactions. A stale write fails with HTTP 409. Before a substantive update, the prior state is stored as a read-only revision. Restoring a revision restores textual content but does not replay historical workflow approval state.
 
-## 3. Tech Stack Matrix
+Structured section editing preserves text before the first formal `SECTION` heading, including headers and WHEREAS recitals.
 
-| Layer | Technology |
-|---|---|
-| Frontend Framework | Next.js 16 (App Router, Turbopack) |
-| UI & Styling | Tailwind CSS v4, Radix UI, `@lexigov/ui` (shadcn/ui) |
-| Backend Framework | NestJS 11 |
-| Database & ORM | PostgreSQL + `pgvector` with Prisma ORM |
-| In-Memory Cache | Redis |
-| Authentication | Better Auth (with Prisma Adapter & Organization plugin) |
-| AI / LLM | Azure OpenAI Service (GPT-4o) via `openai` SDK |
-| Storage & CDN | AWS S3 / Azure Blob Storage + CloudFront/CDN |
-| Monorepo Tooling | Turborepo + pnpm workspaces |
+## Legislative workflow
+
+The implemented stages are:
+
+`DRAFTING → FIRST_READING → COMMITTEE_REVIEW → SECOND_READING → THIRD_READING → TRANSMITTED_TO_LCE → ENACTED | VETOED`
+
+Stages cannot be skipped through draft editing. Persisted roles control transitions and sensitive voting/executive-action fields. “Lapsed into law” is deliberately unavailable because it requires authoritative date and legal review data not maintained by the application.
+
+## AI and compliance checks
+
+Supported provider adapters include Azure OpenAI, OpenAI, Gemini, Anthropic, OpenAI-compatible services, and a development/test mock. Production startup does not silently fall back to mock AI. Provider responses for compliance augmentation are runtime-validated before they are merged with deterministic checks.
+
+Compliance scores are advisory drafting signals. They cannot establish validity, enactment, publication, constitutionality, or RA 7160 compliance.
+
+## Export and verification boundary
+
+TXT, Markdown, DOCX, PDF, and print exports are generated locally or returned by the API. Every export is marked as a working draft. Export requests require the version used to render the file; stale versions are rejected, and telemetry stores the exact draft version and title snapshot. User-controlled print content is HTML-escaped and printed under a restrictive CSP.
+
+The `/verify` page fails closed and explains that no authoritative registry exists. The shared package can calculate a SHA-256 content fingerprint for diagnostics, but a fingerprint is not a digital signature or proof of authenticity.
+
+## Deployment
+
+- Node.js 22 or later and pnpm 11 are required.
+- Apply committed Prisma migrations before starting applications. The API container runs `prisma migrate deploy` before launching.
+- Web and API must share `DATABASE_URL` and `BETTER_AUTH_SECRET`; Compose requires these values rather than supplying default credentials.
+- Configure `CORS_ORIGIN` and Better Auth trusted origins explicitly in production.
+- Configure a transactional email provider; console email and mock AI are rejected in production.
+- Dockerfiles build the web and API applications independently from the workspace. Compose keeps PostgreSQL private, binds application ports to loopback, checks database/API/web readiness, and waits for healthy dependencies.

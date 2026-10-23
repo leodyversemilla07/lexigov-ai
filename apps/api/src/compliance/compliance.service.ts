@@ -1,6 +1,7 @@
 import { analyzeDeterministicCompliance, extractDraftBody } from '@lexigov/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
+import { hasOrganizationResourceAccess, requireDraftWriteRole } from '../auth/organization-access';
 import { isJurisdictionLevel } from '../common/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -9,12 +10,15 @@ export class ComplianceService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async checkDraft(draftId: string, userId: string) {
-    const draft = await this.prisma.draft.findFirst({
-      where: { id: draftId, userId },
-    });
-    if (!draft) {
+    const draft = await this.prisma.draft.findUnique({ where: { id: draftId } });
+    if (
+      !draft ||
+      draft.deletedAt ||
+      !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))
+    ) {
       throw new NotFoundException('Draft not found');
     }
+    await requireDraftWriteRole(this.prisma, draft.organizationId, userId);
 
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
@@ -32,6 +36,7 @@ export class ComplianceService {
         data: {
           draftId,
           draftVersion: draft.version,
+          organizationId: draft.organizationId,
           overallScore: deterministic.overallScore,
           isValid: deterministic.isValid,
           issuesCount: deterministic.issues.length,
@@ -47,6 +52,7 @@ export class ComplianceService {
           entityType: 'drafts',
           entityId: draftId,
           userId,
+          organizationId: draft.organizationId,
           changes: {
             complianceReportId: report.id,
             draftVersion: draft.version,
@@ -60,10 +66,14 @@ export class ComplianceService {
   }
 
   async getReports(draftId: string, userId: string) {
-    const draft = await this.prisma.draft.findFirst({
-      where: { id: draftId, userId },
-    });
-    if (!draft) return [];
+    const draft = await this.prisma.draft.findUnique({ where: { id: draftId } });
+    if (
+      !draft ||
+      draft.deletedAt ||
+      !(await hasOrganizationResourceAccess(this.prisma, draft.organizationId, draft.userId, userId))
+    ) {
+      return [];
+    }
 
     return this.prisma.complianceReport.findMany({
       where: { draftId },

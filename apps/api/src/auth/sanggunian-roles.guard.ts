@@ -1,4 +1,4 @@
-import { isSanggunianRole, type SanggunianRole, toSanggunianRole } from '@lexigov/shared';
+import type { SanggunianRole } from '@lexigov/shared';
 import {
   type CanActivate,
   type ExecutionContext,
@@ -8,7 +8,17 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthenticatedUser } from './auth.service';
+import { requireOrganizationMembership, resolveStoredRole } from './organization-access';
 import { SANGGUNIAN_ROLES_KEY } from './sanggunian-roles.decorator';
+
+interface RoleRequest {
+  user?: AuthenticatedUser;
+  headers: Record<string, unknown>;
+  body?: { organizationId?: unknown };
+  query?: { organizationId?: unknown };
+  effectiveRole?: SanggunianRole;
+}
 
 @Injectable()
 export class SanggunianRolesGuard implements CanActivate {
@@ -19,60 +29,26 @@ export class SanggunianRolesGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<SanggunianRole[]>(SANGGUNIAN_ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
+      context.getHandler(), context.getClass(),
     ]);
+    if (!requiredRoles?.length) return true;
 
-    if (!requiredRoles || requiredRoles.length === 0) {
-      return true;
-    }
+    const request = context.switchToHttp().getRequest<RoleRequest>();
+    if (!request.user?.userId) throw new UnauthorizedException('Authentication required');
 
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
-
-    if (!user?.id) {
-      throw new UnauthorizedException('Authentication required');
-    }
-
-    // Check header override (useful for testing and active role context)
-    const headerRole = request.headers['x-sanggunian-role'];
-    if (headerRole && isSanggunianRole(headerRole)) {
-      request.effectiveRole = headerRole;
-      if (headerRole === 'LGU_ADMIN' || requiredRoles.includes(headerRole)) {
-        return true;
-      }
-    }
-
+    // The tenant is a requested context, never proof of access. Services must additionally
+    // check the organization stored on the target resource. Role headers are never trusted.
     const organizationId =
-      request.headers['x-organization-id'] || request.body?.organizationId || request.query?.organizationId;
-
-    let effectiveRole: SanggunianRole = 'LEGISLATIVE_STAFF';
-
-    if (organizationId && typeof organizationId === 'string') {
-      const membership = await this.prisma.member.findUnique({
-        where: {
-          organizationId_userId: {
-            organizationId,
-            userId: user.id,
-          },
-        },
-      });
-
-      if (membership?.role) {
-        effectiveRole = toSanggunianRole(membership.role, 'LEGISLATIVE_STAFF');
-      }
-    } else if (user.role) {
-      effectiveRole = toSanggunianRole(user.role, 'LEGISLATIVE_STAFF');
+      request.headers['x-organization-id'] ?? request.body?.organizationId ?? request.query?.organizationId;
+    if (organizationId !== undefined && (typeof organizationId !== 'string' || !organizationId)) {
+      throw new ForbiddenException('Invalid organization context');
     }
-
+    const membership = await requireOrganizationMembership(this.prisma, organizationId, request.user.userId);
+    const effectiveRole = resolveStoredRole(membership?.role ?? request.user.role);
+    if (!effectiveRole || (effectiveRole !== 'LGU_ADMIN' && !requiredRoles.includes(effectiveRole))) {
+      throw new ForbiddenException('Insufficient Sanggunian role');
+    }
     request.effectiveRole = effectiveRole;
-
-    if (effectiveRole === 'LGU_ADMIN' || user.role === 'ADMIN' || requiredRoles.includes(effectiveRole)) {
-      return true;
-    }
-
-    throw new ForbiddenException(
-      `Insufficient Sanggunian role: Action requires one of [${requiredRoles.join(', ')}], current role is '${effectiveRole}'.`,
-    );
+    return true;
   }
 }

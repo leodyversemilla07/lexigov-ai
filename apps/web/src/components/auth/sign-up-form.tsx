@@ -46,7 +46,7 @@ export function SignUpForm() {
               <Scale className='size-6 text-primary' />
             </div>
             <h1 className='text-2xl font-bold tracking-tight'>Create an account</h1>
-            <p className='text-sm text-muted-foreground mt-1'>Start drafting compliant ordinances</p>
+            <p className='text-sm text-muted-foreground mt-1'>Start drafting with compliance-aware guidance</p>
           </div>
 
           <form onSubmit={handleSubmit} className='space-y-4'>

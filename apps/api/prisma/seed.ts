@@ -148,15 +148,15 @@ const templates: TemplateSeed[] = [
     jurisdiction: ['barangay', 'municipal', 'city', 'provincial'],
     documentType: 'RESOLUTION',
     description:
-      'Reusable resolution structure for endorsing programs, authorizing actions, or expressing official support.',
+      'Reusable working-draft resolution structure for proposing endorsement, authorization, or support.',
     prompt:
-      'Draft a concise local government resolution. Include WHEREAS clauses for factual and legal basis, resolved clauses, implementation instructions, and certification language.',
+      'Prepare a proposed local government resolution. Include WHEREAS clauses based only on supplied facts and verified legal references, proposed resolved clauses, implementation instructions, and an explicit working-draft disclaimer. Do not include certification, signature, adoption, or approval claims.',
     body: [
       'WHEREAS, the local government unit recognizes the need to act on the subject matter stated in this Resolution;',
       '',
-      'WHEREAS, the proposed action is consistent with applicable laws, ordinances, and local development priorities;',
+      'WHEREAS, the proposed action remains subject to validation against applicable laws, ordinances, and local development priorities;',
       '',
-      'NOW THEREFORE, BE IT RESOLVED, as it is hereby resolved, to approve, endorse, or authorize the action described herein;',
+      'NOW THEREFORE, BE IT PROPOSED FOR RESOLUTION, that the Sanggunian consider whether to approve, endorse, or authorize the action described herein;',
       '',
       'RESOLVED FURTHER, that the concerned office is directed to take the necessary steps for implementation;',
       '',

@@ -37,6 +37,7 @@ export {
 export type { VerificationMetadata } from './document-verification';
 export {
   buildVerificationMetadata,
+  generateDocumentFingerprint,
   generateVerificationHash,
 } from './document-verification';
 export type {
@@ -57,15 +58,21 @@ export {
   updateDraftMilestonesContent,
   updateDraftSectionsContent,
 } from './draft-content';
+// Utils
+export { escapeHtml } from './html';
 // Sanggunian Legislative Tracker & RBAC
 export type {
+  EnactmentBasis,
   LegislativeMilestones,
+  LegislativeStage,
+  LegislativeStageMetadata,
   StageValidationResult,
   VotingRecord,
 } from './legislative-tracker';
 export {
   calculateTransmittalDeadline,
   getDefaultMilestones,
+  getLegislativeStages,
   LEGISLATIVE_STAGES,
   SANGGUNIAN_ROLE_LABELS,
   STAGE_TRANSITION_ROLES,
@@ -85,6 +92,7 @@ export type {
 } from './schemas/draft';
 export * from './schemas/draft';
 export * from './schemas/enums';
+export * from './schemas/legislative';
 export type {
   CreateTemplateInput,
   TemplateCategory,
@@ -94,7 +102,6 @@ export type {
   UpdateTemplateInput,
 } from './schemas/template';
 export * from './schemas/template';
-
 // Statutory Citations & Legal Grounding
 export type { StatutoryCitation } from './statutory-citations';
 export {
@@ -125,5 +132,4 @@ export {
   buildLineDiff,
   buildSectionDiff,
 } from './text-diff';
-// Utils
 export { cn } from './utils';

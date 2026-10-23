@@ -66,12 +66,14 @@ export function parseComplianceResult(raw: unknown): ComplianceResult | null {
   const issues = Array.isArray(record.issues)
     ? record.issues.map(toComplianceIssue).filter((i): i is ComplianceIssue => i !== null)
     : [];
+
+  // The canonical contract reports issues only; a score is derived when absent.
   const overallScore =
-    typeof record.overallScore === 'number' ? Math.max(0, Math.min(100, record.overallScore)) : Number.NaN;
+    typeof record.overallScore === 'number' ? Math.max(0, Math.min(100, record.overallScore)) : computeScore(issues);
   const isValid =
     typeof record.isValid === 'boolean' ? record.isValid : !issues.some((issue) => issue.type === 'critical');
 
-  if (Number.isNaN(overallScore)) {
+  if (issues.length === 0 && typeof record.overallScore !== 'number') {
     return null;
   }
 
@@ -131,11 +133,14 @@ const ISSUE_SEVERITY_ORDER: Record<ComplianceIssueType, number> = {
  * Canonical JSON Schema for AI compliance analysis responses.
  * Shared by every AI provider so the model is asked for a predictable payload.
  */
+/**
+ * JSON Schema for the AI compliance response. Mirrors the canonical
+ * `aiComplianceResultSchema` contract: the model reports issues only, while the
+ * review score and validity flag are computed by the application.
+ */
 export const complianceAnalysisJsonSchema = {
   type: 'object',
   properties: {
-    overallScore: { type: 'integer', minimum: 0, maximum: 100 },
-    isValid: { type: 'boolean' },
     issues: {
       type: 'array',
       maxItems: MAX_ISSUES,
@@ -152,7 +157,7 @@ export const complianceAnalysisJsonSchema = {
       },
     },
   },
-  required: ['overallScore', 'isValid', 'issues'],
+  required: ['issues'],
 };
 
 function normalizeWhitespace(value: string) {
@@ -181,21 +186,33 @@ function readFineAmounts(content: string) {
 }
 
 function readImprisonmentMonths(content: string) {
+  const numberWords: Record<string, number> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    twelve: 12,
+  };
   const matches = Array.from(
     content.matchAll(
-      /(?:imprisonment|jail(?:\s+term)?|incarceration)[^.\n]{0,80}?(\d+)\s*(day|days|month|months|year|years)/gi,
+      /(?:imprisonment|jail(?:\s+term)?|incarceration)[^.\n]{0,80}?(?:(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\s*)?(?:\(\s*)?(\d+)?(?:\s*\))?\s*(day|days|month|months|year|years)/gi,
     ),
   );
 
   return matches
     .map((match) => {
-      const quantityText = match[1];
-      const unitText = match[2];
-      if (!quantityText || !unitText) {
-        return Number.NaN;
-      }
+      const wordText = match[1]?.toLowerCase();
+      const quantityText = match[2];
+      const unitText = match[3];
+      if ((!quantityText && !wordText) || !unitText) return Number.NaN;
 
-      const quantity = Number.parseInt(quantityText, 10);
+      const quantity = quantityText ? Number.parseInt(quantityText, 10) : (numberWords[wordText!] ?? Number.NaN);
       const unit = unitText.toLowerCase();
 
       if (unit.startsWith('day')) {
@@ -438,27 +455,27 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         title: 'Tax/revenue measure lacks public hearing recital',
         description: 'Tax and revenue ordinances require prior public hearings pursuant to RA 7160, Section 187.',
         suggestion:
-          'Add a recital in the preamble or section citing the conduct of public hearings prior to enactment.',
+          'Confirm and document the required public-hearing process. Add a recital only after the hearing has actually occurred and the statement has been verified.',
       });
     }
 
-    if (!mentionsTaxPublication) {
+    if (jurisdiction !== 'barangay' && !mentionsTaxPublication) {
       issues.push({
         type: 'warning',
         section: 'Final Provisions',
-        title: 'Tax ordinance requires special publication/posting terms',
+        title: 'Tax ordinance requires special publication/posting review',
         description:
-          'Under RA 7160 Section 188, tax ordinances must be published within 10 days in a local newspaper or posted in at least 2 prominent places for 3 consecutive weeks.',
-        suggestion: 'Incorporate the statutory publication and posting timeline into the effectivity clause.',
+          'RA 7160 Section 188 requires certified true copies of provincial, city, and municipal tax ordinances or revenue measures to be published in full within 10 days after approval for 3 consecutive days in a newspaper of local circulation. Where no such newspaper exists, posting in at least 2 conspicuous and publicly accessible places is the statutory alternative.',
+        suggestion:
+          'Have authorized counsel confirm the applicable Section 188 publication or alternative-posting process; do not represent that publication or posting has occurred until it is documented.',
       });
     }
   }
 
-  // RA 7160, Sections 305-334: Appropriations and Budget Set-Asides
+  // RA 10121, Section 21: current LDRRMF minimum for local appropriations
   const isAppropriation =
     /\b(annual budget|supplemental budget|appropriation ordinance|appropriating the (?:amount|sum))\b/i.test(content);
   const mentionsCalamityFund = /\b(calamity fund|ldrr?mf|disaster risk reduction|5%|five percent)\b/i.test(content);
-  const mentionsDevelopmentFund = /\b(20%|twenty percent|development fund|gad|gender and development)\b/i.test(content);
 
   if (isAppropriation) {
     if (!mentionsCalamityFund) {
@@ -467,19 +484,9 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
         section: 'Appropriation Provisions',
         title: 'Mandatory 5% Calamity / LDRRMF set-aside check',
         description:
-          'RA 7160, Section 324(d) mandates setting aside not less than 5% of estimated revenue for local disaster risk management.',
-        suggestion: 'Ensure the appropriation ordinance includes the mandatory 5% LDRRMF / Calamity Fund allocation.',
-      });
-    }
-
-    if (!mentionsDevelopmentFund) {
-      issues.push({
-        type: 'suggestion',
-        section: 'Appropriation Provisions',
-        title: 'Statutory Development & GAD allocations',
-        description:
-          'Local budget measures must allocate 20% for local development and 5% for Gender and Development (GAD).',
-        suggestion: 'Verify statutory set-asides for the 20% Development Fund, 5% GAD, and 1% LCPC/Senior Citizens.',
+          'RA 10121 Section 21 requires an LDRRM Fund of not less than 5% of estimated revenue from regular sources.',
+        suggestion:
+          'Confirm the current budget base and applicable accounting guidance, then include the required LDRRMF allocation for authorized review.',
       });
     }
   }
@@ -516,5 +523,25 @@ export function analyzeDeterministicCompliance(content: string, jurisdiction: Ju
 }
 
 export function buildComplianceResultFromIssues(issues: ComplianceIssue[]) {
-  return createResult(issues);
+  const validIssues = issues.filter(
+    (issue) =>
+      issue &&
+      ['critical', 'warning', 'suggestion'].includes(issue.type) &&
+      typeof issue.title === 'string' &&
+      issue.title.length > 0 &&
+      typeof issue.description === 'string' &&
+      issue.description.length > 0 &&
+      typeof issue.suggestion === 'string' &&
+      issue.suggestion.length > 0,
+  );
+  if (validIssues.length !== issues.length) {
+    validIssues.push({
+      type: 'critical',
+      section: 'Analysis',
+      title: 'Compliance analysis response was invalid',
+      description: 'One or more reported issues did not match the validated compliance contract.',
+      suggestion: 'Repeat the review and have an authorized legal officer inspect the draft manually.',
+    });
+  }
+  return createResult(validIssues);
 }

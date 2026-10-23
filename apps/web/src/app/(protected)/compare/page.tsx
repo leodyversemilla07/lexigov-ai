@@ -8,13 +8,19 @@ import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { ArrowLeftRight, FileCheck, GitCompareArrows } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useAllDrafts } from '@/hooks/useAllDrafts';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { useApiQuery } from '@/lib/api-hooks';
-import type { ApiDraft, ApiDraftVersion, PaginatedResponse } from '@/types';
+import type { ApiDraft, ApiDraftVersion } from '@/types';
 
 function ComparePageContent() {
   const searchParams = useSearchParams();
-  const { data: draftsPage } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts');
+  const { organizationId, isLoading: isScopeLoading } = useDraftScope();
+  const { data: drafts, error: draftsError, refetch: refetchDrafts } = useAllDrafts({
+    organizationId,
+    enabled: !isScopeLoading,
+  });
   const initialDraftId = searchParams.get('draft') ?? '';
   const [selectedDraftId, setSelectedDraftId] = useState(initialDraftId);
   const { data: versions } = useApiQuery<ApiDraftVersion[]>(
@@ -22,8 +28,17 @@ function ComparePageContent() {
   );
   const [leftVersionId, setLeftVersionId] = useState('');
   const [rightVersionId, setRightVersionId] = useState('');
+  const previousScopeRef = useRef(organizationId);
 
-  const draftOptions = draftsPage?.data ?? [];
+  useEffect(() => {
+    if (previousScopeRef.current === organizationId) return;
+    previousScopeRef.current = organizationId;
+    setSelectedDraftId('');
+    setLeftVersionId('');
+    setRightVersionId('');
+  }, [organizationId]);
+
+  const draftOptions = drafts ?? [];
   const versionOptions = versions ?? [];
   const versionsLoading = Boolean(selectedDraftId) && versions === undefined;
 
@@ -65,8 +80,13 @@ function ComparePageContent() {
               <CardDescription>Choose the draft whose saved versions you want to compare.</CardDescription>
             </CardHeader>
             <CardContent>
-              {draftsPage === undefined ? (
+              {drafts === undefined && !draftsError ? (
                 <Skeleton className='h-10' />
+              ) : draftsError ? (
+                <div className='space-y-3 text-sm text-destructive'>
+                  <p>Unable to load the complete draft list.</p>
+                  <Button variant='outline' size='sm' onClick={() => void refetchDrafts()}>Retry</Button>
+                </div>
               ) : (
                 <Select
                   value={selectedDraftId}

@@ -1,17 +1,31 @@
 import {
   buildDefaultDocumentFormatConfig,
+  calculateTransmittalDeadline,
   extractDraftBody,
   type FormattedDocumentData,
+  generateDocumentFingerprint,
   getDefaultMilestones,
+  legislativeMilestonesSchema,
   normalizeDraftContent,
-  type SanggunianRole,
   toJurisdictionLevel,
   validateStageTransition,
 } from '@lexigov/shared';
-import { ConflictException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import { ARTIFACT_STORAGE } from '../artifacts/artifact.module';
 import type { ArtifactStorage } from '../artifacts/artifact-storage.service';
+import {
+  hasOrganizationResourceAccess,
+  requireDraftWriteRole,
+  resolveDraftResourceRole,
+} from '../auth/organization-access';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';
 import { OfficialDocumentExportService } from '../exports/official-document-export.service';
@@ -29,24 +43,43 @@ export class DraftsService {
     @Inject(OfficialDocumentExportService) private readonly officialExportService: OfficialDocumentExportService,
   ) {}
 
+  private async getAccessibleDraft(
+    prisma: Pick<Prisma.TransactionClient, 'draft' | 'member'>,
+    id: string,
+    userId: string,
+  ) {
+    const draft = await prisma.draft.findUnique({ where: { id } });
+    if (
+      !draft ||
+      draft.deletedAt ||
+      !(await hasOrganizationResourceAccess(prisma, draft.organizationId, draft.userId, userId))
+    ) {
+      throw new NotFoundException('Draft not found');
+    }
+    return draft;
+  }
+
   async create(dto: CreateDraftDto, userId: string) {
     const now = new Date();
 
     return this.prisma.$transaction(async (tx) => {
+      await requireDraftWriteRole(tx, dto.organizationId, userId);
       const draft = await tx.draft.create({
         data: {
           title: dto.title,
           documentType: dto.documentType,
           jurisdiction: dto.jurisdiction,
           jurisdictionName: dto.jurisdictionName,
-          content: normalizeDraftContent(dto.content ?? {}) as unknown as Prisma.InputJsonValue,
+          content: {
+            ...normalizeDraftContent(dto.content ?? {}),
+            milestones: getDefaultMilestones(),
+          } as unknown as Prisma.InputJsonValue,
           status: 'DRAFT',
           aiGenerated: dto.aiGenerated ?? false,
           userId,
           organizationId: dto.organizationId ?? null,
           templateId: dto.templateId,
           version: 1,
-          documentHash: dto.documentHash ?? null,
           createdAt: now,
           updatedAt: now,
         },
@@ -58,6 +91,7 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: draft.id,
           userId,
+          organizationId: draft.organizationId,
           createdAt: now,
         },
       });
@@ -70,12 +104,15 @@ export class DraftsService {
     const query = typeof queryOrStatus === 'string' ? { status: queryOrStatus } : queryOrStatus;
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
-    const where: Record<string, unknown> = { parentDraftId: null };
+    const where: Record<string, unknown> = { parentDraftId: null, deletedAt: null };
+    const actorRole = await resolveDraftResourceRole(this.prisma, query.organizationId, userId);
 
     if (query.organizationId) {
       where.organizationId = query.organizationId;
     } else {
+      // Personal scope remains owner-only. Organization records are always requested explicitly.
       where.userId = userId;
+      where.organizationId = null;
     }
 
     if (query.status) where.status = query.status;
@@ -97,28 +134,39 @@ export class DraftsService {
       this.prisma.draft.count({ where: where as Prisma.DraftWhereInput }),
     ]);
 
-    return buildPaginatedResult(data, page, limit, total);
+    return buildPaginatedResult(
+      data.map((draft) => ({
+        ...draft,
+        effectiveRole: actorRole,
+        canEdit: Boolean(actorRole),
+        canDelete: Boolean(actorRole) && (draft.userId === userId || actorRole === 'LGU_ADMIN'),
+      })),
+      page,
+      limit,
+      total,
+    );
   }
 
   async findOne(id: string, userId: string) {
-    const draft = await this.prisma.draft.findFirst({
-      where: { id, userId },
-    });
-    if (!draft) throw new NotFoundException('Draft not found');
-    return draft;
+    const draft = await this.getAccessibleDraft(this.prisma, id, userId);
+    const actorRole = await resolveDraftResourceRole(this.prisma, draft.organizationId, userId);
+    return {
+      ...draft,
+      effectiveRole: actorRole,
+      canEdit: Boolean(actorRole),
+      canDelete: Boolean(actorRole) && (draft.userId === userId || actorRole === 'LGU_ADMIN'),
+    };
   }
 
-  async update(id: string, dto: UpdateDraftDto, userId: string, actorRole: SanggunianRole = 'LEGISLATIVE_STAFF') {
+  async update(id: string, dto: UpdateDraftDto, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const draft = await tx.draft.findFirst({
-        where: { id, userId },
-      });
-      if (!draft) throw new NotFoundException('Draft not found');
+      const draft = await this.getAccessibleDraft(tx, id, userId);
       if (draft.parentDraftId) {
         throw new NotFoundException('Saved revisions are read-only');
       }
 
-      if (dto.expectedVersion !== undefined && draft.version !== dto.expectedVersion) {
+      const actorRole = await requireDraftWriteRole(tx, draft.organizationId, userId);
+      if (draft.version !== dto.expectedVersion) {
         throw new ConflictException(
           `Draft was modified by another user (expected v${dto.expectedVersion}, current is v${draft.version})`,
         );
@@ -130,12 +178,15 @@ export class DraftsService {
       const nextTitle = dto.title ?? draft.title;
       const nextContent = normalizeDraftContent(dto.content ?? draft.content);
       const nextStatus = dto.status ?? draft.status;
-      const nextDocumentHash = dto.documentHash ?? draft.documentHash;
-
+      // Editing cannot attest enactment/publication; that requires a future verified publication workflow.
+      if (nextStatus !== previousStatus && !['DRAFT', 'REVIEW', 'FINAL', 'ARCHIVED'].includes(nextStatus)) {
+        throw new UnprocessableEntityException(
+          'Formal enactment and publication status cannot be set by draft editing',
+        );
+      }
       const hasChange =
         nextTitle !== draft.title ||
         nextStatus !== previousStatus ||
-        nextDocumentHash !== draft.documentHash ||
         JSON.stringify(nextContent) !== JSON.stringify(draft.content);
 
       if (!hasChange) {
@@ -143,21 +194,33 @@ export class DraftsService {
       }
 
       const previousContent = normalizeDraftContent(draft.content);
-      const previousMilestones = previousContent.milestones;
-      const previousStage = previousMilestones?.currentStage ?? previousStatus;
-      const targetStage = nextContent.milestones?.currentStage;
-
-      if (targetStage && targetStage !== previousMilestones?.currentStage) {
-        const validation = validateStageTransition(
-          previousMilestones || getDefaultMilestones(),
-          targetStage,
-          actorRole,
-          toJurisdictionLevel(draft.jurisdiction),
-        );
-        if (!validation.isValid) {
-          throw new UnprocessableEntityException(validation.error);
-        }
+      const previousMilestones = { ...getDefaultMilestones(), ...previousContent.milestones };
+      // Omitting milestones does not erase the workflow or allow a restart of stage validation.
+      const incomingMilestones = dto.content?.milestones ?? nextContent.milestones ?? previousMilestones;
+      const parsedMilestones = legislativeMilestonesSchema.safeParse(incomingMilestones);
+      if (!parsedMilestones.success) {
+        throw new UnprocessableEntityException('Invalid legislative milestone data');
       }
+      nextContent.milestones = { ...getDefaultMilestones(), ...parsedMilestones.data };
+      const jurisdiction = toJurisdictionLevel(draft.jurisdiction);
+      if (nextContent.milestones.transmittedDate && jurisdiction !== 'barangay') {
+        nextContent.milestones.transmittalDeadline = calculateTransmittalDeadline(
+          nextContent.milestones.transmittedDate,
+          jurisdiction,
+        );
+      } else {
+        delete nextContent.milestones.transmittalDeadline;
+      }
+      const targetStage = nextContent.milestones.currentStage;
+      const validation = validateStageTransition(
+        previousMilestones,
+        targetStage,
+        actorRole,
+        jurisdiction,
+        nextContent.milestones,
+        draft.documentType,
+      );
+      if (!validation.isValid) throw new UnprocessableEntityException(validation.error);
 
       await tx.draft.create({
         data: {
@@ -174,37 +237,39 @@ export class DraftsService {
           version: previousVersion,
           parentDraftId: draft.id,
           commitMessage: draft.commitMessage,
-          documentHash: draft.documentHash,
           createdAt: now,
           updatedAt: draft.updatedAt,
         },
       });
 
-      const nextWorkflowStatus = targetStage ?? nextStatus;
-      const stageChanged = nextWorkflowStatus !== previousStage;
-      const statusChanged = nextStatus !== previousStatus;
-      const effectiveStatus = stageChanged ? nextWorkflowStatus : nextStatus;
+      const updated = await tx.draft
+        .update({
+          where: { id, version: previousVersion },
+          data: {
+            title: nextTitle,
+            content: nextContent as unknown as Prisma.InputJsonValue,
+            status: nextStatus,
+            commitMessage: dto.commitMessage,
+            version: previousVersion + 1,
+            updatedAt: now,
+          },
+        })
+        .catch((error: unknown) => {
+          if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+            throw new ConflictException('Draft was modified by another session');
+          }
+          throw error;
+        });
 
-      const updated = await tx.draft.update({
-        where: { id },
-        data: {
-          title: nextTitle,
-          content: nextContent as unknown as Prisma.InputJsonValue,
-          status: effectiveStatus,
-          commitMessage: dto.commitMessage,
-          documentHash: nextDocumentHash,
-          version: previousVersion + 1,
-          updatedAt: now,
-        },
-      });
-
-      if (stageChanged || statusChanged) {
+      const stageChanged = targetStage !== previousMilestones.currentStage;
+      if (nextStatus !== previousStatus || stageChanged) {
         await tx.workflowTransition.create({
           data: {
             draftId: id,
-            fromStatus: previousStage,
-            toStatus: stageChanged ? nextWorkflowStatus : nextStatus,
+            fromStatus: stageChanged ? previousMilestones.currentStage : previousStatus,
+            toStatus: stageChanged ? targetStage : nextStatus,
             actorId: userId,
+            organizationId: draft.organizationId,
             remarks: dto.commitMessage ?? (actorRole ? `Stage updated by ${actorRole}` : null),
             createdAt: now,
           },
@@ -217,6 +282,7 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: id,
           userId,
+          organizationId: draft.organizationId,
           changes: {
             previousVersion,
             nextVersion: previousVersion + 1,
@@ -231,14 +297,45 @@ export class DraftsService {
     });
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string, expectedVersion: number) {
     return this.prisma.$transaction(async (tx) => {
-      const draft = await tx.draft.findFirst({
-        where: { id, userId },
-      });
-      if (!draft) throw new NotFoundException('Draft not found');
+      const draft = await this.getAccessibleDraft(tx, id, userId);
       if (draft.parentDraftId) {
         throw new NotFoundException('Saved revisions cannot be deleted directly');
+      }
+
+      if (draft.version !== expectedVersion) {
+        throw new ConflictException(
+          `Draft was modified by another user (expected v${expectedVersion}, current is v${draft.version})`,
+        );
+      }
+
+      const actorRole = await requireDraftWriteRole(tx, draft.organizationId, userId);
+      if (draft.organizationId && draft.userId !== userId && actorRole !== 'LGU_ADMIN') {
+        throw new ForbiddenException('Only the draft owner or an organization administrator can delete this draft');
+      }
+      if (draft.organizationId) {
+        await tx.draft.update({
+          where: { id, version: expectedVersion },
+          data: {
+            deletedAt: new Date(),
+            deletedBy: userId,
+            version: draft.version + 1,
+            updatedAt: new Date(),
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            action: 'DELETE',
+            entityType: 'drafts',
+            entityId: id,
+            userId,
+            organizationId: draft.organizationId,
+            changes: { retention: 'SOFT_DELETED_ORGANIZATION_DRAFT', previousVersion: draft.version },
+            createdAt: new Date(),
+          },
+        });
+        return { success: true };
       }
 
       const revisions = await tx.draft.findMany({
@@ -257,6 +354,7 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: id,
           userId,
+          organizationId: draft.organizationId,
           createdAt: new Date(),
         },
       });
@@ -291,16 +389,17 @@ export class DraftsService {
     }));
   }
 
-  async restoreVersion(draftId: string, versionId: string, userId: string) {
+  async restoreVersion(draftId: string, versionId: string, userId: string, expectedVersion: number) {
     return this.prisma.$transaction(async (tx) => {
-      const draft = await tx.draft.findFirst({
-        where: { id: draftId, userId },
-      });
-      if (!draft) throw new NotFoundException('Draft not found');
+      const draft = await this.getAccessibleDraft(tx, draftId, userId);
       if (draft.parentDraftId) {
         throw new NotFoundException('Saved revisions cannot be restored directly');
       }
 
+      await requireDraftWriteRole(tx, draft.organizationId, userId);
+      if (expectedVersion !== draft.version) {
+        throw new ConflictException('Draft was modified by another session');
+      }
       const versionDraft = await tx.draft.findFirst({
         where: { id: versionId, OR: [{ id: draftId }, { parentDraftId: draftId }] },
       });
@@ -329,37 +428,33 @@ export class DraftsService {
           version: draft.version,
           parentDraftId: draft.id,
           commitMessage: draft.commitMessage,
-          documentHash: draft.documentHash,
           createdAt: now,
           updatedAt: draft.updatedAt,
         },
       });
 
-      const updated = await tx.draft.update({
-        where: { id: draftId },
-        data: {
-          title: versionDraft.title,
-          content: versionDraft.content as Prisma.InputJsonValue,
-          status: versionDraft.status,
-          commitMessage: `Restore version v${versionDraft.version}`,
-          documentHash: versionDraft.documentHash,
-          version: draft.version + 1,
-          updatedAt: now,
-        },
-      });
-
-      if (versionDraft.status !== draft.status) {
-        await tx.workflowTransition.create({
+      const updated = await tx.draft
+        .update({
+          where: { id: draftId, version: draft.version },
           data: {
-            draftId,
-            fromStatus: draft.status,
-            toStatus: versionDraft.status,
-            actorId: userId,
-            remarks: `Restored to v${versionDraft.version}`,
-            createdAt: now,
+            title: versionDraft.title,
+            content: {
+              ...normalizeDraftContent(versionDraft.content),
+              milestones: normalizeDraftContent(draft.content).milestones ?? getDefaultMilestones(),
+            } as unknown as Prisma.InputJsonValue,
+            // Restoring text must never replay historical approvals or roll back the live workflow.
+            status: draft.status,
+            commitMessage: `Restore version v${versionDraft.version}`,
+            version: draft.version + 1,
+            updatedAt: now,
           },
+        })
+        .catch((error: unknown) => {
+          if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+            throw new ConflictException('Draft was modified by another session');
+          }
+          throw error;
         });
-      }
 
       await tx.auditLog.create({
         data: {
@@ -367,12 +462,13 @@ export class DraftsService {
           entityType: 'drafts',
           entityId: draftId,
           userId,
+          organizationId: draft.organizationId,
           changes: {
             previousVersion: draft.version,
             nextVersion: draft.version + 1,
             restoredFromVersion: versionDraft.version,
             previousStatus: draft.status,
-            nextStatus: versionDraft.status,
+            nextStatus: draft.status,
           },
           createdAt: now,
         },
@@ -382,61 +478,80 @@ export class DraftsService {
     });
   }
 
-  async exportDraft(id: string, userId: string, format: 'txt' | 'md' | 'docx' | 'pdf') {
+  async exportDraft(id: string, userId: string, format: 'txt' | 'md' | 'docx' | 'pdf', expectedVersion: number) {
     const draft = await this.findOne(id, userId);
+    if (draft.version !== expectedVersion) {
+      throw new ConflictException(
+        `Draft was modified before export (expected v${expectedVersion}, current is v${draft.version})`,
+      );
+    }
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
 
+    // Binary office formats are rendered server-side and persisted to artifact storage.
     if (format === 'docx' || format === 'pdf') {
+      const jurisdiction = toJurisdictionLevel(draft.jurisdiction);
+      // The fingerprint is computed server-side from the persisted content; it is a
+      // content identifier, not a signature or proof of legal validity.
+      const verificationHash = await generateDocumentFingerprint(
+        draft.id,
+        draft.title,
+        jurisdiction,
+        draft.version,
+        content,
+      );
       const documentData: FormattedDocumentData = {
         title: draft.title,
         enactmentNumber: '2026-___',
         documentType: draft.documentType,
-        jurisdiction: toJurisdictionLevel(draft.jurisdiction),
+        jurisdiction,
         jurisdictionName: draft.jurisdictionName,
         body: content,
-        verificationHash: draft.documentHash || `LXG-${draft.id.slice(0, 8).toUpperCase()}`,
-        verificationUrl: `https://lexigov.ph/verify?id=${draft.id}`,
+        verificationHash,
+        verificationUrl: '/verify',
         version: draft.version,
       };
-      const config = buildDefaultDocumentFormatConfig(
-        toJurisdictionLevel(draft.jurisdiction),
-        draft.jurisdictionName,
-        getDefaultMilestones(),
-      );
+      const config = buildDefaultDocumentFormatConfig(jurisdiction, draft.jurisdictionName, getDefaultMilestones());
       const buffer =
         format === 'docx'
           ? await this.officialExportService.generateOfficialDocx(documentData, config)
           : await this.officialExportService.generateOfficialPdf(documentData, config);
-      const mimeType =
+      const binaryMimeType =
         format === 'docx'
           ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
           : 'application/pdf';
       const artifactKey = `exports/${draft.id}/v${draft.version}.${format}`;
-      const artifactUrl = await this.artifactStorage.put(artifactKey, buffer, mimeType);
-      const filename = `${draft.title.replace(/[^a-z0-9]/gi, '_')}_official.${format}`;
+      const artifactUrl = await this.artifactStorage.put(artifactKey, buffer, binaryMimeType);
 
       await this.prisma.exportHistory.create({
         data: {
           draftId: id,
           exportType: format.toUpperCase(),
+          draftVersion: draft.version,
+          titleSnapshot: draft.title,
           exportedBy: userId,
+          organizationId: draft.organizationId,
           createdAt: new Date(),
         },
       });
 
       return {
-        filename,
-        mimeType,
+        draftId: draft.id,
+        draftVersion: draft.version,
+        titleSnapshot: draft.title,
+        filename: `${draft.title.replace(/[^a-z0-9]/gi, '_')}_v${draft.version}.${format}`,
+        mimeType: binaryMimeType,
         artifactKey,
         artifactUrl,
       };
     }
 
+    const warning =
+      'WORKING DRAFT — NOT AN OFFICIAL RECORD\nThis export has not been authenticated or legally certified by LexiGov.\n\n';
     const header = `${draft.documentType}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction})\nv${draft.version}\nStatus: ${draft.status}\n${'='.repeat(50)}\n\n`;
     const formatted =
       format === 'md'
-        ? `# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**v${draft.version}**\n\n---\n\n${content}`
-        : header + content;
+        ? `> **WORKING DRAFT — NOT AN OFFICIAL RECORD**\n> This export has not been authenticated or legally certified by LexiGov.\n\n# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**v${draft.version}**\n\n---\n\n${content}`
+        : warning + header + content;
 
     const mimeType = format === 'md' ? 'text/markdown' : 'text/plain';
     const artifactKey = `exports/${draft.id}/v${draft.version}.${format}`;
@@ -446,12 +561,18 @@ export class DraftsService {
       data: {
         draftId: id,
         exportType: format.toUpperCase(),
+        draftVersion: draft.version,
+        titleSnapshot: draft.title,
         exportedBy: userId,
+        organizationId: draft.organizationId,
         createdAt: new Date(),
       },
     });
 
     return {
+      draftId: draft.id,
+      draftVersion: draft.version,
+      titleSnapshot: draft.title,
       filename: `${draft.title.replace(/[^a-z0-9]/gi, '_')}_v${draft.version}.${format}`,
       content: formatted,
       mimeType,
@@ -462,18 +583,31 @@ export class DraftsService {
 
   async logExport(id: string, userId: string, dto: LogExportDto) {
     const draft = await this.findOne(id, userId);
+    if (draft.version !== dto.expectedVersion) {
+      throw new ConflictException(
+        `Draft was modified before export (expected v${dto.expectedVersion}, current is v${draft.version})`,
+      );
+    }
 
     await this.prisma.exportHistory.create({
       data: {
         draftId: draft.id,
         exportType: dto.format.toUpperCase(),
+        draftVersion: draft.version,
+        titleSnapshot: draft.title,
         fileSize: dto.fileSize,
         pageCount: dto.pageCount,
         exportedBy: userId,
+        organizationId: draft.organizationId,
         createdAt: new Date(),
       },
     });
 
-    return { success: true };
+    return {
+      success: true,
+      draftId: draft.id,
+      draftVersion: draft.version,
+      titleSnapshot: draft.title,
+    };
   }
 }

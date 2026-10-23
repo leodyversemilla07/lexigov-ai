@@ -21,9 +21,11 @@ export interface ApiDraft {
   templateId?: string;
   parentDraftId?: string;
   commitMessage?: string;
-  documentHash?: string;
   createdAt?: string;
   updatedAt: string;
+  effectiveRole?: string | null;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export interface ApiDraftVersion {

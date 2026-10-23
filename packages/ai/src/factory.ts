@@ -29,7 +29,7 @@ export function createSingleProvider(name: AiProviderName, config: AiProviderCon
   }
 }
 
-export function createAiProviderFromEnv(env: Partial<ServerEnv>): AiProvider {
+export function createAiProviderFromEnv(env: Partial<ServerEnv> | Record<string, string | undefined>): AiProvider {
   const primaryProviderName = (env.AI_PROVIDER || 'azure') as AiProviderName;
 
   const buildConfigFor = (name: AiProviderName): AiProviderConfig => {
@@ -96,6 +96,9 @@ export function createAiProviderFromEnv(env: Partial<ServerEnv>): AiProvider {
   }
 
   if (instantiatedProviders.length === 0) {
+    if (env.NODE_ENV === 'production') {
+      throw new Error('No configured AI provider is available in production.');
+    }
     return new MockAiProvider();
   }
 

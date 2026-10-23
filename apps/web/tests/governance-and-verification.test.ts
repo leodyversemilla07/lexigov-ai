@@ -26,10 +26,14 @@ describe('Statutory Citations & Legal Grounding', () => {
     expect(citations.some((c) => c.provision.includes('RA 9003'))).toBe(true);
   });
 
-  it('generates suggested WHEREAS clauses containing Philippine legal citations', () => {
+  it('uses the SPARK decision rather than an unrelated DILG circular for curfew review', () => {
+    const citations = getStatutoryCitations('Curfew for minors during school hours', 'city');
+    expect(citations.some((citation) => citation.provision.includes('G.R. No. 225442'))).toBe(true);
+    expect(citations.every((citation) => !citation.provision.includes('2019-145'))).toBe(true);
+
     const whereasList = generateSuggestedWhereasClauses('Curfew for minors during school hours', 'City of Pasig', 'city');
-    expect(whereasList.length).toBeGreaterThanOrEqual(2);
-    expect(whereasList.some((w) => w.includes('Republic Act No. 7160'))).toBe(true);
+    expect(whereasList.some((clause) => clause.includes('Republic Act No. 7160'))).toBe(true);
+    expect(whereasList.every((clause) => !clause.includes('duly conducted'))).toBe(true);
   });
 
   it('matches Katarungang Pambarangay provisions for barangay dispute settlement', () => {
@@ -37,14 +41,22 @@ describe('Statutory Citations & Legal Grounding', () => {
     expect(citations.some((c) => c.provision.includes('Sections 399–422'))).toBe(true);
   });
 
-  it('matches Disaster Risk Reduction Act (RA 10121) for emergency and calamity preparedness', () => {
+  it('attributes the LDRRM fund requirement to RA 10121 Section 21', () => {
     const citations = getStatutoryCitations('Allocating LDRRM emergency disaster fund for flood evacuation centers', 'city');
-    expect(citations.some((c) => c.provision.includes('RA 10121'))).toBe(true);
+    expect(citations.some((citation) => citation.provision.includes('Sections 12 and 21'))).toBe(true);
   });
 
-  it('matches Ease of Doing Business Act (RA 11032) for business permitting and streamlining', () => {
-    const citations = getStatutoryCitations('Streamlining business permit processing and establishing an electronic one-stop shop', 'municipal');
-    expect(citations.some((c) => c.provision.includes('RA 11032'))).toBe(true);
+  it('attributes BOSS/e-BOSS requirements to RA 11032 Section 11 and respects jurisdiction', () => {
+    const municipal = getStatutoryCitations(
+      'Streamlining business permit processing and establishing an electronic one-stop shop',
+      'municipal',
+    );
+    const barangay = getStatutoryCitations(
+      'Streamlining business permit processing and establishing an electronic one-stop shop',
+      'barangay',
+    );
+    expect(municipal.some((citation) => citation.provision.includes('11'))).toBe(true);
+    expect(barangay.every((citation) => !citation.provision.includes('RA 11032'))).toBe(true);
   });
 });
 
@@ -75,16 +87,18 @@ describe('Sanggunian Legislative Tracker & Transmittal Deadlines', () => {
   });
 });
 
-describe('Digital Authenticity & Document Verification Engine', () => {
-  it('generates a deterministic verification hash', () => {
-    const hash1 = generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
-    const hash2 = generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
+describe('Unverified Document Content Fingerprints', () => {
+  it('generates a deterministic SHA-256 fingerprint that covers content', async () => {
+    const hash1 = await generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
+    const hash2 = await generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Sample content');
+    const changed = await generateVerificationHash('draft_123', 'Waste Segregation', 'city', 1, 'Tampered text!');
     expect(hash1).toBe(hash2);
-    expect(hash1.startsWith('LXG-')).toBe(true);
+    expect(hash1).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(changed).not.toBe(hash1);
   });
 
-  it('builds full verification metadata with public URL', () => {
-    const meta = buildVerificationMetadata(
+  it('builds metadata that explicitly fails closed as unverified', async () => {
+    const meta = await buildVerificationMetadata(
       {
         id: 'draft_999',
         title: 'Anti-Noise Ordinance',
@@ -98,8 +112,8 @@ describe('Digital Authenticity & Document Verification Engine', () => {
     );
 
     expect(meta.documentId).toBe('draft_999');
-    expect(meta.verificationHash.startsWith('LXG-')).toBe(true);
-    expect(meta.verificationUrl).toContain('code=LXG-');
-    expect(meta.verificationUrl).toContain('id=draft_999');
+    expect(meta.status).toBe('UNVERIFIED');
+    expect(meta.verificationHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(meta.verificationUrl).toBe('/verify');
   });
 });

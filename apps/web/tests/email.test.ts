@@ -78,6 +78,21 @@ describe("email templates", () => {
         expect(result.text).toContain("https://example.com/reset?token=xyz");
     });
 
+    it("renders and escapes an organization invitation without asserting official authority", async () => {
+        const { renderOrganizationInvitation } = await import("@/lib/email/templates");
+        const result = renderOrganizationInvitation({
+            organizationName: "<City Council>",
+            inviterName: "Maria & Jose",
+            roleLabel: "Committee chairperson",
+            url: "https://example.com/accept-invitation?id=abc",
+        });
+
+        expect(result.html).toContain("&lt;City Council&gt;");
+        expect(result.html).toContain("Maria &amp; Jose");
+        expect(result.text).toContain("do not establish public office or legal authority");
+        expect(result.text).toContain("accept-invitation?id=abc");
+    });
+
     it("renders a 2FA code template that surfaces the code in both html and text", async () => {
         const { renderTwoFactorCode } = await import("@/lib/email/templates");
         const result = renderTwoFactorCode({ code: "123456" });
@@ -164,7 +179,7 @@ describe("email service", () => {
         );
     });
 
-    it("returns a structured error when the resend api fails", async () => {
+    it("throws when the resend api fails so authentication cannot report false delivery", async () => {
         process.env.EMAIL_PROVIDER = "resend";
         process.env.RESEND_API_KEY = "re_test_key";
 
@@ -179,10 +194,8 @@ describe("email service", () => {
         );
 
         const { sendEmail } = await import("@/lib/email");
-        const result = await sendEmail({ to: "user@example.com", subject: "Hi", html: "<p>hi</p>" });
-
-        expect(result.success).toBe(false);
-        expect(result.error).toBe("domain not verified");
+        await expect(sendEmail({ to: "user@example.com", subject: "Hi", html: "<p>hi</p>" }))
+            .rejects.toThrow("domain not verified");
     });
 
     it("sends a per-message from override and replyTo when supplied", async () => {
@@ -213,7 +226,7 @@ describe("email service", () => {
         expect(body.reply_to).toBe("support@example.com");
     });
 
-    it("falls back to the status text when the resend response has no error body", async () => {
+    it("throws the status error when the resend response has no error body", async () => {
         process.env.EMAIL_PROVIDER = "resend";
         process.env.RESEND_API_KEY = "re_test_key";
 
@@ -228,12 +241,11 @@ describe("email service", () => {
         );
 
         const { sendEmail } = await import("@/lib/email");
-        const result = await sendEmail({ to: "user@example.com", subject: "Hi", html: "<p>hi</p>" });
-        expect(result.success).toBe(false);
-        expect(result.error).toContain("500");
+        await expect(sendEmail({ to: "user@example.com", subject: "Hi", html: "<p>hi</p>" }))
+            .rejects.toThrow("500");
     });
 
-    it("returns a structured error when the network call itself throws", async () => {
+    it("propagates a failed network delivery", async () => {
         process.env.EMAIL_PROVIDER = "resend";
         process.env.RESEND_API_KEY = "re_test_key";
 
@@ -245,8 +257,7 @@ describe("email service", () => {
         );
 
         const { sendEmail } = await import("@/lib/email");
-        const result = await sendEmail({ to: "user@example.com", subject: "Hi", html: "<p>hi</p>" });
-        expect(result.success).toBe(false);
-        expect(result.error).toBe("network unreachable");
+        await expect(sendEmail({ to: "user@example.com", subject: "Hi", html: "<p>hi</p>" }))
+            .rejects.toThrow("network unreachable");
     });
 });

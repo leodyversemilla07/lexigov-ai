@@ -1,13 +1,19 @@
-import { type CanActivate, type ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  type CanActivate,
+  type ExecutionContext,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { type AuthenticatedUser, AuthService } from './auth.service';
+import { extractSessionCredential } from './session-token';
 
-type RequestWithAuth = {
-  headers: {
-    authorization?: string;
-    cookie?: string;
-  };
+interface RequestWithAuth {
+  method?: string;
+  headers: { authorization?: unknown; cookie?: unknown; origin?: unknown };
   user?: AuthenticatedUser;
-};
+}
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -15,29 +21,31 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithAuth>();
-    const sessionToken = this.extractSessionToken(request);
+    const credential = extractSessionCredential(request.headers);
+    if (!credential) throw new UnauthorizedException('Missing or invalid session token');
 
-    if (!sessionToken) {
-      throw new UnauthorizedException('Missing session token');
+    if (credential.source === 'cookie' && !['GET', 'HEAD', 'OPTIONS'].includes(request.method ?? 'GET')) {
+      const trustedOrigins = [
+        process.env.CORS_ORIGIN,
+        process.env.BETTER_AUTH_TRUSTED_ORIGINS,
+        process.env.BETTER_AUTH_URL,
+        process.env.NODE_ENV !== 'production' ? 'http://localhost:3000' : undefined,
+      ]
+        .flatMap((value) => value?.split(',') ?? [])
+        .map((value) => {
+          try { return new URL(value.trim()).origin; } catch { return ''; }
+        })
+        .filter(Boolean);
+      let requestOrigin = '';
+      if (typeof request.headers.origin === 'string') {
+        try { requestOrigin = new URL(request.headers.origin).origin; } catch { requestOrigin = ''; }
+      }
+      if (!requestOrigin || !trustedOrigins.includes(requestOrigin)) {
+        throw new ForbiddenException('Untrusted request origin');
+      }
     }
 
-    const user = await this.authService.verifySession(sessionToken);
-    request.user = user;
+    request.user = await this.authService.verifySession(credential.token, credential.source);
     return true;
-  }
-
-  private extractSessionToken(request: RequestWithAuth): string | null {
-    const authHeader = request.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      return authHeader.slice(7);
-    }
-
-    const cookie = request.headers.cookie;
-    if (cookie) {
-      const match = cookie.match(/(?:__Secure-)?better-auth\.session_token=([^;]+)/);
-      if (match?.[1]) return decodeURIComponent(match[1]);
-    }
-
-    return null;
   }
 }

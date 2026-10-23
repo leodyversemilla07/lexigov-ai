@@ -6,9 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexi
 import { Input } from '@lexigov/ui/components/input';
 import { Label } from '@lexigov/ui/components/label';
 import { Separator } from '@lexigov/ui/components/separator';
-import { Building, Shield, User } from 'lucide-react';
+import { Building, Loader2, Shield, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { signOut, useSession } from '@/lib/auth-client';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { authClient, signOut, useSession } from '@/lib/auth-client';
+import { OrganizationManagement } from './_components/organization-management';
 
 function getInitials(name: string | null | undefined, email: string | null | undefined) {
   if (name) {
@@ -26,7 +29,34 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export default function SettingsPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { data: organization, isPending: isOrganizationLoading, refetch: refetchOrganization } =
+    authClient.useActiveOrganization();
+  const [organizationName, setOrganizationName] = useState('');
+  const [isSavingOrganization, setIsSavingOrganization] = useState(false);
   const user = session?.user;
+
+  useEffect(() => {
+    setOrganizationName(organization?.name ?? '');
+  }, [organization?.name]);
+
+  const saveOrganization = async () => {
+    const name = organizationName.trim();
+    if (!organization || !name || name === organization.name) return;
+    setIsSavingOrganization(true);
+    try {
+      const result = await authClient.organization.update({
+        organizationId: organization.id,
+        data: { name },
+      });
+      if (result.error) throw new Error(result.error.message || 'Unable to update organization');
+      await refetchOrganization();
+      toast.success('Organization name updated.');
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'Unable to update organization.');
+    } finally {
+      setIsSavingOrganization(false);
+    }
+  };
 
   const displayName = user?.name ?? 'User';
   const email = user?.email ?? '';
@@ -81,14 +111,40 @@ export default function SettingsPage() {
             <Building className='h-5 w-5' />
             Organization
           </CardTitle>
-          <CardDescription>Your LGU information</CardDescription>
+          <CardDescription>Update the active LGU workspace if your membership role permits it</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='space-y-2'>
             <Label htmlFor='org'>LGU / Organization Name</Label>
-            <Input id='org' placeholder='e.g., Municipality of Sample' />
+            <Input
+              id='org'
+              value={organizationName}
+              onChange={(event) => setOrganizationName(event.target.value)}
+              placeholder={isOrganizationLoading ? 'Loading organization...' : 'No active organization'}
+              disabled={isOrganizationLoading || !organization || isSavingOrganization}
+              maxLength={200}
+            />
           </div>
-          <Button>Save Changes</Button>
+          {organization ? (
+            <Button
+              onClick={saveOrganization}
+              disabled={
+                isOrganizationLoading ||
+                isSavingOrganization ||
+                !organizationName.trim() ||
+                organizationName.trim() === organization.name
+              }
+            >
+              {isSavingOrganization ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+              Save Changes
+            </Button>
+          ) : null}
+          {!isOrganizationLoading ? (
+            <>
+              <Separator />
+              <OrganizationManagement organization={organization} onOrganizationChanged={refetchOrganization} />
+            </>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -108,9 +164,10 @@ export default function SettingsPage() {
             </div>
             <Button
               variant='outline'
-              onClick={() => {
-                signOut();
+              onClick={async () => {
+                await signOut();
                 router.push('/');
+                router.refresh();
               }}
             >
               Sign Out

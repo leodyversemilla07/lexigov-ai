@@ -2,11 +2,13 @@ import type { JurisdictionLevel } from './schemas/enums';
 
 export interface StatutoryCitation {
   id: string;
-  source: 'RA 7160' | '1987 Constitution' | 'DILG Memorandum' | 'Supreme Court Jurisprudence' | 'National Law';
+  source: 'RA 7160' | '1987 Constitution' | 'Supreme Court Jurisprudence' | 'National Law';
   provision: string;
   title: string;
   relevance: string;
   sampleWhereas: string;
+  jurisdictions?: JurisdictionLevel[];
+  sourceUrl: string;
 }
 
 export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
@@ -18,7 +20,8 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     relevance:
       'The foundational police power mandate authorizing LGUs to enact ordinances promoting health, safety, morals, peace, and general welfare.',
     sampleWhereas:
-      'WHEREAS, Section 16 of Republic Act No. 7160, otherwise known as the Local Government Code of 1991, mandates that local government units shall exercise the powers expressly granted, as well as powers necessary, appropriate, or incidental for efficient and effective governance, and those which are essential to the promotion of the general welfare;',
+      'WHEREAS, Section 16 of Republic Act No. 7160, otherwise known as the Local Government Code of 1991, provides for powers necessary, appropriate, or incidental for efficient and effective local governance and those essential to the promotion of the general welfare;',
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra1991/ra_7160_1991.html',
   },
   {
     id: 'const-art10-sec5',
@@ -28,7 +31,8 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     relevance:
       'Constitutional authority granting each LGU the power to create its own sources of revenues and levy taxes, fees, and charges.',
     sampleWhereas:
-      'WHEREAS, Section 5, Article X of the 1987 Philippine Constitution empowers local government units to create their own sources of revenues and to levy taxes, fees, and charges subject to such guidelines and limitations as the Congress may provide;',
+      'WHEREAS, Section 5, Article X of the 1987 Philippine Constitution authorizes local government units to create their own sources of revenues and levy taxes, fees, and charges, subject to congressional guidelines and limitations;',
+    sourceUrl: 'https://lawphil.net/consti/cons1987.html',
   },
   {
     id: 'ra7160-sec187',
@@ -38,7 +42,8 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     relevance:
       'Mandatory requirement that tax or revenue measures must be preceded by public hearings conducted prior to enactment.',
     sampleWhereas:
-      'WHEREAS, pursuant to Section 187 of RA 7160, requisite public hearings and consultations were duly conducted to ensure transparency and civic participation in setting regulatory fees and tax schedules;',
+      'WHEREAS, Section 187 of Republic Act No. 7160 requires public hearings before the enactment of local tax ordinances and revenue measures;',
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra1991/ra_7160_1991.html',
   },
   {
     id: 'ra7160-sec54',
@@ -48,7 +53,9 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     relevance:
       'Governs the transmittal, 10-day/15-day review timeline, signature, and item-veto powers of Mayors and Governors.',
     sampleWhereas:
-      'WHEREAS, this legislative measure is enacted in full compliance with the approval and veto mechanisms established under Section 54 of the Local Government Code;',
+      'WHEREAS, Section 54 of Republic Act No. 7160 prescribes the approval and veto process for provincial, city, and municipal ordinances;',
+    jurisdictions: ['provincial', 'city', 'municipal'],
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra1991/ra_7160_1991.html',
   },
   {
     id: 'ra7160-sec391-468',
@@ -57,17 +64,19 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     title: 'Statutory Penal Ceilings by LGU Level',
     relevance: 'Prescribes maximum fines (Barangay ₱1k, Municipal ₱2.5k, City/Provincial ₱5k) and imprisonment terms.',
     sampleWhereas:
-      'WHEREAS, the penal provisions herein provided are calibrated in strict conformity with the statutory limits prescribed under Republic Act No. 7160;',
+      'WHEREAS, any proposed penal provision must remain within the applicable statutory limits under Republic Act No. 7160 and requires legal review before enactment;',
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra1991/ra_7160_1991.html',
   },
   {
-    id: 'dilg-mc-curfew',
-    source: 'DILG Memorandum',
-    provision: 'DILG MC No. 2019-145 & PD 603',
-    title: 'Child and Youth Welfare & Curfew Guidelines',
+    id: 'sc-spark-curfew',
+    source: 'Supreme Court Jurisprudence',
+    provision: 'G.R. No. 225442 (SPARK v. Quezon City, August 8, 2017)',
+    title: 'Constitutional limits on curfews affecting minors',
     relevance:
-      'Protects minors while respecting constitutional rights to liberty and travel pursuant to Supreme Court SPARK v. Quezon City.',
+      'The Supreme Court upheld the narrowly tailored Quezon City measure but invalidated the challenged Manila and Navotas provisions; any proposed curfew requires fact-specific rights and exemptions review.',
     sampleWhereas:
-      'WHEREAS, DILG Memorandum Circulars together with Presidential Decree No. 603 (Child and Youth Welfare Code) enjoin LGUs to establish protective youth measures with due process safeguards;',
+      'WHEREAS, any proposed restriction affecting minors must be narrowly tailored, include appropriate exemptions, and respect constitutional rights and applicable juvenile-justice protections;',
+    sourceUrl: 'https://elibrary.judiciary.gov.ph/thebookshelf/showdocs/1/63300',
   },
   {
     id: 'ra9003-solidwaste',
@@ -77,7 +86,8 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     relevance:
       'Mandates segregation of waste at source and assigns collection of biodegradable/recyclable waste to Barangays and non-recyclable to Cities/Municipalities.',
     sampleWhereas:
-      'WHEREAS, Section 10 of Republic Act No. 9003 (Ecological Solid Waste Management Act of 2000) designates local government units as the primary duty-bearers in the implementation of waste segregation and resource recovery;',
+      'WHEREAS, Section 10 of Republic Act No. 9003 allocates solid-waste responsibilities among local government units, including barangay-level segregation and collection of biodegradable, compostable, and reusable wastes;',
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra2001/ra_9003_2001.html',
   },
   {
     id: 'sc-manila-laguio',
@@ -87,7 +97,8 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     relevance:
       'Landmark Supreme Court decision ruling that local ordinances must not be unreasonable, discriminatory, or oppressive, and must provide administrative due process.',
     sampleWhereas:
-      'WHEREAS, the Supreme Court has consistently held that to be valid, an ordinance must not only conform with national statutes but must also observe substantive due process and administrative fairness;',
+      'WHEREAS, local regulation must remain within delegated authority and satisfy constitutional requirements of reasonableness and due process;',
+    sourceUrl: 'https://lawphil.net/judjuris/juri2005/apr2005/gr_118127_2005.html',
   },
   {
     id: 'ra7160-katarungan',
@@ -97,39 +108,48 @@ export const PHILIPPINE_STATUTORY_DATABASE: StatutoryCitation[] = [
     relevance:
       'Mandates amicable settlement of barangay disputes at the Lupon Tagapamayapa level as a condition precedent before court filing.',
     sampleWhereas:
-      'WHEREAS, Chapter 7 of Republic Act No. 7160 mandates the Katarungang Pambarangay system to perpetuate the Filipino tradition of settling disputes amicably at the community level;',
+      'WHEREAS, Chapter 7 of Republic Act No. 7160 establishes the Katarungang Pambarangay framework for covered disputes, subject to its statutory scope and exceptions;',
+    jurisdictions: ['barangay'],
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra1991/ra_7160_1991.html',
   },
   {
     id: 'ra10121-drrm',
     source: 'National Law',
-    provision: 'RA 10121, Section 12',
-    title: 'Philippine Disaster Risk Reduction & Management Act',
+    provision: 'RA 10121, Sections 12 and 21',
+    title: 'Philippine Disaster Risk Reduction and Management Act',
     relevance:
-      'Mandates establishment of Local Disaster Risk Reduction & Management Offices (LDRRMO) and allocation of 5% LDRRM Fund.',
+      'Section 12 establishes local DRRM offices; Section 21 requires an LDRRM Fund of not less than 5% of estimated revenue from regular sources.',
     sampleWhereas:
-      'WHEREAS, Section 12 of Republic Act No. 10121 mandates local government units to institutionalize disaster risk reduction and climate change adaptation mechanisms in their local development plans;',
+      'WHEREAS, Sections 12 and 21 of Republic Act No. 10121 establish local disaster-risk-management institutions and prescribe the Local Disaster Risk Reduction and Management Fund;',
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra2010/ra_10121_2010.html',
   },
   {
     id: 'ra11032-eodb',
     source: 'National Law',
-    provision: 'RA 11032, Section 9',
-    title: 'Ease of Doing Business & Efficient Government Service Delivery Act',
+    provision: 'RA 11032, Sections 7, 9, and 11',
+    title: 'Ease of Doing Business and Efficient Government Service Delivery Act',
     relevance:
-      'Prescribes streamlined business permitting, electronic Business One-Stop Shops (e-BOSS), and standardized processing times.',
+      'Sections 7 and 9 address zero-contact and processing requirements; Section 11 prescribes streamlined local business permitting and BOSS/e-BOSS measures for cities and municipalities.',
     sampleWhereas:
-      'WHEREAS, Republic Act No. 11032 enjoins local government units to streamline regulatory processes and implement zero-contact policies for business permitting and public transactions;',
+      'WHEREAS, Republic Act No. 11032 prescribes service-delivery safeguards and streamlined local business-permitting procedures within its applicable scope;',
+    jurisdictions: ['city', 'municipal'],
+    sourceUrl: 'https://lawphil.net/statutes/repacts/ra2018/ra_11032_2018.html',
   },
 ];
 
 const CITATION_MAP = new Map(PHILIPPINE_STATUTORY_DATABASE.map((c) => [c.id, c]));
 
-export function getStatutoryCitations(topicOrContent: string, _jurisdiction: JurisdictionLevel): StatutoryCitation[] {
+export function getStatutoryCitations(topicOrContent: string, jurisdiction: JurisdictionLevel): StatutoryCitation[] {
   const normalized = topicOrContent.toLowerCase();
   const matched: StatutoryCitation[] = [];
 
   const addCitation = (id: string) => {
     const citation = CITATION_MAP.get(id);
-    if (citation && !matched.some((c) => c.id === id)) {
+    if (
+      citation &&
+      (!citation.jurisdictions || citation.jurisdictions.includes(jurisdiction)) &&
+      !matched.some((c) => c.id === id)
+    ) {
       matched.push(citation);
     }
   };
@@ -147,7 +167,7 @@ export function getStatutoryCitations(topicOrContent: string, _jurisdiction: Jur
   }
 
   if (/curfew|minor|child|youth|night/i.test(normalized)) {
-    addCitation('dilg-mc-curfew');
+    addCitation('sc-spark-curfew');
   }
 
   if (/waste|garbage|sanitation|environment|litter/i.test(normalized)) {
@@ -182,7 +202,7 @@ export function generateSuggestedWhereasClauses(
   const clauses = citations.map((c) => c.sampleWhereas);
 
   clauses.push(
-    `WHEREAS, after careful deliberation, the Sanggunian finds it necessary and beneficial to enact this measure for the peace, safety, and welfare of the constituents of ${jurisdictionName || 'the local government unit'};`,
+    `WHEREAS, the proposed measure concerns the peace, safety, and welfare of the constituents of ${jurisdictionName || 'the local government unit'} and remains subject to factual validation, public deliberation, and authorized legal review;`,
   );
 
   return clauses;

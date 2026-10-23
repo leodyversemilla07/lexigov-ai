@@ -62,6 +62,13 @@ describe("buildDraftSectionsFromBody", () => {
         expect(sections[1]?.heading).toBe("Another Heading");
     });
 
+    it("does not interpret a mixed-case statutory citation as a heading", () => {
+        const body = "WHEREAS, authority is granted under Section 16 of RA 7160.";
+        const sections = buildDraftSectionsFromBody(body);
+        expect(sections).toHaveLength(1);
+        expect(sections[0]?.body).toBe(body);
+    });
+
     it("handles a single SECTION block with trailing content", () => {
         const body = ["SECTION 1. Title.", "Some content."].join("\n");
         const sections = buildDraftSectionsFromBody(body);
@@ -244,6 +251,20 @@ describe("updateDraftSectionsContent", () => {
         expect(updated.sections).toHaveLength(2);
         expect(updated.prompt).toBe("keep me");
         expect(updated.summary).toBe("First section body.");
+    });
+
+    it("preserves headers and WHEREAS recitals before the first edited section", () => {
+        const original = [
+            "REPUBLIC OF THE PHILIPPINES", "CITY OF TEST", "", "WHEREAS, public welfare requires action;", "",
+            "SECTION 1. Title.", "Old body.",
+        ].join("\n");
+        const updated = updateDraftSectionsContent({ body: original }, [
+            { id: "s1", heading: "SECTION 1. Title.", body: "New body." },
+        ]);
+        expect(updated.body).toContain("REPUBLIC OF THE PHILIPPINES");
+        expect(updated.body).toContain("WHEREAS, public welfare requires action;");
+        expect(updated.body).toContain("New body.");
+        expect(updated.body).not.toContain("Old body.");
     });
 
     it("fills in default headings and ids for sections that lack them", () => {

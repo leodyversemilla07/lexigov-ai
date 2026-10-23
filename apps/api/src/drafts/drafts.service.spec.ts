@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InMemoryArtifactStorage } from '../artifacts/artifact-storage.service';
 import { OfficialDocumentExportService } from '../exports/official-document-export.service';
 import { DraftsService } from './drafts.service';
@@ -26,7 +26,8 @@ interface DraftRecord {
   version: number;
   parentDraftId?: string | null;
   commitMessage?: string | null;
-  documentHash?: string | null;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,7 +56,8 @@ function buildPrismaDouble() {
         version: data.version ?? 1,
         parentDraftId: data.parentDraftId ?? null,
         commitMessage: data.commitMessage ?? null,
-        documentHash: data.documentHash ?? null,
+        deletedAt: data.deletedAt ?? null,
+        deletedBy: data.deletedBy ?? null,
         createdAt: data.createdAt ?? new Date(),
         updatedAt: data.updatedAt ?? new Date(),
       };
@@ -122,12 +124,26 @@ function buildPrismaDouble() {
       );
     }),
     findUnique: jest.fn(async ({ where }: { where: { id: string } }) => drafts.get(where.id) ?? null),
-    update: jest.fn(async ({ where, data }: { where: { id: string }; data: Partial<DraftRecord> }) => {
-      const existing = drafts.get(where.id);
-      if (!existing) throw new Error(`Draft ${where.id} not found`);
-      Object.assign(existing, data);
-      return existing;
-    }),
+    update: jest.fn(
+      async ({
+        where,
+        data,
+      }: {
+        where: { id: string; userId?: string; version?: number };
+        data: Partial<DraftRecord>;
+      }) => {
+        const existing = drafts.get(where.id);
+        if (
+          !existing ||
+          (where.userId && existing.userId !== where.userId) ||
+          (where.version && existing.version !== where.version)
+        ) {
+          throw Object.assign(new Error(`Draft ${where.id} not found`), { code: 'P2025' });
+        }
+        Object.assign(existing, data);
+        return existing;
+      },
+    ),
     delete: jest.fn(async ({ where }: { where: { id: string } }) => {
       const existing = drafts.get(where.id);
       if (!existing) throw new Error(`Draft ${where.id} not found`);
@@ -175,8 +191,22 @@ function buildPrismaDouble() {
     ),
   };
 
+  const member = {
+    findUnique: jest.fn(
+      async ({ where }: { where: { organizationId_userId: { organizationId: string; userId: string } } }) => ({
+        ...where.organizationId_userId,
+        role: 'legislative_staff',
+      }),
+    ),
+  };
+  const user = {
+    findUnique: jest.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id, role: 'user' })),
+  };
+
   const tx = {
     draft,
+    member,
+    user,
     complianceReport,
     exportHistory: exportHistoryModel,
     auditLog,
@@ -208,7 +238,7 @@ function buildService() {
     artifactStorage,
     officialExportService,
   );
-  return { service, prisma, officialExportService };
+  return { service, prisma, artifactStorage, officialExportService };
 }
 
 function expectDefined<T>(value: T | undefined, message = 'Expected value to be defined'): T {
@@ -298,6 +328,8 @@ describe('DraftsService.findAll', () => {
       where: {
         userId: 'user_1',
         parentDraftId: null,
+        organizationId: null,
+        deletedAt: null,
         documentType: 'RESOLUTION',
         OR: [
           { title: { contains: 'curfew', mode: 'insensitive' } },
@@ -317,7 +349,11 @@ describe('DraftsService.update', () => {
     const original = await service.create(baseCreateInput, userId);
     const originalVersion = original.version; // capture before mutation
 
-    const update: UpdateDraftDto = { title: 'Barangay Curfew Ordinance (Revised)', commitMessage: 'tweaks' };
+    const update: UpdateDraftDto = {
+      title: 'Barangay Curfew Ordinance (Revised)',
+      commitMessage: 'tweaks',
+      expectedVersion: 1,
+    };
     const updated = await service.update(original.id, update, userId);
 
     expect(updated.version).toBe(originalVersion + 1);
@@ -343,7 +379,7 @@ describe('DraftsService.update', () => {
     prisma.draft.create.mockClear();
 
     // No-op update: same title, no content change
-    const result = await service.update(original.id, { title: original.title }, userId);
+    const result = await service.update(original.id, { title: original.title, expectedVersion: 1 }, userId);
 
     expect(result.version).toBe(original.version);
     expect(prisma.draft.create).not.toHaveBeenCalled();
@@ -361,7 +397,123 @@ describe('DraftsService.update', () => {
       version: 1,
     });
 
-    await expect(service.update(revisionId, { title: 'changed' }, userId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.update(revisionId, { title: 'changed', expectedVersion: 1 }, userId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('derives the indicative LCE deadline on the server from complete vote and transmittal evidence', async () => {
+    const { service, prisma } = buildService();
+    const root = await service.create({ ...baseCreateInput, jurisdiction: 'city' }, userId);
+    expectDefined(prisma._state.drafts.get(root.id)).content = {
+      body: 'Working draft',
+      milestones: {
+        currentStage: 'THIRD_READING',
+        firstReadingDate: '2026-08-01',
+        secondReadingDate: '2026-08-02',
+        thirdReadingDate: '2026-08-03',
+        votingRecord: { ayes: 0, nays: 0, abstentions: 0 },
+        lceAction: 'PENDING',
+      },
+    };
+    prisma.user.findUnique.mockResolvedValue({ id: userId, role: 'PRESIDING_OFFICER' });
+
+    const updated = await service.update(
+      root.id,
+      {
+        expectedVersion: 1,
+        content: {
+          body: 'Working draft',
+          milestones: {
+            currentStage: 'TRANSMITTED_TO_LCE',
+            firstReadingDate: '2026-08-01',
+            secondReadingDate: '2026-08-02',
+            thirdReadingDate: '2026-08-03',
+            transmittedDate: '2026-08-04',
+            transmittalDeadline: '2099-01-01',
+            votingRecord: {
+              totalMembership: 12,
+              membersPresent: 10,
+              ayes: 6,
+              nays: 3,
+              abstentions: 1,
+              rollCallRecorded: true,
+            },
+            lceAction: 'PENDING',
+          },
+        },
+      },
+      userId,
+    );
+
+    expect(updated.content).toMatchObject({
+      milestones: { transmittalDeadline: '2026-08-14' },
+    });
+  });
+
+  it('rejects impossible dates and same-stage executive-action entries', async () => {
+    const { service, prisma } = buildService();
+    const root = await service.create({ ...baseCreateInput, jurisdiction: 'city' }, userId);
+
+    await expect(
+      service.update(
+        root.id,
+        {
+          expectedVersion: 1,
+          content: {
+            body: 'Working draft',
+            milestones: {
+              currentStage: 'DRAFTING',
+              votingRecord: { ayes: 0, nays: 0, abstentions: 0 },
+              lceAction: 'PENDING',
+              firstReadingDate: '2026-02-31',
+            },
+          },
+        },
+        userId,
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+    expectDefined(prisma._state.drafts.get(root.id)).content = {
+      body: 'Working draft',
+      milestones: {
+        currentStage: 'TRANSMITTED_TO_LCE',
+        thirdReadingDate: '2026-08-03',
+        transmittedDate: '2026-08-04',
+        transmittalDeadline: '2026-08-14',
+        votingRecord: {
+          totalMembership: 12,
+          membersPresent: 10,
+          ayes: 6,
+          nays: 3,
+          abstentions: 1,
+          rollCallRecorded: true,
+        },
+        lceAction: 'PENDING',
+      },
+    };
+    prisma.user.findUnique.mockResolvedValue({ id: userId, role: 'LCE_OFFICE' });
+
+    await expect(
+      service.update(
+        root.id,
+        {
+          expectedVersion: 1,
+          content: {
+            body: 'Working draft',
+            milestones: {
+              ...(expectDefined(prisma._state.drafts.get(root.id)).content as { milestones: Record<string, unknown> })
+                .milestones,
+              currentStage: 'TRANSMITTED_TO_LCE',
+              lceAction: 'APPROVED',
+              lceActionDate: '2026-08-05',
+              enactmentBasis: 'LCE_APPROVAL',
+            },
+          },
+        },
+        userId,
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });
 
@@ -376,7 +528,7 @@ describe('DraftsService.remove', () => {
       parentDraftId: draft.id,
     });
 
-    const result = await service.remove(draft.id, userId);
+    const result = await service.remove(draft.id, userId, draft.version);
 
     expect(result).toEqual({ success: true });
     expect(prisma._state.drafts.has(draft.id)).toBe(false);
@@ -396,7 +548,7 @@ describe('DraftsService.remove', () => {
     const revisionId = 'draft_revision_1';
     prisma._state.drafts.set(revisionId, { ...root, id: revisionId, parentDraftId: root.id });
 
-    await expect(service.remove(revisionId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.remove(revisionId, userId, root.version)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
@@ -432,9 +584,10 @@ describe('DraftsService.exportDraft', () => {
       userId,
     );
 
-    const result = await service.exportDraft(draft.id, userId, 'md');
+    const result = await service.exportDraft(draft.id, userId, 'md', draft.version);
 
     expect(result.mimeType).toBe('text/markdown');
+    expect(result.content).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
     expect(result.content).toContain('# Barangay Curfew Ordinance');
     expect(result.content).toContain('SECTION 1. Curfew hours are 10pm to 4am.');
     expect(result.filename).toMatch(/^Barangay_Curfew_Ordinance_v1\.md$/);
@@ -443,38 +596,43 @@ describe('DraftsService.exportDraft', () => {
     expect(prisma._state.exportHistory).toEqual([expect.objectContaining({ draftId: draft.id, exportType: 'MD' })]);
   });
 
-  it('returns plain-text content with a structured header for txt', async () => {
-    const { service } = buildService();
-    const draft = await service.create({ ...baseCreateInput, content: { body: 'SECTION 1. Body text.' } }, userId);
-
-    const result = await service.exportDraft(draft.id, userId, 'txt');
-
-    expect(result.mimeType).toBe('text/plain');
-    expect(result.content).toContain('ORDINANCE');
-    expect(result.content).toContain('SECTION 1. Body text.');
-    expect(result.artifactKey).toContain(`exports/${draft.id}/v1.txt`);
-    expect(result.artifactUrl).toContain(`exports/${draft.id}/v1.txt`);
-  });
-
-  it('generates an official DOCX via the server-side export engine and persists it via artifact storage', async () => {
+  it('renders DOCX server-side and persists it to artifact storage', async () => {
     const { service, prisma, officialExportService } = buildService();
     const draft = await service.create(
       { ...baseCreateInput, content: { body: 'SECTION 1. Curfew hours are 10pm to 4am.' } },
       userId,
     );
-
     const generateOfficialDocx = jest
       .spyOn(officialExportService, 'generateOfficialDocx')
       .mockResolvedValue(Buffer.from('docx-bytes'));
 
-    const result = await service.exportDraft(draft.id, userId, 'docx');
+    const result = await service.exportDraft(draft.id, userId, 'docx', draft.version);
 
     expect(generateOfficialDocx).toHaveBeenCalledTimes(1);
     expect(result.mimeType).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    expect(result.filename).toContain('_official.docx');
-    expect(result.artifactKey).toContain('.docx');
-    expect(result.artifactUrl).toContain('.docx');
+    expect(result.filename).toMatch(/\.docx$/);
+    expect(result.artifactKey).toContain(`exports/${draft.id}/v1.docx`);
     expect(prisma._state.exportHistory).toEqual([expect.objectContaining({ draftId: draft.id, exportType: 'DOCX' })]);
+  });
+
+  it('rejects an export when the draft moved past the expected version', async () => {
+    const { service } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    await expect(service.exportDraft(draft.id, userId, 'txt', draft.version + 1)).rejects.toThrow(ConflictException);
+  });
+
+  it('returns plain-text content with a structured header for txt', async () => {
+    const { service } = buildService();
+    const draft = await service.create({ ...baseCreateInput, content: { body: 'SECTION 1. Body text.' } }, userId);
+
+    const result = await service.exportDraft(draft.id, userId, 'txt', draft.version);
+
+    expect(result.mimeType).toBe('text/plain');
+    expect(result.content).toContain('WORKING DRAFT — NOT AN OFFICIAL RECORD');
+    expect(result.content).toContain('ORDINANCE');
+    expect(result.content).toContain('SECTION 1. Body text.');
+    expect(result.artifactKey).toContain(`exports/${draft.id}/v1.txt`);
   });
 });
 
@@ -483,11 +641,33 @@ describe('DraftsService.logExport', () => {
     const { service, prisma } = buildService();
     const draft = await service.create(baseCreateInput, userId);
 
-    const dto: LogExportDto = { format: 'pdf', fileSize: 12_345, pageCount: 4 };
+    const dto: LogExportDto = { format: 'pdf', expectedVersion: draft.version, fileSize: 12_345, pageCount: 4 };
     const result = await service.logExport(draft.id, userId, dto);
 
-    expect(result).toEqual({ success: true });
-    expect(prisma._state.exportHistory).toEqual([expect.objectContaining({ draftId: draft.id, exportType: 'PDF' })]);
+    expect(result).toEqual({
+      success: true,
+      draftId: draft.id,
+      draftVersion: draft.version,
+      titleSnapshot: draft.title,
+    });
+    expect(prisma._state.exportHistory).toEqual([
+      expect.objectContaining({
+        draftId: draft.id,
+        draftVersion: draft.version,
+        titleSnapshot: draft.title,
+        exportType: 'PDF',
+      }),
+    ]);
+  });
+
+  it('rejects telemetry for a stale draft version', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    await expect(
+      service.logExport(draft.id, userId, { format: 'pdf', expectedVersion: draft.version + 1 }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma._state.exportHistory).toEqual([]);
   });
 });
 
@@ -500,7 +680,7 @@ describe('DraftsService.restoreVersion', () => {
     );
 
     // Apply an update so a revision row exists
-    const updated = await service.update(root.id, { title: 'Title 2' }, userId);
+    const updated = await service.update(root.id, { title: 'Title 2', expectedVersion: 1 }, userId);
     // Capture the version as a primitive so the later restore (which mutates
     // the same draft object via Object.assign) can't shift the comparison.
     const versionAfterUpdate = updated.version;
@@ -511,7 +691,7 @@ describe('DraftsService.restoreVersion', () => {
 
     // Restore from the snapshot
     const snapshotRecord = expectDefined(snapshot);
-    const result = await service.restoreVersion(root.id, snapshotRecord.id, userId);
+    const result = await service.restoreVersion(root.id, snapshotRecord.id, userId, versionAfterUpdate);
 
     expect(result.success).toBe(true);
     expect(result.restoredFromVersion).toBe(snapshotRecord.version);
@@ -534,7 +714,7 @@ describe('DraftsService.restoreVersion', () => {
     const { service, prisma } = buildService();
     const root = await service.create(baseCreateInput, userId);
 
-    const result = await service.restoreVersion(root.id, root.id, userId);
+    const result = await service.restoreVersion(root.id, root.id, userId, root.version);
 
     expect(result).toEqual({ success: true, version: root.version });
     // No new snapshot row should be created in the no-op path
@@ -548,54 +728,167 @@ describe('DraftsService.restoreVersion', () => {
     // Some other draft, unrelated
     const other = await service.create({ ...baseCreateInput, title: 'Other' }, 'user_other');
 
-    await expect(service.restoreVersion(root.id, other.id, userId)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.restoreVersion(root.id, other.id, userId, root.version)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('refuses to restore on a saved revision (only root drafts can be restored)', async () => {
     const { service, prisma } = buildService();
     const root = await service.create(baseCreateInput, userId);
-    await service.update(root.id, { title: 'Title 2' }, userId);
+    await service.update(root.id, { title: 'Title 2', expectedVersion: 1 }, userId);
     const snapshot = Array.from(prisma._state.drafts.values()).find((d) => d.parentDraftId === root.id);
 
     // Try to restore on the snapshot (which is itself a revision)
     const snapshotRecord = expectDefined(snapshot);
-    await expect(service.restoreVersion(snapshotRecord.id, snapshotRecord.id, userId)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.restoreVersion(snapshotRecord.id, snapshotRecord.id, userId, snapshotRecord.version),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
 describe('DraftsService Multi-Tenancy & OCC', () => {
-  it('creates draft with organizationId and documentHash', async () => {
+  it('creates an organization draft for a persisted member', async () => {
     const { service } = buildService();
     const draft = await service.create(
       {
         ...baseCreateInput,
         organizationId: 'lgu_org_1',
-        documentHash: 'sha256_abcdef123456',
       },
       userId,
     );
 
     expect(draft.organizationId).toBe('lgu_org_1');
-    expect(draft.documentHash).toBe('sha256_abcdef123456');
   });
 
-  it('filters drafts by organizationId when provided in query', async () => {
+  it('rejects an organization identifier when the caller is not a member', async () => {
     const { service, prisma } = buildService();
-    await service.create({ ...baseCreateInput, title: 'LGU 1 Draft', organizationId: 'org_1' }, 'user_1');
-    await service.create({ ...baseCreateInput, title: 'LGU 2 Draft', organizationId: 'org_2' }, 'user_2');
+    prisma.member.findUnique.mockResolvedValueOnce(null as never);
 
-    await service.findAll('user_1', { organizationId: 'org_1' });
+    await expect(service.create({ ...baseCreateInput, organizationId: 'other_tenant' }, userId)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma._state.drafts.size).toBe(0);
+  });
 
+  it('lists every organization draft for a persisted member', async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared LGU Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    await service.create({ ...baseCreateInput, title: 'Other LGU Draft', organizationId: 'org_2' }, 'user_2');
+
+    const result = await service.findAll('member_user', { organizationId: 'org_1' });
+
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: sharedDraft.id,
+        effectiveRole: 'LEGISLATIVE_STAFF',
+        canEdit: true,
+        canDelete: false,
+      }),
+    ]);
     expect(prisma.draft.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
+        where: {
           organizationId: 'org_1',
           parentDraftId: null,
-        }),
+          deletedAt: null,
+        },
       }),
     );
+  });
+
+  it('keeps a generic organization member read-only', async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    prisma.member.findUnique.mockResolvedValue({ organizationId: 'org_1', userId: 'viewer', role: 'member' } as never);
+
+    await expect(service.findOne(sharedDraft.id, 'viewer')).resolves.toMatchObject({
+      id: sharedDraft.id,
+      effectiveRole: null,
+      canEdit: false,
+      canDelete: false,
+    });
+    await expect(
+      service.update(sharedDraft.id, { title: 'Viewer Edit Blocked', expectedVersion: 1 }, 'viewer'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("allows a persisted organization drafting member to read and update another member's draft", async () => {
+    const { service } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+
+    await expect(service.findOne(sharedDraft.id, 'member_user')).resolves.toMatchObject({ id: sharedDraft.id });
+    const updated = await service.update(
+      sharedDraft.id,
+      { title: 'Collaboratively Updated', expectedVersion: 1 },
+      'member_user',
+    );
+    expect(updated).toMatchObject({ title: 'Collaboratively Updated', version: 2 });
+  });
+
+  it("prevents a non-admin collaborator from deleting another member's organization draft", async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+
+    await expect(service.remove(sharedDraft.id, 'member_user', sharedDraft.version)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma._state.drafts.has(sharedDraft.id)).toBe(true);
+  });
+
+  it("allows an organization administrator to delete another member's draft", async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Shared Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    prisma.member.findUnique
+      .mockResolvedValueOnce({ organizationId: 'org_1', userId: 'admin_user', role: 'owner' } as never)
+      .mockResolvedValueOnce({ organizationId: 'org_1', userId: 'admin_user', role: 'owner' } as never);
+
+    await expect(service.remove(sharedDraft.id, 'admin_user', sharedDraft.version)).resolves.toEqual({ success: true });
+    expect(prisma._state.drafts.get(sharedDraft.id)).toMatchObject({
+      deletedBy: 'admin_user',
+      version: 2,
+    });
+    expect(prisma._state.drafts.get(sharedDraft.id)?.deletedAt).toBeInstanceOf(Date);
+    await expect(service.findOne(sharedDraft.id, 'admin_user')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findAll('admin_user', { organizationId: 'org_1' })).resolves.toMatchObject({ data: [] });
+  });
+
+  it('returns not found for a non-member without exposing an organization draft', async () => {
+    const { service, prisma } = buildService();
+    const sharedDraft = await service.create(
+      { ...baseCreateInput, title: 'Private LGU Draft', organizationId: 'org_1' },
+      'author_user',
+    );
+    prisma.member.findUnique.mockResolvedValueOnce(null as never);
+
+    await expect(service.findOne(sharedDraft.id, 'outsider_user')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('reports read-only capabilities for a researcher-owned personal draft', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+    prisma.user.findUnique.mockResolvedValueOnce({ id: userId, role: 'researcher' });
+
+    await expect(service.findOne(draft.id, userId)).resolves.toMatchObject({
+      effectiveRole: null,
+      canEdit: false,
+      canDelete: false,
+    });
   });
 
   it('throws ConflictException on update when expectedVersion does not match current version (OCC)', async () => {
@@ -605,6 +898,14 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
     await expect(
       service.update(draft.id, { title: 'Conflicting Edit', expectedVersion: 99 }, userId),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rejects deletion when the expected version is stale', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    await expect(service.remove(draft.id, userId, 99)).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma._state.drafts.has(draft.id)).toBe(true);
   });
 
   it('succeeds update when expectedVersion matches current draft version', async () => {
@@ -622,7 +923,7 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
 
     await service.update(
       draft.id,
-      { status: 'FIRST_READING', commitMessage: 'Referred to First Reading calendar' },
+      { status: 'REVIEW', commitMessage: 'Submitted for draft review', expectedVersion: 1 },
       userId,
     );
 
@@ -630,34 +931,9 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
       expect.objectContaining({
         draftId: draft.id,
         fromStatus: 'DRAFT',
-        toStatus: 'FIRST_READING',
+        toStatus: 'REVIEW',
         actorId: userId,
-        remarks: 'Referred to First Reading calendar',
-      }),
-    ]);
-  });
-
-  it('uses the formal stage from content milestones for the workflow transition and mirrored status', async () => {
-    const { service, prisma } = buildService();
-    const draft = await service.create(baseCreateInput, userId);
-
-    const updated = await service.update(
-      draft.id,
-      {
-        content: {
-          body: 'REPUBLIC OF THE PHILIPPINES\nCITY OF PASIG\nOFFICE OF THE SANGGUNIAN\n\nORDINANCE NO. 2025-01',
-          milestones: { currentStage: 'FIRST_READING' },
-        },
-      },
-      userId,
-    );
-
-    expect(updated.status).toBe('FIRST_READING');
-    expect(prisma._state.workflowTransitions).toEqual([
-      expect.objectContaining({
-        draftId: draft.id,
-        fromStatus: 'DRAFT',
-        toStatus: 'FIRST_READING',
+        remarks: 'Submitted for draft review',
       }),
     ]);
   });

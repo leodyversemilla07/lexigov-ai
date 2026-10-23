@@ -23,6 +23,7 @@ interface PrismaDouble {
     create: jest.Mock;
     findMany: jest.Mock;
     findUnique: jest.Mock;
+    count: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
   };
@@ -39,7 +40,7 @@ function buildPrismaDouble(): PrismaDouble {
   const auditLogs: Array<{ action: string; entityType: string; entityId: string; userId: string; changes?: unknown }> =
     [];
 
-  const template = {
+  const template: PrismaDouble['template'] = {
     create: jest.fn(async ({ data }: { data: Partial<TemplateRecord> }) => {
       const id = data.id ?? `tmpl_${templates.size + 1}`;
       const record: TemplateRecord = {

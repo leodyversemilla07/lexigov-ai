@@ -74,6 +74,23 @@ describe('@lexigov/ai Provider Suite', () => {
       expect(result.text).toBe('Primary Output');
     });
 
+    it('does not concatenate fallback output after a provider emitted a partial stream', async () => {
+      const partial = {
+        name: 'partial',
+        generateText: async () => { throw new Error('unused'); },
+        generateStructured: async () => { throw new Error('unused'); },
+        streamText: async function* () { yield 'partial '; throw new Error('stream interrupted'); },
+      } satisfies AiProvider;
+      const secondary = new MockAiProvider();
+      const fallback = new ResilientFallbackProvider([partial, secondary]);
+      const chunks: string[] = [];
+
+      await expect((async () => {
+        for await (const chunk of fallback.streamText({ prompt: 'Test' })) chunks.push(chunk);
+      })()).rejects.toThrow('stream interrupted');
+      expect(chunks).toEqual(['partial ']);
+    });
+
     it('falls back to secondary provider on error', async () => {
       const failing: AiProvider = {
         name: 'failing',
@@ -127,21 +144,23 @@ describe('@lexigov/ai Provider Suite', () => {
 
     it('builds section assistance prompt', () => {
       const { systemPrompt } = buildSectionAssistPrompt('Body', 'Formalize', 'city');
-      expect(systemPrompt).toContain('Philippine legislative drafting attorney');
+      expect(systemPrompt).toContain('advisory Philippine legislative drafting assistant');
+      expect(systemPrompt).toContain('not an attorney');
     });
 
     it('builds summary prompt', () => {
       const { systemPrompt } = buildSummaryPrompt('Ordinance body');
-      expect(systemPrompt).toContain('executive summary');
+      expect(systemPrompt).toContain('without asserting that it is valid');
     });
 
     it('builds compliance analysis prompt with canonical JSON contract', () => {
       const { systemPrompt } = buildComplianceAnalysisPrompt('Ordinance body', 'barangay');
       expect(systemPrompt).toContain('RA 7160');
       // Canonical compliance payload fields must be present in the prompt contract.
-      expect(systemPrompt).toContain('"overallScore"');
-      expect(systemPrompt).toContain('"isValid"');
+      // The model reports issues only; score and validity are computed by the app.
       expect(systemPrompt).toContain('"issues"');
+      expect(systemPrompt).not.toContain('"overallScore"');
+      expect(systemPrompt).not.toContain('"isValid"');
       expect(systemPrompt).toContain('"critical"');
       expect(systemPrompt).toContain('"warning"');
       expect(systemPrompt).toContain('"suggestion"');

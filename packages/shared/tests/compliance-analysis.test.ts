@@ -6,14 +6,39 @@ import {
   parseComplianceResult,
   toComplianceIssue,
 } from '../src';
+import { analyzeDeterministicCompliance } from '../src/compliance-analysis';
+
+describe('compliance analysis contracts', () => {
+  it('detects parenthesized and word-form imprisonment above the city ceiling', () => {
+    const result = analyzeDeterministicCompliance(
+      'Republic of the Philippines. WHEREAS public welfare requires action. SECTION 1. PENALTY. Imprisonment of two (2) years shall be imposed. SECTION 2. Separability. SECTION 3. Repealing. SECTION 4. This shall take effect after publication and posting.',
+      'city',
+    );
+    expect(result.issues.some((issue) => issue.title.includes('Imprisonment term exceeds'))).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('does not silently treat prompt-shaped issue objects as valid compliance issues', () => {
+    const promptShaped = [
+      {
+        type: 'violation',
+        section: 'Penalty',
+        message: 'Exceeds ceiling',
+        recommendation: 'Reduce it',
+      },
+    ];
+    const result = buildComplianceResultFromIssues(promptShaped as never);
+    expect(result.isValid).toBe(false);
+    expect(result.overallScore).toBeLessThan(100);
+  });
+});
 
 describe('@lexigov/shared Compliance Analysis (AI contract)', () => {
   describe('complianceAnalysisJsonSchema', () => {
     it('defines the canonical AI compliance payload shape', () => {
       expect(complianceAnalysisJsonSchema.type).toBe('object');
-      expect(complianceAnalysisJsonSchema.required).toContain('overallScore');
-      expect(complianceAnalysisJsonSchema.required).toContain('isValid');
-      expect(complianceAnalysisJsonSchema.required).toContain('issues');
+      // Issues only: the score and validity flag are computed by the application.
+      expect(complianceAnalysisJsonSchema.required).toEqual(['issues']);
 
       const issuesSchema = (complianceAnalysisJsonSchema.properties as Record<string, unknown>).issues as {
         type: string;
@@ -86,8 +111,26 @@ describe('@lexigov/shared Compliance Analysis (AI contract)', () => {
       expect(result?.issues[0]?.type).toBe('warning');
     });
 
-    it('returns null for payloads without a numeric overall score', () => {
-      expect(parseComplianceResult({ isValid: true, issues: [] })).toBeNull();
+    it('derives the score when the provider returns issues only', () => {
+      const result = parseComplianceResult({
+        issues: [
+          {
+            type: 'critical',
+            section: 'Penal Provisions',
+            title: 'Fine exceeds ceiling',
+            description: 'Above the barangay limit.',
+            suggestion: 'Reduce the fine.',
+          },
+        ],
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?.isValid).toBe(false);
+      expect(result?.overallScore).toBe(75); // 100 - 25 for one critical issue
+    });
+
+    it('returns null when there is nothing usable to normalize', () => {
+      expect(parseComplianceResult({ isValid: true })).toBeNull();
       expect(parseComplianceResult(null)).toBeNull();
     });
   });
@@ -125,11 +168,11 @@ describe('@lexigov/shared Compliance Analysis (AI contract)', () => {
       expect(merged).toHaveLength(2);
     });
 
-    it('builds a compliance result from merged issues', () => {
+    it('builds a compliance result from fully-specified issues', () => {
       const result = buildComplianceResultFromIssues([
-        { type: 'critical', title: 'A', description: '', suggestion: '' },
-        { type: 'critical', title: 'B', description: '', suggestion: '' },
-        { type: 'warning', title: 'C', description: '', suggestion: '' },
+        { type: 'critical', title: 'A', description: 'Detail A', suggestion: 'Fix A' },
+        { type: 'critical', title: 'B', description: 'Detail B', suggestion: 'Fix B' },
+        { type: 'warning', title: 'C', description: 'Detail C', suggestion: 'Fix C' },
       ]);
 
       expect(result.overallScore).toBe(40); // 100 - (25 + 25 + 10)

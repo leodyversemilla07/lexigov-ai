@@ -1,5 +1,5 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsDefined, IsIn, IsInt, IsObject, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { type DocumentStatus, documentStatusValues } from '../../common/contracts';
 
 type DraftContentInput = Record<string, unknown>;
@@ -28,12 +28,9 @@ export class UpdateDraftDto {
   @MaxLength(500)
   commitMessage?: string;
 
-  @ApiPropertyOptional({ description: 'SHA-256 document content hash' })
-  @IsOptional()
-  @IsString()
-  documentHash?: string;
-
-  @ApiPropertyOptional({ description: 'Expected draft version for optimistic concurrency control' })
-  @IsOptional()
-  expectedVersion?: number;
+  @ApiProperty({ description: 'Required current draft version for optimistic concurrency control', minimum: 1 })
+  @IsDefined()
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
 }

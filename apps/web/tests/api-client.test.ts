@@ -2,11 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Tests for the web app's typed fetch wrapper.
- * Covers Bearer auth from the cookie jar, JSON encoding, error normalization,
+ * Covers HttpOnly-cookie-safe requests, JSON encoding, error normalization,
  * and the no-content fast path.
- *
- * Runs in the default node environment, so we stub a minimal `document.cookie`
- * shim that satisfies `getSessionToken` (which guards on `typeof document`).
  */
 
 type FetchArgs = [input: string, init?: RequestInit];
@@ -77,7 +74,7 @@ afterEach(() => {
 });
 
 describe("api.get", () => {
-  it("issues a GET against the configured API URL with the Bearer token from the cookie jar", async () => {
+  it("issues a credentialed GET without exposing the HttpOnly session cookie", async () => {
     setCookie("better-auth.session_token=session_abc; path=/");
     const fetchSpy = mockFetchOnce({ body: { ok: true } });
     vi.stubGlobal("fetch", fetchSpy);
@@ -91,7 +88,7 @@ describe("api.get", () => {
     expect(url).toBe("http://localhost:4000/api/drafts");
     expect(init?.method).toBe("GET");
     expect(init?.credentials).toBe("include");
-    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer session_abc");
+    expect((init?.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
   it("omits the Authorization header when no session cookie is present", async () => {
@@ -107,7 +104,7 @@ describe("api.get", () => {
     expect(headers.Authorization).toBeUndefined();
   });
 
-  it("reads the secure Better Auth cookie name when present", async () => {
+  it("does not copy the secure Better Auth cookie into an Authorization header", async () => {
     setCookie("__Secure-better-auth.session_token=secure_session_abc; path=/");
     const fetchSpy = mockFetchOnce({ body: null });
     vi.stubGlobal("fetch", fetchSpy);
@@ -117,10 +114,10 @@ describe("api.get", () => {
 
     const [, init] = fetchSpy.mock.calls[0]!;
     const headers = (init?.headers ?? {}) as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer secure_session_abc");
+    expect(headers.Authorization).toBeUndefined();
   });
 
-  it("URL-decodes the cookie token before sending it as Bearer", async () => {
+  it("does not parse malformed or encoded cookie values in application JavaScript", async () => {
     setCookie("better-auth.session_token=token%20with%20spaces");
     const fetchSpy = mockFetchOnce({ body: null });
     vi.stubGlobal("fetch", fetchSpy);
@@ -130,7 +127,7 @@ describe("api.get", () => {
 
     const [, init] = fetchSpy.mock.calls[0]!;
     const headers = (init?.headers ?? {}) as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer token with spaces");
+    expect(headers.Authorization).toBeUndefined();
   });
 
   it("falls back to the local dev URL when NEXT_PUBLIC_API_URL is unset", async () => {
@@ -194,7 +191,7 @@ describe("api.delete", () => {
     expect(init?.method).toBe("DELETE");
     expect(init?.body).toBeUndefined();
     const headers = (init?.headers ?? {}) as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer token_xyz");
+    expect(headers.Authorization).toBeUndefined();
     expect(headers["Content-Type"]).toBeUndefined();
   });
 });

@@ -1,13 +1,12 @@
-import { toSanggunianRole } from '@lexigov/shared';
 import {
   BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
-  Headers,
   Inject,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -78,21 +77,20 @@ export class DraftsController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update a draft' })
   @ApiResponse({ status: 200, description: 'Draft updated' })
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateDraftDto,
-    @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-sanggunian-role') roleHeader?: string,
-  ) {
-    const actorRole = toSanggunianRole(roleHeader || user.role, 'LEGISLATIVE_STAFF');
-    return this.draftsService.update(id, dto, user.userId, actorRole);
+  update(@Param('id') id: string, @Body() dto: UpdateDraftDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.draftsService.update(id, dto, user.userId);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a draft' })
+  @ApiQuery({ name: 'expectedVersion', required: true, type: Number, minimum: 1 })
   @ApiResponse({ status: 200, description: 'Draft deleted' })
-  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.draftsService.remove(id, user.userId);
+  remove(
+    @Param('id') id: string,
+    @Query('expectedVersion', ParseIntPipe) expectedVersion: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.draftsService.remove(id, user.userId, expectedVersion);
   }
 
   @Get(':id/versions')
@@ -104,15 +102,17 @@ export class DraftsController {
   @Post(':id/restore')
   @ApiOperation({ summary: 'Restore a previous version' })
   restoreVersion(@Param('id') id: string, @Body() dto: RestoreVersionDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.draftsService.restoreVersion(id, dto.versionId, user.userId);
+    return this.draftsService.restoreVersion(id, dto.versionId, user.userId, dto.expectedVersion);
   }
 
   @Get(':id/export')
   @ApiOperation({ summary: 'Export draft as txt, md, docx, or pdf' })
   @ApiQuery({ name: 'format', required: false, enum: ['txt', 'md', 'docx', 'pdf'] })
+  @ApiQuery({ name: 'expectedVersion', required: true, type: Number, minimum: 1 })
   exportDraft(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('expectedVersion', ParseIntPipe) expectedVersion: number,
     @Query('format') format: string = 'txt',
   ) {
     const supportedFormats = ['txt', 'md', 'docx', 'pdf'] as const;
@@ -121,7 +121,7 @@ export class DraftsController {
       throw new BadRequestException(`Export format must be one of: ${allowedFormats.join(', ')}`);
     }
 
-    return this.draftsService.exportDraft(id, user.userId, format as 'txt' | 'md' | 'docx' | 'pdf');
+    return this.draftsService.exportDraft(id, user.userId, format as 'txt' | 'md' | 'docx' | 'pdf', expectedVersion);
   }
 
   @Post(':id/export')

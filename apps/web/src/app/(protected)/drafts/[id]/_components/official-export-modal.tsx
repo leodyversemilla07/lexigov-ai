@@ -27,7 +27,6 @@ import {
   Loader2,
   Printer,
   ScrollText,
-  ShieldCheck,
   Users,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -59,13 +58,11 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
 
   const documentData: FormattedDocumentData = {
     title: draft.title,
-    enactmentNumber: milestones?.enactmentNo || '2026-___',
+    enactmentNumber: milestones?.enactmentNo || '____-___',
     documentType: draft.documentType,
     jurisdiction: toJurisdictionLevel(draft.jurisdiction),
     jurisdictionName: draft.jurisdictionName,
     body: content,
-    verificationHash: draft.documentHash || `LXG-${draft.id.slice(0, 8).toUpperCase()}`,
-    verificationUrl: `https://lexigov.ph/verify?id=${draft.id}`,
     version: draft.version,
   };
 
@@ -78,7 +75,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
     try {
       setIsExportingDocx(true);
       await downloadOfficialDocx(documentData, config);
-      toast.success('Official Word (.docx) document generated and downloaded.');
+      toast.success('Word (.docx) working draft downloaded.');
     } catch (err) {
       console.error(err);
       toast.error('Failed to generate Word document.');
@@ -91,7 +88,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
     try {
       setIsExportingPdf(true);
       downloadOfficialPdf(documentData, config);
-      toast.success('Official PDF document generated and downloaded.');
+      toast.success('PDF working draft downloaded.');
     } catch (err) {
       console.error(err);
       toast.error('Failed to generate PDF document.');
@@ -109,7 +106,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
     const text = generateOfficialDocumentText(documentData, config);
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success('Official formatted text copied to clipboard.');
+    toast.success('Formatted working draft copied to clipboard.');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -128,15 +125,15 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
             <div className='flex items-center gap-2'>
               <Landmark className='h-5 w-5 text-primary' />
               <div>
-                <DialogTitle className='text-lg font-semibold'>Official Government Document Exporter</DialogTitle>
+                <DialogTitle className='text-lg font-semibold'>Government Document Draft Exporter</DialogTitle>
                 <DialogDescription className='text-xs'>
-                  Publish court-admissible, RA 7160 compliant legislation formatted for official gazettes and archival.
+                  Export a working draft for authorized review. This does not certify enactment, authenticity, or legal compliance.
                 </DialogDescription>
               </div>
             </div>
             <div className='flex items-center gap-2'>
               <Badge variant='outline' className='text-xs font-mono'>
-                RA 7160 § 54 / § 469
+                WORKING DRAFT
               </Badge>
             </div>
           </div>
@@ -178,7 +175,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                     : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <ShieldCheck className='h-3.5 w-3.5' /> Signatories
+                <Users className='h-3.5 w-3.5' /> Signatories
               </button>
             </div>
 
@@ -196,7 +193,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value='A4' className='text-xs'>
-                          A4 (210 × 297 mm) — Supreme Court Standard
+                          A4 (210 × 297 mm)
                         </SelectItem>
                         <SelectItem value='LEGAL' className='text-xs'>
                           Legal / Long Bond (8.5 × 13 in)
@@ -209,7 +206,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                   </div>
 
                   <div className='space-y-1.5'>
-                    <Label className='text-xs'>Official Typography Font</Label>
+                    <Label className='text-xs'>Document Font</Label>
                     <Select
                       value={config.fontFamily}
                       onValueChange={(val) => setConfig((prev) => ({ ...prev, fontFamily: val as FontFamily }))}
@@ -219,10 +216,10 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value='Book Antiqua' className='text-xs'>
-                          Book Antiqua (Philippine Legal Standard)
+                          Book Antiqua (Serif)
                         </SelectItem>
                         <SelectItem value='Times New Roman' className='text-xs'>
-                          Times New Roman (Traditional Judicial)
+                          Times New Roman (Serif)
                         </SelectItem>
                         <SelectItem value='Arial' className='text-xs'>
                           Arial (Modern Clean Sans)
@@ -258,7 +255,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value='1.15' className='text-xs'>
-                            1.15 (Official Standard)
+                            1.15 (Standard)
                           </SelectItem>
                           <SelectItem value='1.5' className='text-xs'>
                             1.5 (Plenary Reading)
@@ -289,7 +286,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                         checked={config.includeSessionExcerpt}
                         onChange={(e) => setConfig((prev) => ({ ...prev, includeSessionExcerpt: e.target.checked }))}
                       />
-                      <span>Include Session Minutes Excerpt</span>
+                      <span>Include unverified draft session details</span>
                     </label>
                     <label className='flex items-center gap-2 cursor-pointer'>
                       <input
@@ -298,17 +295,9 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                         checked={config.includeSignatures}
                         onChange={(e) => setConfig((prev) => ({ ...prev, includeSignatures: e.target.checked }))}
                       />
-                      <span>Include 3-Part Statutory Signature Block</span>
+                      <span>Include proposed signatory placeholders</span>
                     </label>
-                    <label className='flex items-center gap-2 cursor-pointer'>
-                      <input
-                        type='checkbox'
-                        className='rounded border-gray-300 text-primary focus:ring-primary'
-                        checked={config.includeQrVerification}
-                        onChange={(e) => setConfig((prev) => ({ ...prev, includeQrVerification: e.target.checked }))}
-                      />
-                      <span>Include Cryptographic Verification Stamp</span>
-                    </label>
+                    <p className='text-muted-foreground'>Placeholders do not record a signature, adoption, or approval.</p>
                   </div>
                 </div>
               ) : null}
@@ -482,20 +471,6 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                       }
                     />
                   </div>
-                  <div className='space-y-1.5'>
-                    <Label className='text-xs'>Approval Date</Label>
-                    <Input
-                      type='date'
-                      className='h-8 text-xs'
-                      value={config.signatories.approvalDate || ''}
-                      onChange={(e) =>
-                        setConfig((prev) => ({
-                          ...prev,
-                          signatories: { ...prev.signatories, approvalDate: e.target.value },
-                        }))
-                      }
-                    />
-                  </div>
                 </div>
               ) : null}
             </ScrollArea>
@@ -528,13 +503,14 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                   </div>
                 ) : null}
 
-                {/* Session Minutes Excerpt */}
+                {/* Unverified draft session details */}
                 {config.includeSessionExcerpt && config.sessionDetails ? (
                   <div className='text-[8.5pt] italic border-b border-dashed border-gray-400 pb-3 mb-4 space-y-1'>
+                    <p className='font-bold'>DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES</p>
                     <p>
-                      EXCERPT FROM THE MINUTES OF THE {config.sessionDetails.sessionType} SESSION OF THE{' '}
-                      {legislativeBody} HELD AT {config.sessionDetails.sessionVenue.toUpperCase()} ON{' '}
-                      {config.sessionDetails.sessionDate}.
+                      {config.sessionDetails.sessionType} SESSION OF THE {legislativeBody}; VENUE:{' '}
+                      {config.sessionDetails.sessionVenue.toUpperCase() || 'NOT PROVIDED'}; DATE:{' '}
+                      {config.sessionDetails.sessionDate || 'NOT PROVIDED'}.
                     </p>
                     <p>
                       <strong>PRESENT:</strong> {config.sessionDetails.presentMembers.join(', ')}
@@ -552,7 +528,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                   <div className='font-bold text-[11pt]'>
                     {documentData.enactmentNumber
                       ? `${documentData.documentType.toUpperCase()} NO. ${documentData.enactmentNumber}`
-                      : `${documentData.documentType.toUpperCase()} NO. 2026-___`}
+                      : `${documentData.documentType.toUpperCase()} NO. ____-___`}
                   </div>
                   <div className='font-bold text-[10pt] mt-1 uppercase'>{documentData.title}</div>
                 </div>
@@ -560,11 +536,12 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                 {/* Ordinance Body Content */}
                 <div className='text-justify whitespace-pre-wrap my-4 space-y-3 font-normal'>{documentData.body}</div>
 
-                {/* 3-Part Statutory Signature Block */}
+                {/* Proposed signatory placeholders */}
                 {config.includeSignatures ? (
                   <div className='pt-6 mt-6 border-t border-gray-300 space-y-5 text-[9pt]'>
                     <div>
-                      <p className='italic'>I HEREBY CERTIFY to the correctness of the foregoing Ordinance.</p>
+                      <p className='font-bold'>DRAFT SIGNATORY PLACEHOLDERS — NO SIGNATURE OR APPROVAL IS RECORDED</p>
+                      <p>Proposed Sanggunian Secretary:</p>
                       <div className='text-right mt-3'>
                         <div className='font-bold uppercase'>{config.signatories.secretaryName}</div>
                         <div className='text-gray-700'>{config.signatories.secretaryTitle}</div>
@@ -572,7 +549,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                     </div>
 
                     <div>
-                      <p className='font-bold'>ATTESTED AND CERTIFIED TO BE DULY ADOPTED:</p>
+                      <p className='font-bold'>PROPOSED PRESIDING OFFICER:</p>
                       <div className='text-right mt-3'>
                         <div className='font-bold uppercase'>{config.signatories.presidingOfficerName}</div>
                         <div className='text-gray-700'>{config.signatories.presidingOfficerTitle}</div>
@@ -580,9 +557,7 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                     </div>
 
                     <div>
-                      <p className='font-bold'>
-                        APPROVED: {config.signatories.approvalDate || '________________________'}
-                      </p>
+                      <p className='font-bold'>PROPOSED LOCAL CHIEF EXECUTIVE:</p>
                       <div className='text-right mt-3'>
                         <div className='font-bold uppercase'>{config.signatories.chiefExecutiveName}</div>
                         <div className='text-gray-700'>{config.signatories.chiefExecutiveTitle}</div>
@@ -591,15 +566,9 @@ export function OfficialExportModal({ isOpen, onClose, draft, content, milestone
                   </div>
                 ) : null}
 
-                {/* Cryptographic Security Stamp */}
-                {config.includeQrVerification && documentData.verificationHash ? (
-                  <div className='mt-8 pt-3 border-t border-gray-300 text-[7.5pt] text-gray-500 flex items-center justify-between'>
-                    <span>
-                      Verification Fingerprint: <strong>{documentData.verificationHash}</strong>
-                    </span>
-                    <span>Verified via LexiGov AI</span>
-                  </div>
-                ) : null}
+                <div className='mt-8 pt-3 border-t border-gray-300 text-[7.5pt] text-gray-500'>
+                  WORKING DRAFT — NOT AN OFFICIAL RECORD. Not authenticated or legally certified by LexiGov.
+                </div>
               </div>
             </ScrollArea>
           </div>

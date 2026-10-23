@@ -2,6 +2,7 @@
 
 import {
   type DocumentFormatConfig,
+  escapeHtml,
   extractWhereAsClausesAndBody,
   type FormattedDocumentData,
   inferSanggunianBodyName,
@@ -83,7 +84,7 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
         spacing: { before: 120, after: 120 },
         children: [
           new TextRun({
-            text: `EXCERPT FROM THE MINUTES OF THE ${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody} HELD AT ${config.sessionDetails.sessionVenue.toUpperCase()} ON ${config.sessionDetails.sessionDate}.`,
+            text: `DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES. ${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody}; VENUE: ${config.sessionDetails.sessionVenue.toUpperCase() || 'NOT PROVIDED'}; DATE: ${config.sessionDetails.sessionDate || 'NOT PROVIDED'}.`,
             font: config.fontFamily,
             italics: true,
             size: 18,
@@ -160,7 +161,7 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
         new TextRun({
           text: data.enactmentNumber
             ? `${data.documentType.toUpperCase()} NO. ${data.enactmentNumber}`
-            : `${data.documentType.toUpperCase()} NO. 2026-___`,
+            : `${data.documentType.toUpperCase()} NO. ____-___`,
           font: config.fontFamily,
           bold: true,
           size: 26,
@@ -262,7 +263,7 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
         spacing: { before: 300, after: 120 },
         children: [
           new TextRun({
-            text: 'I HEREBY CERTIFY to the correctness of the foregoing Ordinance.',
+            text: 'DRAFT SIGNATORY PLACEHOLDERS — NO SIGNATURE OR APPROVAL IS RECORDED',
             font: config.fontFamily,
             italics: true,
             size: 20,
@@ -296,7 +297,7 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
         spacing: { before: 120, after: 60 },
         children: [
           new TextRun({
-            text: 'ATTESTED AND CERTIFIED TO BE DULY ADOPTED:',
+            text: 'PROPOSED PRESIDING OFFICER:',
             font: config.fontFamily,
             bold: true,
             size: 20,
@@ -330,7 +331,7 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
         spacing: { before: 120, after: 60 },
         children: [
           new TextRun({
-            text: `APPROVED: ${config.signatories.approvalDate || '_______________________'}`,
+            text: 'PROPOSED LOCAL CHIEF EXECUTIVE:',
             font: config.fontFamily,
             bold: true,
             size: 20,
@@ -363,22 +364,12 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
     );
   }
 
-  // 8. Security Stamp
-  if (config.includeQrVerification && data.verificationHash) {
-    paragraphs.push(
-      new Paragraph({
-        spacing: { before: 240, after: 60 },
-        children: [
-          new TextRun({
-            text: `Document Verification Hash: ${data.verificationHash}`,
-            font: config.fontFamily,
-            size: 16,
-            italics: true,
-          }),
-        ],
-      }),
-    );
-  }
+  paragraphs.unshift(new Paragraph({
+    children: [new TextRun({ text: 'WORKING DRAFT — NOT AN OFFICIAL RECORD', bold: true })],
+  }));
+  paragraphs.push(new Paragraph({
+    children: [new TextRun({ text: 'This export has not been authenticated or legally certified by LexiGov.', size: 16 })],
+  }));
 
   const doc = new Document({
     sections: [
@@ -399,7 +390,7 @@ export async function downloadOfficialDocx(data: FormattedDocumentData, config: 
   });
 
   const blob = await Packer.toBlob(doc);
-  const filename = `${sanitizeFilename(data.title)}_official.docx`;
+  const filename = `${sanitizeFilename(data.title)}_draft.docx`;
   triggerBlobDownload(blob, filename);
 }
 
@@ -435,11 +426,22 @@ export function downloadOfficialPdf(data: FormattedDocumentData, config: Documen
     y += 20;
   }
 
+  // Optional draft session metadata. This is never represented as an official minutes excerpt.
+  if (config.includeSessionExcerpt && config.sessionDetails) {
+    doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'italic');
+    doc.setFontSize(9);
+    const sessionText = `DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES. ${config.sessionDetails.sessionType} SESSION; VENUE: ${config.sessionDetails.sessionVenue.toUpperCase() || 'NOT PROVIDED'}; DATE: ${config.sessionDetails.sessionDate || 'NOT PROVIDED'}.`;
+    const sessionLines = doc.splitTextToSize(sessionText, contentWidth);
+    doc.text(sessionLines, marginLeft, y);
+    y += sessionLines.length * 12 + 12;
+    doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'bold');
+  }
+
   // Title
   doc.setFontSize(13);
   const enactmentTitle = data.enactmentNumber
     ? `${data.documentType.toUpperCase()} NO. ${data.enactmentNumber}`
-    : `${data.documentType.toUpperCase()} NO. 2026-___`;
+    : `${data.documentType.toUpperCase()} NO. ____-___`;
   doc.text(enactmentTitle, pageWidth / 2, y, { align: 'center' });
   y += 18;
 
@@ -454,41 +456,40 @@ export function downloadOfficialPdf(data: FormattedDocumentData, config: Documen
 
   const parsed = extractWhereAsClausesAndBody(data.body);
 
-  for (const clause of parsed.whereAsClauses) {
-    if (y > pageHeight - 100) {
+  const bodyLineHeight = config.fontSizePt * config.lineSpacing;
+  const ensureBodySpace = (height = bodyLineHeight) => {
+    if (y + height > pageHeight - 50) {
       doc.addPage();
       y = 60;
     }
-    const lines = doc.splitTextToSize(clause, contentWidth);
-    doc.text(lines, marginLeft, y);
-    y += lines.length * (config.fontSizePt * config.lineSpacing) + 8;
+  };
+  const drawBodyBlock = (text: string, bold = false, spacingAfter = 8) => {
+    doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', bold ? 'bold' : 'normal');
+    const lines = doc.splitTextToSize(text, contentWidth) as string[];
+    for (const line of lines) {
+      ensureBodySpace();
+      doc.text(line, marginLeft, y);
+      y += bodyLineHeight;
+    }
+    y += spacingAfter;
+  };
+
+  for (const clause of parsed.whereAsClauses) {
+    drawBodyBlock(clause);
   }
 
   // Enacting clause
-  if (y > pageHeight - 100) {
-    doc.addPage();
-    y = 60;
-  }
-  doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'bold');
   const { enactingClauseBody } = inferSanggunianBodyName(data.jurisdiction, data.jurisdictionName);
-  const enactingLines = doc.splitTextToSize(parsed.enactingClause || enactingClauseBody, contentWidth);
-  doc.text(enactingLines, marginLeft, y);
-  y += enactingLines.length * (config.fontSizePt * config.lineSpacing) + 12;
+  drawBodyBlock(parsed.enactingClause || enactingClauseBody, true, 12);
 
-  // Sections
-  doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'normal');
-  for (const sec of parsed.sections) {
-    if (y > pageHeight - 100) {
-      doc.addPage();
-      y = 60;
+  // Sections, or the complete source body when no formal sections can be parsed.
+  if (parsed.sections.length > 0) {
+    for (const sec of parsed.sections) {
+      drawBodyBlock(`${sec.heading}. —`, true, 4);
+      drawBodyBlock(sec.body, false, 10);
     }
-    doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'bold');
-    doc.text(`${sec.heading}. — `, marginLeft, y);
-    doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'normal');
-
-    const lines = doc.splitTextToSize(sec.body, contentWidth);
-    doc.text(lines, marginLeft, y + 14);
-    y += lines.length * (config.fontSizePt * config.lineSpacing) + 16;
+  } else {
+    drawBodyBlock(data.body, false, 10);
   }
 
   // Signatures
@@ -500,7 +501,7 @@ export function downloadOfficialPdf(data: FormattedDocumentData, config: Documen
     y += 20;
     doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'italic');
     doc.setFontSize(10);
-    doc.text('I HEREBY CERTIFY to the correctness of the foregoing Ordinance.', marginLeft, y);
+    doc.text('DRAFT SIGNATORY PLACEHOLDERS — NO SIGNATURE OR APPROVAL IS RECORDED', marginLeft, y);
     y += 30;
 
     doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'bold');
@@ -511,7 +512,7 @@ export function downloadOfficialPdf(data: FormattedDocumentData, config: Documen
     y += 24;
 
     doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'bold');
-    doc.text('ATTESTED AND CERTIFIED TO BE DULY ADOPTED:', marginLeft, y);
+    doc.text('PROPOSED PRESIDING OFFICER:', marginLeft, y);
     y += 24;
     doc.text(config.signatories.presidingOfficerName.toUpperCase(), pageWidth - marginRight, y, { align: 'right' });
     y += 12;
@@ -520,7 +521,7 @@ export function downloadOfficialPdf(data: FormattedDocumentData, config: Documen
     y += 24;
 
     doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'bold');
-    doc.text(`APPROVED: ${config.signatories.approvalDate || '__________________'}`, marginLeft, y);
+    doc.text('PROPOSED LOCAL CHIEF EXECUTIVE:', marginLeft, y);
     y += 24;
     doc.text(config.signatories.chiefExecutiveName.toUpperCase(), pageWidth - marginRight, y, { align: 'right' });
     y += 12;
@@ -528,25 +529,21 @@ export function downloadOfficialPdf(data: FormattedDocumentData, config: Documen
     doc.text(config.signatories.chiefExecutiveTitle, pageWidth - marginRight, y, { align: 'right' });
   }
 
-  // Security Stamp
-  if (config.includeQrVerification && data.verificationHash) {
+  for (let page = 1; page <= doc.getNumberOfPages(); page += 1) {
+    doc.setPage(page);
     doc.setFontSize(8);
-    doc.setFont(config.fontFamily === 'Arial' ? 'helvetica' : 'times', 'italic');
-    doc.text(`Document Verification Hash: ${data.verificationHash}`, marginLeft, pageHeight - 30);
+    doc.text('WORKING DRAFT — NOT AN OFFICIAL RECORD', marginLeft, pageHeight - 30);
   }
 
-  doc.save(`${sanitizeFilename(data.title)}_official.pdf`);
+  doc.save(`${sanitizeFilename(data.title)}_draft.pdf`);
 }
 
-export function printOfficialDocument(data: FormattedDocumentData, config: DocumentFormatConfig): void {
+export function buildPrintDocumentHtml(data: FormattedDocumentData, config: DocumentFormatConfig): string {
   const { officeName, legislativeBody, enactingClauseBody } = inferSanggunianBodyName(
     data.jurisdiction,
     data.jurisdictionName,
   );
   const parsed = extractWhereAsClausesAndBody(data.body);
-
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
 
   const fontCss =
     config.fontFamily === 'Book Antiqua'
@@ -559,7 +556,8 @@ export function printOfficialDocument(data: FormattedDocumentData, config: Docum
     <!DOCTYPE html>
     <html>
       <head>
-        <title>${data.title}</title>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+        <title>${escapeHtml(data.title)}</title>
         <style>
           @page {
             size: ${config.paperSize === 'LEGAL' ? '8.5in 13in' : config.paperSize === 'LETTER' ? 'letter' : 'A4'};
@@ -567,8 +565,8 @@ export function printOfficialDocument(data: FormattedDocumentData, config: Docum
           }
           body {
             font-family: ${fontCss};
-            font-size: ${config.fontSizePt}pt;
-            line-height: ${config.lineSpacing};
+            font-size: ${Number.isFinite(config.fontSizePt) ? Math.min(14, Math.max(9, config.fontSizePt)) : 11}pt;
+            line-height: ${[1.15, 1.5, 2].includes(config.lineSpacing) ? config.lineSpacing : 1.15};
             color: #000;
             background: #fff;
             margin: 0;
@@ -640,32 +638,38 @@ export function printOfficialDocument(data: FormattedDocumentData, config: Docum
         </style>
       </head>
       <body>
-        <div class="header-seal">
+        <p><strong>WORKING DRAFT — NOT AN OFFICIAL RECORD</strong></p>
+        ${
+          config.includeSeals
+            ? `<div class="header-seal">
           <h3>REPUBLIC OF THE PHILIPPINES</h3>
-          <h2>${data.jurisdictionName.toUpperCase()}</h2>
-          <p>${officeName}</p>
-        </div>
+          <h2>${escapeHtml(data.jurisdictionName.toUpperCase())}</h2>
+          <p>${escapeHtml(officeName)}</p>
+        </div>`
+            : ''
+        }
 
         ${
           config.includeSessionExcerpt && config.sessionDetails
             ? `
           <div class="session-excerpt">
-            <p>EXCERPT FROM THE MINUTES OF THE ${config.sessionDetails.sessionType} SESSION OF THE ${legislativeBody} HELD AT ${config.sessionDetails.sessionVenue.toUpperCase()} ON ${config.sessionDetails.sessionDate}.</p>
-            <p><strong>PRESENT:</strong> ${config.sessionDetails.presentMembers.join(', ')}</p>
-            ${config.sessionDetails.absentMembers.length > 0 ? `<p><strong>ABSENT:</strong> ${config.sessionDetails.absentMembers.join(', ')}</p>` : ''}
+            <p><strong>DRAFT SESSION DETAILS — NOT VERIFIED AGAINST OFFICIAL MINUTES</strong></p>
+            <p>${escapeHtml(config.sessionDetails.sessionType)} SESSION OF THE ${escapeHtml(legislativeBody)}; VENUE: ${escapeHtml(config.sessionDetails.sessionVenue.toUpperCase() || 'NOT PROVIDED')}; DATE: ${escapeHtml(config.sessionDetails.sessionDate || 'NOT PROVIDED')}.</p>
+            <p><strong>PRESENT:</strong> ${escapeHtml(config.sessionDetails.presentMembers.join(', '))}</p>
+            ${config.sessionDetails.absentMembers.length > 0 ? `<p><strong>ABSENT:</strong> ${escapeHtml(config.sessionDetails.absentMembers.join(', '))}</p>` : ''}
           </div>
         `
             : ''
         }
 
         <div class="title-block">
-          <h3>${data.enactmentNumber ? `${data.documentType.toUpperCase()} NO. ${data.enactmentNumber}` : `${data.documentType.toUpperCase()} NO. 2026-___`}</h3>
-          <h1>${data.title.toUpperCase()}</h1>
+          <h3>${escapeHtml(`${data.documentType.toUpperCase()} NO. ${data.enactmentNumber || '____-___'}`)}</h3>
+          <h1>${escapeHtml(data.title.toUpperCase())}</h1>
         </div>
 
-        ${parsed.whereAsClauses.map((clause) => `<div class="whereas">${clause}</div>`).join('')}
+        ${parsed.whereAsClauses.map((clause) => `<div class="whereas">${escapeHtml(clause)}</div>`).join('')}
 
-        <div class="enacting-clause">${parsed.enactingClause || enactingClauseBody}</div>
+        <div class="enacting-clause">${escapeHtml(parsed.enactingClause || enactingClauseBody)}</div>
 
         ${
           parsed.sections.length > 0
@@ -673,54 +677,55 @@ export function printOfficialDocument(data: FormattedDocumentData, config: Docum
                 .map(
                   (sec) => `
                 <div class="section">
-                  <span class="section-heading">${sec.heading}. — </span>
-                  <span>${sec.body}</span>
+                  <span class="section-heading">${escapeHtml(sec.heading)}. — </span>
+                  <span>${escapeHtml(sec.body)}</span>
                 </div>
               `,
                 )
                 .join('')
-            : `<div class="section">${data.body}</div>`
+            : `<div class="section">${escapeHtml(data.body)}</div>`
         }
 
         ${
           config.includeSignatures
             ? `
           <div class="signature-block">
-            <p><em>I HEREBY CERTIFY to the correctness of the foregoing Ordinance.</em></p>
+            <p><strong>DRAFT SIGNATORY PLACEHOLDERS — NO SIGNATURE OR APPROVAL IS RECORDED</strong></p>
+            <p>Proposed Sanggunian Secretary:</p>
             <div class="sig-line">
-              <div class="sig-name">${config.signatories.secretaryName.toUpperCase()}</div>
-              <div>${config.signatories.secretaryTitle}</div>
+              <div class="sig-name">${escapeHtml(config.signatories.secretaryName.toUpperCase())}</div>
+              <div>${escapeHtml(config.signatories.secretaryTitle)}</div>
             </div>
 
-            <p style="margin-top: 20px;"><strong>ATTESTED AND CERTIFIED TO BE DULY ADOPTED:</strong></p>
+            <p style="margin-top: 20px;"><strong>PROPOSED PRESIDING OFFICER:</strong></p>
             <div class="sig-line">
-              <div class="sig-name">${config.signatories.presidingOfficerName.toUpperCase()}</div>
-              <div>${config.signatories.presidingOfficerTitle}</div>
+              <div class="sig-name">${escapeHtml(config.signatories.presidingOfficerName.toUpperCase())}</div>
+              <div>${escapeHtml(config.signatories.presidingOfficerTitle)}</div>
             </div>
 
-            <p style="margin-top: 20px;"><strong>APPROVED: ${config.signatories.approvalDate || '____________________'}</strong></p>
+            <p style="margin-top: 20px;"><strong>PROPOSED LOCAL CHIEF EXECUTIVE:</strong></p>
             <div class="sig-line">
-              <div class="sig-name">${config.signatories.chiefExecutiveName.toUpperCase()}</div>
-              <div>${config.signatories.chiefExecutiveTitle}</div>
+              <div class="sig-name">${escapeHtml(config.signatories.chiefExecutiveName.toUpperCase())}</div>
+              <div>${escapeHtml(config.signatories.chiefExecutiveTitle)}</div>
             </div>
           </div>
         `
             : ''
         }
 
-        ${
-          config.includeQrVerification && data.verificationHash
-            ? `
-          <div class="security-footer">
-            Document Verification Hash: <strong>${data.verificationHash}</strong> | Verified via LexiGov AI Platform
-          </div>
-        `
-            : ''
-        }
+        <div class="security-footer">This export has not been authenticated or legally certified by LexiGov.</div>
       </body>
     </html>
   `;
 
+  return html;
+}
+
+export function printOfficialDocument(data: FormattedDocumentData, config: DocumentFormatConfig): void {
+  const html = buildPrintDocumentHtml(data, config);
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+  printWindow.opener = null;
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.focus();

@@ -6,11 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@lexi
 import { Skeleton } from '@lexigov/ui/components/skeleton';
 import { ArrowRight, CheckCircle, FileText, LayoutTemplate, Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { appendDraftScope, useDraftScope } from '@/hooks/useDraftScope';
 import { useApiQuery } from '@/lib/api-hooks';
 import type { ApiDraft, PaginatedResponse } from '@/types';
 
 export default function DashboardPage() {
-  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>('/drafts?limit=5');
+  const { organization, organizationId, isLoading: isScopeLoading } = useDraftScope();
+  const draftsPath = appendDraftScope('/drafts?limit=5', organizationId);
+  const { data: draftsPage, isLoading } = useApiQuery<PaginatedResponse<ApiDraft>>(
+    isScopeLoading ? null : draftsPath,
+  );
   const { data: templatesPage } = useApiQuery<PaginatedResponse<unknown>>('/templates?publicOnly=true');
   const drafts = draftsPage?.data ?? [];
   const templates = templatesPage?.data ?? [];
@@ -41,7 +46,9 @@ export default function DashboardPage() {
       <div className='flex items-center justify-between'>
         <div>
           <h1 className='text-3xl font-bold'>Dashboard</h1>
-          <p className='text-muted-foreground mt-1'>Welcome back to LexiGov AI</p>
+          <p className='text-muted-foreground mt-1'>
+            {organization ? `Active workspace: ${organization.name}` : 'Active workspace: Personal'}
+          </p>
         </div>
         <Button asChild>
           <Link href='/drafts/new'>
@@ -51,7 +58,7 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {isLoading || isScopeLoading ? (
         <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className='h-32' />
@@ -83,12 +90,12 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <CardTitle className='text-sm font-medium'>AI Generations</CardTitle>
+              <CardTitle className='text-sm font-medium'>Recent AI Drafts</CardTitle>
               <Sparkles className='w-4 h-4 text-muted-foreground' />
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>{stats.aiGenerated}</div>
-              <p className='text-xs text-muted-foreground mt-1'>Drafts created with AI</p>
+              <p className='text-xs text-muted-foreground mt-1'>Among the five most recent drafts</p>
             </CardContent>
           </Card>
         </div>
@@ -108,7 +115,7 @@ export default function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isLoading || isScopeLoading ? (
               <div className='space-y-3'>
                 {[1, 2, 3].map((i) => (
                   <Skeleton key={i} className='h-16' />

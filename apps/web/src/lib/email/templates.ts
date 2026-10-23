@@ -6,7 +6,7 @@
 
 const BRAND = {
   name: 'LexiGov AI',
-  tagline: 'RA 7160-compliant ordinance drafting',
+  tagline: 'RA 7160-aware ordinance drafting',
   primary: '#1f2937',
   accent: '#2563eb',
   surface: '#f8fafc',
@@ -96,6 +96,29 @@ export function renderPasswordReset({ name, url }: { name?: string; url: string 
          <p>This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password will remain unchanged.</p>`,
   );
   const text = `${greeting}\n\nReset your ${BRAND.name} password by visiting:\n${url}\n\nThis link expires in 1 hour. If you did not request a reset, you can ignore this email.`;
+  return { subject, html, text };
+}
+
+export function renderOrganizationInvitation({
+  organizationName,
+  inviterName,
+  roleLabel,
+  url,
+}: {
+  organizationName: string;
+  inviterName: string;
+  roleLabel: string;
+  url: string;
+}) {
+  const subject = `Invitation to join ${organizationName} on LexiGov AI`;
+  const html = shell(
+    subject,
+    `<p>${escapeHtml(inviterName)} invited you to join <strong>${escapeHtml(organizationName)}</strong> as ${escapeHtml(roleLabel)}.</p>
+         <p>Accept only if you recognize the organization and expected this invitation. Workspace roles control access inside LexiGov but do not establish public office or legal authority.</p>
+         ${ctaButton(url, 'Review invitation')}
+         <p>This invitation expires. If you did not expect it, you can ignore this email.</p>`,
+  );
+  const text = `${inviterName} invited you to join ${organizationName} as ${roleLabel} on LexiGov AI. Workspace roles do not establish public office or legal authority. Review the invitation:\n${url}`;
   return { subject, html, text };
 }
 

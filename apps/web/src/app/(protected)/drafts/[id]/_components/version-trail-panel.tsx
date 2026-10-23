@@ -9,9 +9,15 @@ type VersionTrailPanelProps = {
   versionHistory: DraftVersion[] | undefined;
   isRestoringVersionId: string | null;
   onRestoreVersion: (versionId: string, versionNumber: number) => void;
+  readOnly?: boolean;
 };
 
-export function VersionTrailPanel({ versionHistory, isRestoringVersionId, onRestoreVersion }: VersionTrailPanelProps) {
+export function VersionTrailPanel({
+  versionHistory,
+  isRestoringVersionId,
+  onRestoreVersion,
+  readOnly = false,
+}: VersionTrailPanelProps) {
   return (
     <SidePanelCard title='Version trail' description='Recent saved states and related actions.'>
       <div className='space-y-4'>
@@ -41,7 +47,7 @@ export function VersionTrailPanel({ versionHistory, isRestoringVersionId, onRest
                     size='sm'
                     className='mt-3 w-full justify-between'
                     onClick={() => onRestoreVersion(version.id, version.version)}
-                    disabled={isRestoringVersionId !== null}
+                    disabled={readOnly || isRestoringVersionId !== null}
                   >
                     {isRestoringVersionId === version.id ? (
                       <>

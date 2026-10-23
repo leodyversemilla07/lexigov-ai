@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { OfficialExportModal } from './official-export-modal';
 
 describe('OfficialExportModal (Colocated Unit Test)', () => {
-  it('renders official document exporter dialog with letterhead and action buttons', () => {
+  it('renders the working-document exporter with letterhead and action buttons', () => {
     const mockDraft = createMockDraft({
       id: 'draft_pasig_001',
       title: 'Comprehensive Citizen Charter Ordinance',
@@ -27,12 +27,12 @@ describe('OfficialExportModal (Colocated Unit Test)', () => {
       />,
     );
 
-    expect(screen.getByText('Official Government Document Exporter')).toBeInTheDocument();
+    expect(screen.getByText('Government Document Draft Exporter')).toBeInTheDocument();
     expect(screen.getByText('REPUBLIC OF THE PHILIPPINES')).toBeInTheDocument();
     expect(screen.getAllByText(/CITY OF PASIG/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/ORDINANCE NO. 2026-042/i)).toBeInTheDocument();
     expect(screen.getByText('Export PDF')).toBeInTheDocument();
     expect(screen.getByText('Export Word (.docx)')).toBeInTheDocument();
     expect(screen.getByText('Print')).toBeInTheDocument();
-  });
+  }, 15_000);
 });

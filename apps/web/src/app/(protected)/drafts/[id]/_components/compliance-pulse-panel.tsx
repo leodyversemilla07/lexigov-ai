@@ -11,7 +11,7 @@ type CompliancePulsePanelProps = {
 
 export function CompliancePulsePanel({ latestCompliance, complianceHistory }: CompliancePulsePanelProps) {
   return (
-    <SidePanelCard title='Compliance pulse' description='Recent quality and compliance signals for this draft.'>
+    <SidePanelCard title='Advisory review pulse' description='Automated drafting signals; not a legal certification.'>
       <div className='space-y-4'>
         <div className='rounded-lg border bg-muted/20 p-4'>
           <div className='flex items-end justify-between gap-3'>
@@ -29,7 +29,7 @@ export function CompliancePulsePanel({ latestCompliance, complianceHistory }: Co
                   : 'border-amber-200 bg-amber-50 text-amber-700',
               )}
             >
-              {latestCompliance?.isValid ? 'Compliant' : 'Needs review'}
+              {latestCompliance ? (latestCompliance.isValid ? 'No critical flags' : 'Issues flagged') : 'Not checked'}
             </Badge>
           </div>
           <div className='mt-4 grid grid-cols-3 gap-2 text-center'>
@@ -61,7 +61,7 @@ export function CompliancePulsePanel({ latestCompliance, complianceHistory }: Co
                 <div className='flex items-center justify-between gap-3'>
                   <div className='font-medium'>Version {report.draftVersion}</div>
                   <Badge variant={report.isValid ? 'default' : 'secondary'}>
-                    {report.isValid ? 'Compliant' : 'Needs review'}
+                    {report.isValid ? 'No critical flags' : 'Issues flagged'}
                   </Badge>
                 </div>
                 <div className='mt-1 text-sm text-muted-foreground'>{new Date(report.checkedAt).toLocaleString()}</div>

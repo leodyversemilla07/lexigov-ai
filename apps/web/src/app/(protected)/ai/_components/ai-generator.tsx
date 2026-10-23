@@ -36,6 +36,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Controller } from 'react-hook-form';
 import { toast } from 'sonner';
+import { useDraftScope } from '@/hooks/useDraftScope';
 import { useZodForm } from '@/hooks/use-zod-form';
 import { api } from '@/lib/api-client';
 import { useApiQuery } from '@/lib/api-hooks';
@@ -129,6 +130,7 @@ function buildQuickTemplatePrompt(templateId: string, jurisdictionName: string, 
 export function AIPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { organization, organizationId, isLoading: isScopeLoading } = useDraftScope();
 
   const [step, setStep] = useState<'configure' | 'preview'>('configure');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -303,6 +305,7 @@ export function AIPageContent() {
         jurisdictionName: values.jurisdictionName,
         aiGenerated: true,
         templateId: selectedSavedTemplate?.id,
+        organizationId,
         content: normalizeDraftContent({
           body: generatedContent,
           prompt: values.prompt,
@@ -634,7 +637,10 @@ export function AIPageContent() {
                 <CardDescription>What would you like to do with this draft?</CardDescription>
               </CardHeader>
               <CardContent className='space-y-2'>
-                <Button onClick={handleSaveDraft} disabled={isSubmitting} className='w-full' size='lg'>
+                <p className='text-center text-xs text-muted-foreground'>
+                  Saving to {organization?.name ?? 'your personal workspace'}.
+                </p>
+                <Button onClick={handleSaveDraft} disabled={isSubmitting || isScopeLoading} className='w-full' size='lg'>
                   {isSubmitting ? (
                     <>
                       <Loader2 className='mr-2 h-4 w-4 animate-spin' />

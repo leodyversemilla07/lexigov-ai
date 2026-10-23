@@ -15,7 +15,7 @@ async function bootstrap() {
   // Swagger / OpenAPI
   const config = new DocumentBuilder()
     .setTitle('LexiGov API')
-    .setDescription('AI-powered platform for drafting Philippine local government ordinances (RA 7160 compliant).')
+    .setDescription('AI-assisted ordinance drafting with advisory RA 7160 checks; not a legal certification service.')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

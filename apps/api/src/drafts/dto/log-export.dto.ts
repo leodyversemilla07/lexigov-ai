@@ -1,6 +1,10 @@
 import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class LogExportDto {
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
+
   @IsString()
   @IsIn(['txt', 'md', 'docx', 'pdf'])
   format!: 'txt' | 'md' | 'docx' | 'pdf';
