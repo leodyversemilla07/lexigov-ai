@@ -8,3 +8,4 @@ export * from './providers/gemini';
 export * from './providers/mock';
 export * from './providers/openai';
 export * from './providers/openai-compatible';
+export * from './retrieval';

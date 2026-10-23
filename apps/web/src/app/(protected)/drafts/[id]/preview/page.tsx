@@ -12,6 +12,15 @@ import { useApiQuery } from '@/lib/api-hooks';
 
 const statusClasses: Record<string, string> = {
   DRAFT: 'border-amber-200 bg-amber-50 text-amber-800',
+  DRAFTING: 'border-amber-200 bg-amber-50 text-amber-800',
+  FIRST_READING: 'border-blue-200 bg-blue-50 text-blue-800',
+  COMMITTEE_REVIEW: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+  SECOND_READING: 'border-violet-200 bg-violet-50 text-violet-800',
+  THIRD_READING: 'border-purple-200 bg-purple-50 text-purple-800',
+  TRANSMITTED_TO_LCE: 'border-orange-200 bg-orange-50 text-orange-800',
+  ENACTED: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  VETOED: 'border-rose-200 bg-rose-50 text-rose-800',
+  LAPSED_INTO_LAW: 'border-slate-200 bg-slate-100 text-slate-700',
   REVIEW: 'border-sky-200 bg-sky-50 text-sky-800',
   FINAL: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   ARCHIVED: 'border-slate-200 bg-slate-100 text-slate-700',

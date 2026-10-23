@@ -1,5 +1,7 @@
 import {
+  buildDefaultDocumentFormatConfig,
   extractDraftBody,
+  type FormattedDocumentData,
   getDefaultMilestones,
   normalizeDraftContent,
   type SanggunianRole,
@@ -8,8 +10,11 @@ import {
 } from '@lexigov/shared';
 import { ConflictException, Inject, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
+import { ARTIFACT_STORAGE } from '../artifacts/artifact.module';
+import type { ArtifactStorage } from '../artifacts/artifact-storage.service';
 import type { DocumentStatus } from '../common/contracts';
 import { buildPaginatedResult } from '../common/pagination';
+import { OfficialDocumentExportService } from '../exports/official-document-export.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { ListDraftsDto } from './dto/list-drafts.dto';
@@ -18,7 +23,11 @@ import type { UpdateDraftDto } from './dto/update-draft.dto';
 
 @Injectable()
 export class DraftsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ARTIFACT_STORAGE) private readonly artifactStorage: ArtifactStorage,
+    @Inject(OfficialDocumentExportService) private readonly officialExportService: OfficialDocumentExportService,
+  ) {}
 
   async create(dto: CreateDraftDto, userId: string) {
     const now = new Date();
@@ -135,6 +144,7 @@ export class DraftsService {
 
       const previousContent = normalizeDraftContent(draft.content);
       const previousMilestones = previousContent.milestones;
+      const previousStage = previousMilestones?.currentStage ?? previousStatus;
       const targetStage = nextContent.milestones?.currentStage;
 
       if (targetStage && targetStage !== previousMilestones?.currentStage) {
@@ -170,12 +180,17 @@ export class DraftsService {
         },
       });
 
+      const nextWorkflowStatus = targetStage ?? nextStatus;
+      const stageChanged = nextWorkflowStatus !== previousStage;
+      const statusChanged = nextStatus !== previousStatus;
+      const effectiveStatus = stageChanged ? nextWorkflowStatus : nextStatus;
+
       const updated = await tx.draft.update({
         where: { id },
         data: {
           title: nextTitle,
           content: nextContent as unknown as Prisma.InputJsonValue,
-          status: nextStatus,
+          status: effectiveStatus,
           commitMessage: dto.commitMessage,
           documentHash: nextDocumentHash,
           version: previousVersion + 1,
@@ -183,12 +198,12 @@ export class DraftsService {
         },
       });
 
-      if (nextStatus !== previousStatus || (targetStage && targetStage !== previousMilestones?.currentStage)) {
+      if (stageChanged || statusChanged) {
         await tx.workflowTransition.create({
           data: {
             draftId: id,
-            fromStatus: previousMilestones?.currentStage ?? previousStatus,
-            toStatus: targetStage ?? nextStatus,
+            fromStatus: previousStage,
+            toStatus: stageChanged ? nextWorkflowStatus : nextStatus,
             actorId: userId,
             remarks: dto.commitMessage ?? (actorRole ? `Stage updated by ${actorRole}` : null),
             createdAt: now,
@@ -367,15 +382,65 @@ export class DraftsService {
     });
   }
 
-  async exportDraft(id: string, userId: string, format: 'txt' | 'md') {
+  async exportDraft(id: string, userId: string, format: 'txt' | 'md' | 'docx' | 'pdf') {
     const draft = await this.findOne(id, userId);
     const content = typeof draft.content === 'string' ? draft.content : extractDraftBody(draft.content);
+
+    if (format === 'docx' || format === 'pdf') {
+      const documentData: FormattedDocumentData = {
+        title: draft.title,
+        enactmentNumber: '2026-___',
+        documentType: draft.documentType,
+        jurisdiction: toJurisdictionLevel(draft.jurisdiction),
+        jurisdictionName: draft.jurisdictionName,
+        body: content,
+        verificationHash: draft.documentHash || `LXG-${draft.id.slice(0, 8).toUpperCase()}`,
+        verificationUrl: `https://lexigov.ph/verify?id=${draft.id}`,
+        version: draft.version,
+      };
+      const config = buildDefaultDocumentFormatConfig(
+        toJurisdictionLevel(draft.jurisdiction),
+        draft.jurisdictionName,
+        getDefaultMilestones(),
+      );
+      const buffer =
+        format === 'docx'
+          ? await this.officialExportService.generateOfficialDocx(documentData, config)
+          : await this.officialExportService.generateOfficialPdf(documentData, config);
+      const mimeType =
+        format === 'docx'
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : 'application/pdf';
+      const artifactKey = `exports/${draft.id}/v${draft.version}.${format}`;
+      const artifactUrl = await this.artifactStorage.put(artifactKey, buffer, mimeType);
+      const filename = `${draft.title.replace(/[^a-z0-9]/gi, '_')}_official.${format}`;
+
+      await this.prisma.exportHistory.create({
+        data: {
+          draftId: id,
+          exportType: format.toUpperCase(),
+          exportedBy: userId,
+          createdAt: new Date(),
+        },
+      });
+
+      return {
+        filename,
+        mimeType,
+        artifactKey,
+        artifactUrl,
+      };
+    }
 
     const header = `${draft.documentType}\n${draft.title}\n${draft.jurisdictionName} (${draft.jurisdiction})\nv${draft.version}\nStatus: ${draft.status}\n${'='.repeat(50)}\n\n`;
     const formatted =
       format === 'md'
         ? `# ${draft.title}\n\n**Type:** ${draft.documentType}\n**Jurisdiction:** ${draft.jurisdictionName}\n**v${draft.version}**\n\n---\n\n${content}`
         : header + content;
+
+    const mimeType = format === 'md' ? 'text/markdown' : 'text/plain';
+    const artifactKey = `exports/${draft.id}/v${draft.version}.${format}`;
+    const artifactUrl = await this.artifactStorage.put(artifactKey, Buffer.from(formatted, 'utf-8'), mimeType);
 
     await this.prisma.exportHistory.create({
       data: {
@@ -389,7 +454,9 @@ export class DraftsService {
     return {
       filename: `${draft.title.replace(/[^a-z0-9]/gi, '_')}_v${draft.version}.${format}`,
       content: formatted,
-      mimeType: format === 'md' ? 'text/markdown' : 'text/plain',
+      mimeType,
+      artifactKey,
+      artifactUrl,
     };
   }
 

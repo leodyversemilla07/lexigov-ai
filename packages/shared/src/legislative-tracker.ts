@@ -1,15 +1,6 @@
-import type { JurisdictionLevel } from './schemas/enums';
+import type { JurisdictionLevel, LegislativeStage } from './schemas/enums';
 
-export type LegislativeStage =
-  | 'DRAFTING'
-  | 'FIRST_READING'
-  | 'COMMITTEE_REVIEW'
-  | 'SECOND_READING'
-  | 'THIRD_READING'
-  | 'TRANSMITTED_TO_LCE'
-  | 'ENACTED'
-  | 'VETOED'
-  | 'LAPSED_INTO_LAW';
+export type { LegislativeStage } from './schemas/enums';
 
 export interface VotingRecord {
   ayes: number;

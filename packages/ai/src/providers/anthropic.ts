@@ -149,9 +149,13 @@ export class AnthropicProvider implements AiProvider {
   }
 
   async generateStructured<T = unknown>(options: GenerateStructuredOptions<T>): Promise<T> {
+    const schemaInstructions = options.jsonSchema
+      ? `\nRespond with a JSON object conforming to this JSON Schema:\n${JSON.stringify(options.jsonSchema)}`
+      : '';
+
     const result = await this.generateText({
       ...options,
-      systemPrompt: `${options.systemPrompt || ''}\nCRITICAL: Respond ONLY with valid JSON with no markdown wrapping.`,
+      systemPrompt: `${options.systemPrompt || ''}\nCRITICAL: Respond ONLY with valid JSON with no markdown wrapping.${schemaInstructions}`,
     });
 
     const clean = result.text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();

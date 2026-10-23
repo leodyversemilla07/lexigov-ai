@@ -14,22 +14,37 @@ export const documentTypeValues = ['ORDINANCE', 'RESOLUTION', 'MEMORANDUM', 'POL
 export const documentTypeSchema = z.enum(documentTypeValues);
 export type DocumentType = z.infer<typeof documentTypeSchema>;
 
-// Document status workflow (combines MVP statuses and formal RA 7160 legislative stages)
-export const documentStatusValues = [
-  'DRAFT',
-  'REVIEW',
-  'FINAL',
-  'ARCHIVED',
+// Canonical RA 7160 legislative stages (source of truth for the drafting workflow)
+export const legislativeStageValues = [
+  'DRAFTING',
   'FIRST_READING',
   'COMMITTEE_REVIEW',
   'SECOND_READING',
   'THIRD_READING',
+  'TRANSMITTED_TO_LCE',
+  'ENACTED',
+  'VETOED',
+  'LAPSED_INTO_LAW',
+] as const;
+export const legislativeStageSchema = z.enum(legislativeStageValues);
+export type LegislativeStage = z.infer<typeof legislativeStageSchema>;
+
+// Document status workflow: formal RA 7160 legislative stages plus operational
+// MVP lifecycle states. Legacy status names are retained so existing drafts and
+// clients remain valid; the formal stages are now the canonical source.
+export const draftLifecycleStatuses = ['DRAFT', 'REVIEW', 'FINAL', 'ARCHIVED'] as const;
+export const legacyTransitionStatuses = [
   'SANGGUNIAN_ENACTED',
   'LCE_REVIEW',
   'LCE_APPROVED',
   'LCE_VETOED',
   'HIGHER_SANGGUNIAN_REVIEW',
   'ENACTED_PUBLISHED',
+] as const;
+export const documentStatusValues = [
+  ...legislativeStageValues,
+  ...draftLifecycleStatuses,
+  ...legacyTransitionStatuses,
 ] as const;
 export const documentStatusSchema = z.enum(documentStatusValues);
 export type DocumentStatus = z.infer<typeof documentStatusSchema>;

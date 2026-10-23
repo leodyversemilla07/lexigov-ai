@@ -17,10 +17,12 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.service';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { InMemoryPresenceService, type PresenceService } from '../presence/presence.service';
 import { DraftsService } from './drafts.service';
 import { CreateDraftDto } from './dto/create-draft.dto';
 import { ListDraftsDto } from './dto/list-drafts.dto';
 import { LogExportDto } from './dto/log-export.dto';
+import { PresenceHeartbeatDto } from './dto/presence-heartbeat.dto';
 import { RestoreVersionDto } from './dto/restore-version.dto';
 import { UpdateDraftDto } from './dto/update-draft.dto';
 
@@ -29,7 +31,10 @@ import { UpdateDraftDto } from './dto/update-draft.dto';
 @Controller('drafts')
 @UseGuards(AuthGuard)
 export class DraftsController {
-  constructor(@Inject(DraftsService) private readonly draftsService: DraftsService) {}
+  constructor(
+    @Inject(DraftsService) private readonly draftsService: DraftsService,
+    @Inject(InMemoryPresenceService) private readonly presenceService: PresenceService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new draft' })
@@ -42,6 +47,24 @@ export class DraftsController {
   @ApiOperation({ summary: 'List drafts with pagination and filters' })
   findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: ListDraftsDto) {
     return this.draftsService.findAll(user.userId, query);
+  }
+
+  @Post(':id/presence')
+  @ApiOperation({ summary: 'Register presence heartbeat for the current user on a draft' })
+  @ApiResponse({ status: 201, description: 'Presence registered' })
+  heartbeatPresence(
+    @Param('id') id: string,
+    @Body() dto: PresenceHeartbeatDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.presenceService.heartbeat(id, user.userId, dto?.section);
+  }
+
+  @Get(':id/presence')
+  @ApiOperation({ summary: 'List active editors for a draft' })
+  @ApiResponse({ status: 200, description: 'Active editors' })
+  getActivePresence(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.presenceService.getActiveEditors(id, user.userId);
   }
 
   @Get(':id')
@@ -85,18 +108,20 @@ export class DraftsController {
   }
 
   @Get(':id/export')
-  @ApiOperation({ summary: 'Export draft as txt or md' })
-  @ApiQuery({ name: 'format', required: false, enum: ['txt', 'md'] })
+  @ApiOperation({ summary: 'Export draft as txt, md, docx, or pdf' })
+  @ApiQuery({ name: 'format', required: false, enum: ['txt', 'md', 'docx', 'pdf'] })
   exportDraft(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Query('format') format: string = 'txt',
   ) {
-    if (format !== 'txt' && format !== 'md') {
-      throw new BadRequestException('Export format must be txt or md');
+    const supportedFormats = ['txt', 'md', 'docx', 'pdf'] as const;
+    const allowedFormats: readonly string[] = supportedFormats;
+    if (!allowedFormats.includes(format)) {
+      throw new BadRequestException(`Export format must be one of: ${allowedFormats.join(', ')}`);
     }
 
-    return this.draftsService.exportDraft(id, user.userId, format);
+    return this.draftsService.exportDraft(id, user.userId, format as 'txt' | 'md' | 'docx' | 'pdf');
   }
 
   @Post(':id/export')

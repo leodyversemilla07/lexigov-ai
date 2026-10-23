@@ -95,7 +95,12 @@ export class OpenAiProvider implements AiProvider {
       model: options.model || this.defaultModel,
       messages,
       temperature: options.temperature ?? 0.1,
-      response_format: { type: 'json_object' },
+      response_format: options.jsonSchema
+        ? ({
+            type: 'json_schema',
+            json_schema: { name: 'compliance_analysis', schema: options.jsonSchema, strict: false },
+          } as never)
+        : ({ type: 'json_object' } as never),
     });
 
     const raw = completion.choices[0]?.message?.content ?? '{}';

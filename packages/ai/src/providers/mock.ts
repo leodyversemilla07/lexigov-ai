@@ -102,9 +102,9 @@ SECTION 7. Effectivity Clause. This Ordinance shall take effect fifteen (15) day
         {
           type: 'suggestion',
           section: 'SECTION 4. Penalties.',
-          message: 'Penalty matches statutory limits under RA 7160 Section 458.',
-          legalBasis: 'RA 7160 Section 458(a)(1)(iii)',
-          recommendation: 'Ensure community service alternatives are specified for indigent violators.',
+          title: 'Penalty matches statutory limits under RA 7160 Section 458.',
+          description: 'Penalty matches statutory limits under RA 7160 Section 458; consider community service alternatives for indigent violators.',
+          suggestion: 'Ensure community service alternatives are specified for indigent violators.',
         },
       ],
     };

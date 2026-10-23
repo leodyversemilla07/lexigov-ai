@@ -1,5 +1,6 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Optional, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { type CachedSession, InMemorySessionCache, SESSION_CACHE, type SessionCache } from './session-cache.service';
 
 export interface AuthenticatedUser {
   userId: string;
@@ -8,29 +9,24 @@ export interface AuthenticatedUser {
   role?: string;
 }
 
-interface CachedSession {
-  user: AuthenticatedUser;
-  expiresAt: number;
-}
-
 const DEFAULT_SESSION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_SESSION_CACHE_SIZE = 10_000;
 
 @Injectable()
 export class AuthService {
-  private readonly sessionCache = new Map<string, CachedSession>();
+  private readonly sessionCache: SessionCache;
 
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Optional() @Inject(SESSION_CACHE) injectedCache?: SessionCache,
+  ) {
+    this.sessionCache = injectedCache ?? new InMemorySessionCache();
+  }
 
   async verifySession(sessionToken: string): Promise<AuthenticatedUser> {
-    const now = Date.now();
-    const cached = this.sessionCache.get(sessionToken);
+    const cached = await this.sessionCache.get(sessionToken, Date.now());
 
-    if (cached) {
-      if (cached.expiresAt > now) {
-        return cached.user;
-      }
-      this.sessionCache.delete(sessionToken);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.user;
     }
 
     const session = await this.prisma.session.findUnique({
@@ -50,37 +46,21 @@ export class AuthService {
     };
 
     // Cache with sliding TTL capped by real session expiry
-    const ttlExpiresAt = Math.min(now + DEFAULT_SESSION_CACHE_TTL_MS, session.expiresAt.getTime());
-    if (ttlExpiresAt > now) {
-      if (this.sessionCache.size >= MAX_SESSION_CACHE_SIZE) {
-        // Prune first expired entries or clear old half
-        this.pruneCache(now);
-      }
-      this.sessionCache.set(sessionToken, { user, expiresAt: ttlExpiresAt });
+    const ttlExpiresAt = Math.min(Date.now() + DEFAULT_SESSION_CACHE_TTL_MS, session.expiresAt.getTime());
+    if (ttlExpiresAt > Date.now()) {
+      await this.sessionCache.set(sessionToken, user, ttlExpiresAt, Date.now());
     }
 
     return user;
   }
 
-  invalidateSession(sessionToken: string): void {
-    this.sessionCache.delete(sessionToken);
+  async invalidateSession(sessionToken: string): Promise<void> {
+    await this.sessionCache.del(sessionToken);
   }
 
-  clearCache(): void {
-    this.sessionCache.clear();
-  }
-
-  private pruneCache(now: number): void {
-    for (const [token, entry] of this.sessionCache.entries()) {
-      if (entry.expiresAt <= now) {
-        this.sessionCache.delete(token);
-      }
-    }
-    if (this.sessionCache.size >= MAX_SESSION_CACHE_SIZE) {
-      const keysToDelete = Array.from(this.sessionCache.keys()).slice(0, 1000);
-      for (const k of keysToDelete) {
-        this.sessionCache.delete(k);
-      }
-    }
+  async clearCache(): Promise<void> {
+    await this.sessionCache.clear();
   }
 }
+
+export type { CachedSession };

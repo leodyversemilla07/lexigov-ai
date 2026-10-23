@@ -43,7 +43,6 @@ lexigov-ai/
 │       │   ├── server.ts               # App server entry
 │       │   ├── types.ts                # Backend types
 │       │   └── tsconfig.json            # TS config
-│       └── Dockerfile                    # Backend Docker config
 │
 ├── packages/                                # Shared Packages
 │   ├── types/                            # TypeScript Types
@@ -67,7 +66,6 @@ lexigov-ai/
 │
 ├── infrastructure/                            # GCP Infrastructure (NOT STARTED)
 │   ├── terraform/                         # Terraform configs (NOT STARTED)
-│   └── docker-compose.yml                # Docker compose (NOT STARTED)
 │
 ├── docs/                                   # Documentation (NOT STARTED)
 ├── scripts/                                # Utility Scripts (NOT STARTED)
@@ -128,7 +126,6 @@ lexigov-ai/
 
 | File | Purpose |
 |-------|---------|
-| `docker-compose.yml` | Full stack orchestration |
 
 ---
 
@@ -160,7 +157,6 @@ lexigov-ai/
 - **Models**: User, Draft, Template, AuditLog, VersionComparison, ExportHistory, ComplianceReport
 - **Enums**: UserRole, DocumentType, DocumentStatus, JurisdictionLevel, AuditAction
 
-### Docker Services
 - **Frontend**: Next.js dev server
 - **Backend**: Fastify server on port 8080
 - **Database**: PostgreSQL 15 on port 5432
@@ -199,14 +195,11 @@ lexigov-ai/
 - [x] Health check endpoints
 - [x] API response utilities
 - [x] Authentication middleware
-- [x] Backend Dockerfile
 - [x] Route registration system
 
 #### Infrastructure ✅
-- [x] Docker Compose with full stack
 - [x] PostgreSQL service config
 - [x] Redis service config
-- [x] Dockerfiles for frontend and backend
 
 #### Documentation ✅
 - [x] README.md (312 lines)

@@ -9,6 +9,8 @@ export interface OrdinancePromptParams {
   jurisdiction: string;
   jurisdictionName: string;
   documentType: string;
+  /** Optional retrieved statutory context used to ground the generated draft. */
+  statutoryContext?: string;
 }
 
 export function buildOrdinanceDraftingPrompt(params: OrdinancePromptParams): {
@@ -45,9 +47,13 @@ Document Requirements:
    - SECTION 8. Repealing Clause.
    - SECTION 9. Effectivity Clause.`;
 
+  const userPrompt = params.statutoryContext
+    ? `Statutory Context:\n${params.statutoryContext}\n\nUser Request:\n${params.prompt}`
+    : params.prompt;
+
   return {
     systemPrompt,
-    userPrompt: params.prompt,
+    userPrompt,
   };
 }
 
@@ -92,20 +98,26 @@ Analyze the provided draft ordinance against:
 3. Due process, hearing, and publication requirements.
 4. Mandatory standard clauses (Separability, Repealing, Effectivity).
 
-You must respond in valid JSON matching this schema:
+You must respond in valid JSON with no markdown wrapping or extra text. The JSON must follow this exact structure:
 {
   "overallScore": <integer between 0 and 100>,
   "isValid": <boolean>,
   "issues": [
     {
-      "type": "violation" | "warning" | "suggestion",
-      "section": "<section title or number>",
-      "message": "<concise explanation>",
-      "legalBasis": "<exact citation, e.g. RA 7160 Section 458(a)(1)(iii)>",
-      "recommendation": "<actionable fix>"
+      "type": "critical" | "warning" | "suggestion",
+      "section": "<section label or number>",
+      "title": "<concise issue title>",
+      "description": "<explanation of the compliance gap>",
+      "suggestion": "<actionable recommended fix>"
     }
   ]
-}`;
+}
+
+Rules:
+- "type" must be one of: "critical" (mandatory statutory requirement violated or unenforceable), "warning" (recommended clause missing or risky), "suggestion" (optional improvement).
+- "issues" must not exceed 8 entries.
+- "overallScore" is 100 minus deductions (critical -25, warning -10, suggestion -4) across the reported issues.
+- "isValid" is false when any reported issue is of type "critical".`;
 
   return {
     systemPrompt,

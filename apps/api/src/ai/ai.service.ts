@@ -4,22 +4,29 @@ import {
   buildOrdinanceDraftingPrompt,
   buildSummaryPrompt,
   createAiProviderFromEnv,
+  createStatutoryRAGFromEnv,
+  type StatutoryRAG,
+  type StatutoryVectorStore,
 } from '@lexigov/ai';
 import {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
-  type ComplianceIssue,
+  complianceAnalysisJsonSchema,
   mergeComplianceIssues,
+  parseComplianceResult,
 } from '@lexigov/shared';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { isJurisdictionLevel } from '../common/contracts';
+import { STATUTORY_VECTOR_STORE } from './ai.constants';
 
 @Injectable()
 export class AiService {
   private provider: AiProvider;
+  private readonly statutoryRAG: StatutoryRAG;
 
-  constructor() {
+  constructor(@Inject(STATUTORY_VECTOR_STORE) statutoryStore: StatutoryVectorStore) {
     this.provider = createAiProviderFromEnv(process.env);
+    this.statutoryRAG = createStatutoryRAGFromEnv(process.env, statutoryStore);
   }
 
   setProvider(provider: AiProvider): void {
@@ -31,11 +38,13 @@ export class AiService {
   }
 
   async generateOrdinance(prompt: string, jurisdiction: string, jurisdictionName: string, documentType: string) {
+    const retrieval = await this.statutoryRAG.retrieve(prompt, 3);
     const { systemPrompt, userPrompt } = buildOrdinanceDraftingPrompt({
       prompt,
       jurisdiction,
       jurisdictionName,
       documentType,
+      statutoryContext: retrieval.context || undefined,
     });
 
     const result = await this.provider.generateText({
@@ -62,13 +71,17 @@ export class AiService {
     try {
       const { systemPrompt, userPrompt } = buildComplianceAnalysisPrompt(content, jurisdiction);
 
-      const aiResult = await this.provider.generateStructured<{ issues?: ComplianceIssue[] }>({
+      const aiResult = await this.provider.generateStructured<unknown>({
         prompt: userPrompt,
         systemPrompt,
         maxTokens: 2500,
+        jsonSchema: complianceAnalysisJsonSchema as Record<string, unknown>,
       });
 
-      const aiIssues = Array.isArray(aiResult.issues) ? aiResult.issues : [];
+      // Normalize the (provider-supplied) payload into canonical compliance issues
+      // before merging with the deterministic RA 7160 analysis.
+      const parsed = parseComplianceResult(aiResult);
+      const aiIssues = parsed ? parsed.issues : [];
       const merged = mergeComplianceIssues(deterministic.issues, aiIssues);
       return buildComplianceResultFromIssues(merged);
     } catch {
@@ -95,11 +108,13 @@ export class AiService {
     jurisdictionName: string,
     documentType: string,
   ): AsyncGenerator<string, void, unknown> {
+    const retrieval = await this.statutoryRAG.retrieve(prompt, 3);
     const { systemPrompt, userPrompt } = buildOrdinanceDraftingPrompt({
       prompt,
       jurisdiction,
       jurisdictionName,
       documentType,
+      statutoryContext: retrieval.context || undefined,
     });
 
     const stream = this.provider.streamText({

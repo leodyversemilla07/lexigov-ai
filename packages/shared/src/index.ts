@@ -9,8 +9,11 @@ export type {
 export {
   analyzeDeterministicCompliance,
   buildComplianceResultFromIssues,
+  complianceAnalysisJsonSchema,
   jurisdictionPenaltyGuidance,
   mergeComplianceIssues,
+  parseComplianceResult,
+  toComplianceIssue,
 } from './compliance-analysis';
 // Official Philippine Government Document Formatter
 export type {
@@ -57,7 +60,6 @@ export {
 // Sanggunian Legislative Tracker & RBAC
 export type {
   LegislativeMilestones,
-  LegislativeStage,
   StageValidationResult,
   VotingRecord,
 } from './legislative-tracker';

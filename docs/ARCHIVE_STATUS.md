@@ -113,7 +113,6 @@ pnpm db:migrate dev --name init
   - `index.ts` - Main router ⚠️ **HAS ERROR**
 - [x] Response utilities
 - [x] Auth middleware
-- [x] Dockerfile configured
 - [ ] ⚠️ Build failing (2 errors)
 
 ### ✅ Frontend Application (85%)
@@ -148,10 +147,8 @@ pnpm db:migrate dev --name init
 - [x] STATUS.md (this file)
 
 ### ✅ Infrastructure (80%)
-- [x] Docker Compose configuration
 - [x] PostgreSQL service
 - [x] Redis service
-- [x] Dockerfiles for web & API
 - [ ] Terraform configs not started
 - [ ] GCP infrastructure not created
 
@@ -183,7 +180,6 @@ lexigov-ai/
 │   ├── eslint-config/    ✅ Linting rules
 │   └── tsconfig/         ✅ TS configs
 └── infrastructure/
-    └── docker-compose.yml ✅ Full stack
 ```
 
 ---
@@ -242,7 +238,6 @@ lexigov-ai/
 | Frontend init | ✅ | Next.js 14 ready |
 | UI package | ✅ | shadcn/ui integrated |
 | Config packages | ✅ | ESLint, TS configs |
-| Docker setup | ✅ | PostgreSQL + Redis |
 | Documentation | ✅ | 6 comprehensive files |
 | **Blockers** | 🔴 | **2 build errors** |
 
@@ -354,7 +349,6 @@ Pending Phase 1 & 2 completion.
 - [ ] **Build passes without errors** 🔴 **CRITICAL**
 - [ ] Database initialized 🟡
 - [ ] At least 1 integration test ⏸️
-- [ ] Docker Compose working ⏸️
 - [ ] Documentation complete ✅
 
 **Current: 7/10 completed (70%)**

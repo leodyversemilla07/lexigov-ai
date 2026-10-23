@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { type AuthenticatedUser, AuthService } from './auth.service';
+import { InMemorySessionCache } from './session-cache.service';
 
 type SessionRecord = {
   token: string;
@@ -101,9 +102,23 @@ describe('AuthService', () => {
     await service.verifySession('invalidated_token');
     expect(prisma.session.findUnique).toHaveBeenCalledTimes(1);
 
-    service.invalidateSession('invalidated_token');
+    await service.invalidateSession('invalidated_token');
 
     await service.verifySession('invalidated_token');
     expect(prisma.session.findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the injected session cache when one is provided', async () => {
+    const fakeCache = new InMemorySessionCache();
+    const cachedUser = { userId: 'user_1', email: 'user@example.com', name: 'Maria Santos' };
+    await fakeCache.set('injected_token', cachedUser, Date.now() + 60_000);
+
+    const cachedService = new AuthService(prisma as unknown as ConstructorParameters<typeof AuthService>[0], fakeCache);
+
+    const result = await cachedService.verifySession('injected_token');
+
+    expect(result.userId).toBe('user_1');
+    // Served from cache: no database round trip.
+    expect(prisma.session.findUnique).not.toHaveBeenCalled();
   });
 });

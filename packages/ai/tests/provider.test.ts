@@ -50,6 +50,14 @@ describe('@lexigov/ai Provider Suite', () => {
 
       expect(result.overallScore).toBe(92);
       expect(result.isValid).toBe(true);
+      expect(Array.isArray(result.issues)).toBe(true);
+      expect((result.issues as Array<Record<string, unknown>>)[0]).toMatchObject({
+        type: 'suggestion',
+        section: expect.any(String),
+        title: expect.any(String),
+        description: expect.any(String),
+        suggestion: expect.any(String),
+      });
     });
   });
 
@@ -127,9 +135,20 @@ describe('@lexigov/ai Provider Suite', () => {
       expect(systemPrompt).toContain('executive summary');
     });
 
-    it('builds compliance analysis prompt', () => {
+    it('builds compliance analysis prompt with canonical JSON contract', () => {
       const { systemPrompt } = buildComplianceAnalysisPrompt('Ordinance body', 'barangay');
       expect(systemPrompt).toContain('RA 7160');
+      // Canonical compliance payload fields must be present in the prompt contract.
+      expect(systemPrompt).toContain('"overallScore"');
+      expect(systemPrompt).toContain('"isValid"');
+      expect(systemPrompt).toContain('"issues"');
+      expect(systemPrompt).toContain('"critical"');
+      expect(systemPrompt).toContain('"warning"');
+      expect(systemPrompt).toContain('"suggestion"');
+      expect(systemPrompt).toContain('"title"');
+      expect(systemPrompt).toContain('"description"');
+      expect(systemPrompt).toContain('"suggestion"');
+      expect(systemPrompt).toContain('"section"');
     });
   });
 });

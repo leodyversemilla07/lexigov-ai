@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AiModule } from './ai/ai.module';
+import { ArtifactModule } from './artifacts/artifact.module';
 import { AuthModule } from './auth/auth.module';
 import { ThrottlerBehindAuthGuard } from './common/throttler-behind-auth.guard';
 import { ComplianceModule } from './compliance/compliance.module';
@@ -29,6 +30,7 @@ import { TemplatesModule } from './templates/templates.module';
       },
     }),
     PrismaModule,
+    ArtifactModule,
     AuthModule,
     DraftsModule,
     TemplatesModule,

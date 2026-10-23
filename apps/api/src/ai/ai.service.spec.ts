@@ -1,13 +1,18 @@
-import { MockAiProvider } from '@lexigov/ai';
+import { MockAiProvider, type StatutoryVectorStore } from '@lexigov/ai';
 import type { ComplianceIssue } from '@lexigov/shared';
 import { AiService } from './ai.service';
+
+const createMockStatutoryStore = (): StatutoryVectorStore => ({
+  upsert: async () => undefined,
+  query: async () => [],
+});
 
 describe('AiService with MockAiProvider', () => {
   let service: AiService;
   let mockProvider: MockAiProvider;
 
   beforeEach(() => {
-    service = new AiService();
+    service = new AiService(createMockStatutoryStore());
     mockProvider = new MockAiProvider();
     service.setProvider(mockProvider);
   });
@@ -78,6 +83,29 @@ describe('AiService with MockAiProvider', () => {
       const result = await service.checkCompliance('Short draft with no penalties or standard clauses.', 'city');
 
       expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('normalizes loosely-shaped AI compliance issues before merging', async () => {
+      mockProvider.setStructuredResponse('Ordinance body with excessive penalties', {
+        overallScore: 40,
+        isValid: false,
+        issues: [
+          {
+            type: 'violation',
+            section: 'SECTION 4. Penalties.',
+            message: 'Fine of P5,000 exceeds the barangay ceiling.',
+            legalBasis: 'RA 7160 Section 391(a)(14)',
+            recommendation: 'Specify community service alternatives for indigent violators.',
+          },
+        ],
+      });
+
+      const result = await service.checkCompliance('Ordinance body with excessive penalties', 'barangay');
+
+      const aiIssue = result.issues.find((issue) => issue.title.includes('Fine of P5,000'));
+      expect(aiIssue).toBeDefined();
+      expect(aiIssue?.type).toBe('critical');
+      expect(aiIssue?.suggestion).toContain('community service alternatives');
     });
   });
 

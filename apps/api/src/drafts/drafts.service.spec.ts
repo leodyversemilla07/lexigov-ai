@@ -1,4 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { InMemoryArtifactStorage } from '../artifacts/artifact-storage.service';
+import { OfficialDocumentExportService } from '../exports/official-document-export.service';
 import { DraftsService } from './drafts.service';
 import type { CreateDraftDto } from './dto/create-draft.dto';
 import type { LogExportDto } from './dto/log-export.dto';
@@ -199,8 +201,14 @@ const baseCreateInput: CreateDraftDto = {
 
 function buildService() {
   const prisma = buildPrismaDouble();
-  const service = new DraftsService(prisma as unknown as ConstructorParameters<typeof DraftsService>[0]);
-  return { service, prisma };
+  const artifactStorage = new InMemoryArtifactStorage();
+  const officialExportService = new OfficialDocumentExportService();
+  const service = new DraftsService(
+    prisma as unknown as ConstructorParameters<typeof DraftsService>[0],
+    artifactStorage,
+    officialExportService,
+  );
+  return { service, prisma, officialExportService };
 }
 
 function expectDefined<T>(value: T | undefined, message = 'Expected value to be defined'): T {
@@ -430,6 +438,8 @@ describe('DraftsService.exportDraft', () => {
     expect(result.content).toContain('# Barangay Curfew Ordinance');
     expect(result.content).toContain('SECTION 1. Curfew hours are 10pm to 4am.');
     expect(result.filename).toMatch(/^Barangay_Curfew_Ordinance_v1\.md$/);
+    expect(result.artifactKey).toContain(`exports/${draft.id}/v1.md`);
+    expect(result.artifactUrl).toContain(`exports/${draft.id}/v1.md`);
     expect(prisma._state.exportHistory).toEqual([expect.objectContaining({ draftId: draft.id, exportType: 'MD' })]);
   });
 
@@ -442,6 +452,29 @@ describe('DraftsService.exportDraft', () => {
     expect(result.mimeType).toBe('text/plain');
     expect(result.content).toContain('ORDINANCE');
     expect(result.content).toContain('SECTION 1. Body text.');
+    expect(result.artifactKey).toContain(`exports/${draft.id}/v1.txt`);
+    expect(result.artifactUrl).toContain(`exports/${draft.id}/v1.txt`);
+  });
+
+  it('generates an official DOCX via the server-side export engine and persists it via artifact storage', async () => {
+    const { service, prisma, officialExportService } = buildService();
+    const draft = await service.create(
+      { ...baseCreateInput, content: { body: 'SECTION 1. Curfew hours are 10pm to 4am.' } },
+      userId,
+    );
+
+    const generateOfficialDocx = jest
+      .spyOn(officialExportService, 'generateOfficialDocx')
+      .mockResolvedValue(Buffer.from('docx-bytes'));
+
+    const result = await service.exportDraft(draft.id, userId, 'docx');
+
+    expect(generateOfficialDocx).toHaveBeenCalledTimes(1);
+    expect(result.mimeType).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    expect(result.filename).toContain('_official.docx');
+    expect(result.artifactKey).toContain('.docx');
+    expect(result.artifactUrl).toContain('.docx');
+    expect(prisma._state.exportHistory).toEqual([expect.objectContaining({ draftId: draft.id, exportType: 'DOCX' })]);
   });
 });
 
@@ -600,6 +633,31 @@ describe('DraftsService Multi-Tenancy & OCC', () => {
         toStatus: 'FIRST_READING',
         actorId: userId,
         remarks: 'Referred to First Reading calendar',
+      }),
+    ]);
+  });
+
+  it('uses the formal stage from content milestones for the workflow transition and mirrored status', async () => {
+    const { service, prisma } = buildService();
+    const draft = await service.create(baseCreateInput, userId);
+
+    const updated = await service.update(
+      draft.id,
+      {
+        content: {
+          body: 'REPUBLIC OF THE PHILIPPINES\nCITY OF PASIG\nOFFICE OF THE SANGGUNIAN\n\nORDINANCE NO. 2025-01',
+          milestones: { currentStage: 'FIRST_READING' },
+        },
+      },
+      userId,
+    );
+
+    expect(updated.status).toBe('FIRST_READING');
+    expect(prisma._state.workflowTransitions).toEqual([
+      expect.objectContaining({
+        draftId: draft.id,
+        fromStatus: 'DRAFT',
+        toStatus: 'FIRST_READING',
       }),
     ]);
   });

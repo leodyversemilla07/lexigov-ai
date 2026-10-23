@@ -14,6 +14,70 @@ export interface ComplianceResult {
   issues: ComplianceIssue[];
 }
 
+/**
+ * Coerce an AI provider payload into a canonical ComplianceIssue.
+ * Tolerates provider-specific field names (e.g. `violation`, `message`,
+ * `legalBasis`) so a loosely-typed model response can still be merged safely.
+ */
+export function toComplianceIssue(raw: unknown): ComplianceIssue | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const rawType = typeof record.type === 'string' ? record.type.toLowerCase() : '';
+  const type: ComplianceIssueType =
+    rawType === 'violation' ? 'critical' : (rawType as ComplianceIssueType) || 'suggestion';
+
+  const rawTitle =
+    typeof record.title === 'string'
+      ? record.title.trim()
+      : typeof record.message === 'string'
+        ? record.message.trim()
+        : '';
+  const title = rawTitle || 'Compliance issue';
+  const description =
+    (typeof record.description === 'string' && record.description.trim()) ||
+    (typeof record.message === 'string' ? record.message.trim() : '') ||
+    title;
+  const suggestion =
+    (typeof record.suggestion === 'string' && record.suggestion.trim()) ||
+    (typeof record.recommendation === 'string' ? record.recommendation : '') ||
+    '';
+  const section = typeof record.section === 'string' && record.section.trim() ? record.section.trim() : undefined;
+
+  if (!title) {
+    return null;
+  }
+
+  return { type, section, title, description, suggestion };
+}
+
+/**
+ * Parse and normalize an AI compliance analysis payload into a ComplianceResult.
+ * Returns null when the payload cannot be interpreted at all.
+ */
+export function parseComplianceResult(raw: unknown): ComplianceResult | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const issues = Array.isArray(record.issues)
+    ? record.issues.map(toComplianceIssue).filter((i): i is ComplianceIssue => i !== null)
+    : [];
+  const overallScore =
+    typeof record.overallScore === 'number' ? Math.max(0, Math.min(100, record.overallScore)) : Number.NaN;
+  const isValid =
+    typeof record.isValid === 'boolean' ? record.isValid : !issues.some((issue) => issue.type === 'critical');
+
+  if (Number.isNaN(overallScore)) {
+    return null;
+  }
+
+  return { overallScore, isValid, issues };
+}
+
 type JurisdictionLevel = 'barangay' | 'municipal' | 'city' | 'provincial';
 
 export const jurisdictionPenaltyGuidance: Record<JurisdictionLevel, string> = {
@@ -56,6 +120,40 @@ const PENALTY_RULES: Record<JurisdictionLevel, PenaltyRule> = {
 };
 
 const MAX_ISSUES = 8;
+
+const ISSUE_SEVERITY_ORDER: Record<ComplianceIssueType, number> = {
+  critical: 0,
+  warning: 1,
+  suggestion: 2,
+};
+
+/**
+ * Canonical JSON Schema for AI compliance analysis responses.
+ * Shared by every AI provider so the model is asked for a predictable payload.
+ */
+export const complianceAnalysisJsonSchema = {
+  type: 'object',
+  properties: {
+    overallScore: { type: 'integer', minimum: 0, maximum: 100 },
+    isValid: { type: 'boolean' },
+    issues: {
+      type: 'array',
+      maxItems: MAX_ISSUES,
+      items: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['critical', 'warning', 'suggestion'] },
+          section: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string' },
+          suggestion: { type: 'string' },
+        },
+        required: ['type', 'title', 'description', 'suggestion'],
+      },
+    },
+  },
+  required: ['overallScore', 'isValid', 'issues'],
+};
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, ' ').trim();
@@ -160,13 +258,13 @@ export function mergeComplianceIssues(baseIssues: ComplianceIssue[], extraIssues
 
     merged.push(issue);
     seen.add(key);
-
-    if (merged.length >= MAX_ISSUES) {
-      break;
-    }
   }
 
-  return merged;
+  // Retain the highest-severity issues when capping the merged result.
+  merged.sort((a, b) => ISSUE_SEVERITY_ORDER[a.type] - ISSUE_SEVERITY_ORDER[b.type]);
+
+  // Cap the merged result once, after deterministic + AI issues have been combined.
+  return merged.slice(0, MAX_ISSUES);
 }
 
 export function analyzeDeterministicCompliance(content: string, jurisdiction: JurisdictionLevel): ComplianceResult {

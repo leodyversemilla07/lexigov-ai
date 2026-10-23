@@ -12,6 +12,8 @@ export interface StreamTextOptions extends GenerateTextOptions {
 
 export interface GenerateStructuredOptions<T = unknown> extends GenerateTextOptions {
   schema?: unknown;
+  /** Optional JSON Schema for structured outputs (e.g. compliance analysis). */
+  jsonSchema?: Record<string, unknown>;
 }
 
 export interface AiUsage {

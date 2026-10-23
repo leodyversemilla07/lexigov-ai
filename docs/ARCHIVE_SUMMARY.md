@@ -80,7 +80,6 @@ LexiGov AI is an AI-powered platform for drafting, reviewing, and refining ordin
 - ⏸️ Backend initialization (Fastify)
 - ⏸️ API structure creation
 - ⏸️ GCP infrastructure setup
-- ⏸️ Docker configuration
 - ⏸️ Firebase Authentication setup
 
 ---
@@ -131,7 +130,6 @@ lexigov-ai/
 │
 ├── infrastructure/                  ⏸️ Not Started
 │   ├── terraform/                     ⏸️ Not Started
-│   └── docker-compose.yml              ⏸️ Not Started
 │
 ├── docs/                           ⏸️ Not Started
 ├── scripts/                         ⏸️ Not Started
