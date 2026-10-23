@@ -1,5 +1,5 @@
 import { type UserRole, userRoleValues } from '@lexigov/shared';
-import { IsIn, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty } from 'class-validator';
 
 export class UpdateUserRoleDto {
   @IsNotEmpty()

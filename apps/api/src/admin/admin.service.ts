@@ -1,6 +1,7 @@
 import { UserRole } from '@lexigov/shared';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { hashPassword } from './password.util';
 
 export interface AdminUserListQuery {
   page?: number;
@@ -75,5 +76,40 @@ export class AdminService {
       throw new NotFoundException('User not found');
     }
     return this.prisma.user.delete({ where: { id } });
+  }
+
+  /**
+   * Creates a user, and — when a password is supplied — a Better Auth
+   * `credential` account so the user can sign in with email and password.
+   */
+  async createUser(dto: { email: string; password?: string; name?: string; role?: UserRole }) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException('A user with that email already exists');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          name: dto.name,
+          role: dto.role ?? 'CITIZEN_VIEWER',
+          emailVerified: false,
+        },
+      });
+
+      if (dto.password) {
+        await tx.account.create({
+          data: {
+            accountId: user.id,
+            providerId: 'credential',
+            userId: user.id,
+            password: await hashPassword(dto.password),
+          },
+        });
+      }
+
+      return user;
+    });
   }
 }

@@ -1,11 +1,13 @@
-import { NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 describe('AdminService', () => {
   let service: AdminService;
   let prisma: {
+    $transaction: jest.Mock;
+    account: { create: jest.Mock };
     user: {
+      create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
       count: jest.Mock;
@@ -16,7 +18,10 @@ describe('AdminService', () => {
 
   beforeEach(() => {
     prisma = {
+      $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(prisma)),
+      account: { create: jest.fn() },
       user: {
+        create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
         count: jest.fn(),
@@ -93,6 +98,54 @@ describe('AdminService', () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(service.updateUserRole('missing', 'ADMIN')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('createUser', () => {
+    it('creates a user and a credential account when a password is provided', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'user_new',
+        ...data,
+      }));
+
+      const result = await service.createUser({
+        email: 'secretary@lexigov.ph',
+        password: 'SuperSecret123',
+        name: 'Maria Santos',
+        role: 'SANGGUNIAN_SECRETARY',
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({ id: 'user_new', email: 'secretary@lexigov.ph', role: 'SANGGUNIAN_SECRETARY' }),
+      );
+      expect(prisma.account.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          accountId: 'user_new',
+          providerId: 'credential',
+          userId: 'user_new',
+          password: expect.stringMatching(/^[0-9a-f]+:[0-9a-f]+$/),
+        }),
+      });
+    });
+
+    it('creates a user without an account when no password is provided', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'user_new', email: 'invitee@lexigov.ph', role: 'CITIZEN_VIEWER' });
+
+      await service.createUser({ email: 'invitee@lexigov.ph' });
+
+      expect(prisma.account.create).not.toHaveBeenCalled();
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ role: 'CITIZEN_VIEWER' }),
+      });
+    });
+
+    it('rejects a duplicate email', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'existing', email: 'dupe@lexigov.ph' });
+
+      await expect(service.createUser({ email: 'dupe@lexigov.ph' })).rejects.toThrow(ConflictException);
+      expect(prisma.user.create).not.toHaveBeenCalled();
     });
   });
 

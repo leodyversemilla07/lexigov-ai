@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { AuthGuard } from '../auth/auth.guard';
 import { RequireRoles, RolesGuard } from '../auth/roles.guard';
 import { AdminService } from './admin.service';
+import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { ListAdminUsersQueryDto } from './dto/list-admin-users-query.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 
@@ -22,6 +23,19 @@ export class AdminController {
       page: query.page,
       limit: query.limit,
       search: query.search,
+    });
+  }
+
+  @Post('users')
+  @RequireRoles('ADMIN')
+  @ApiOperation({ summary: 'Create a user' })
+  @ApiResponse({ status: 201, description: 'User created' })
+  createUser(@Body() dto: CreateAdminUserDto) {
+    return this.adminService.createUser({
+      email: dto.email,
+      password: dto.password,
+      name: dto.name,
+      role: dto.role,
     });
   }
 
