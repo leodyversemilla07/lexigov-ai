@@ -11,6 +11,10 @@ export const assistActionValues = ['expand', 'formalize', 'penalties', 'simplify
 export type AssistAction = (typeof assistActionValues)[number];
 
 export class AssistSectionDto {
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
   @ApiProperty({ description: 'Section heading, e.g. SECTION 3. Penalties' })
   @IsString()
   @MinLength(1)

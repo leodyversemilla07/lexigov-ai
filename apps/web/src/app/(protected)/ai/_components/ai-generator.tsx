@@ -279,6 +279,7 @@ export function AIPageContent() {
           jurisdiction: values.jurisdiction,
           jurisdictionName: values.jurisdictionName,
           documentType: values.documentType,
+          organizationId: organizationId ?? undefined,
         });
         setGeneratedContent(generated.content);
         setGeneratedModel(generated.model);
