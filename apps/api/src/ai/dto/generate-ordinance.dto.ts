@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import {
   type DocumentType,
   documentTypeValues,
@@ -8,6 +8,10 @@ import {
 } from '../../common/contracts';
 
 export class GenerateOrdinanceDto {
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
   @ApiProperty({ description: 'Description of the ordinance to generate', minLength: 10, maxLength: 5000 })
   @IsString()
   @MinLength(10)

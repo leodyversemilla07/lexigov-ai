@@ -187,7 +187,7 @@ describe('TemplatesService.create', () => {
     ]);
   });
 
-  it('defaults isPublic to true when not provided', async () => {
+  it('defaults isPublic to false when not provided', async () => {
     const { service } = buildService();
 
     const dto: CreateTemplateDto = {
@@ -199,7 +199,7 @@ describe('TemplatesService.create', () => {
 
     const template = await service.create(dto, 'user_1');
 
-    expect(template.isPublic).toBe(true);
+    expect(template.isPublic).toBe(false);
   });
 });
 
@@ -256,7 +256,7 @@ describe('TemplatesService.findAll', () => {
   it('filters by category when provided', async () => {
     const { service } = buildService();
     await service.create(
-      { name: 'Health Template', category: 'Health', jurisdiction: ['barangay'], structure: {} },
+      { name: 'Health Template', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: true },
       'user_1',
     );
     await service.create(
@@ -278,11 +278,11 @@ describe('TemplatesService.findAll', () => {
   it('orders results by usageCount descending', async () => {
     const { service, prisma } = buildService();
     const t1 = await service.create(
-      { name: 'Low', category: 'Health', jurisdiction: ['barangay'], structure: {} },
+      { name: 'Low', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: true },
       'user_1',
     );
     const t2 = await service.create(
-      { name: 'High', category: 'Health', jurisdiction: ['barangay'], structure: {} },
+      { name: 'High', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: true },
       'user_1',
     );
     const t2Record = prisma.state.templates.get(t2.id);
@@ -427,7 +427,7 @@ describe('TemplatesService.incrementUsage', () => {
   it('increments the usageCount and persists the change', async () => {
     const { service, prisma } = buildService();
     const created = await service.create(
-      { name: 'Counted', category: 'Health', jurisdiction: ['barangay'], structure: {} },
+      { name: 'Counted', category: 'Health', jurisdiction: ['barangay'], structure: {}, isPublic: true },
       'user_1',
     );
     expect(created.usageCount).toBe(0);

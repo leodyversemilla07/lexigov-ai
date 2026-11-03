@@ -183,7 +183,7 @@ export interface StatutoryRAGEnv {
 }
 
 export function createStatutoryRAGFromEnv(env: StatutoryRAGEnv, store: StatutoryVectorStore = new InMemoryStatutoryVectorStore()): StatutoryRAG {
-  const dimensions = env.AZURE_OPENAI_EMBEDDING_DIMENSIONS ?? 1024;
+  const dimensions = env.AZURE_OPENAI_EMBEDDING_DIMENSIONS ?? 1536;
 
   let embed: StatutoryEmbeddingProvider;
   if (env.AZURE_OPENAI_API_KEY && env.AZURE_OPENAI_ENDPOINT && env.AZURE_OPENAI_DEPLOYMENT) {
@@ -202,5 +202,5 @@ export function createStatutoryRAGFromEnv(env: StatutoryRAGEnv, store: Statutory
     embed = new MockEmbeddingProvider();
   }
 
-  return new StatutoryRAG(embed, new InMemoryStatutoryVectorStore());
+  return new StatutoryRAG(embed, store);
 }

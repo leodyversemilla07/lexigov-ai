@@ -1,0 +1,1 @@
+export const ARTIFACT_STORAGE = 'ARTIFACT_STORAGE';

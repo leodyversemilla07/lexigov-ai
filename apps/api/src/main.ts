@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { getServerEnv } from '@lexigov/env';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,6 +8,7 @@ import { AppModule } from './app.module';
 import { initSentry } from './sentry/sentry.init';
 
 async function bootstrap() {
+  const env = getServerEnv();
   initSentry();
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -40,7 +42,7 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.API_PORT ?? 4000;
+  const port = process.env.API_PORT ?? env.PORT;
   await app.listen(port);
   console.log(`LexiGov API running on http://localhost:${port}/api`);
 }

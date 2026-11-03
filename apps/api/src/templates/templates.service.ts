@@ -20,7 +20,7 @@ export class TemplatesService {
           jurisdiction: dto.jurisdiction,
           structure: dto.structure as Prisma.InputJsonValue,
           exampleContent: dto.exampleContent as Prisma.InputJsonValue,
-          isPublic: dto.isPublic ?? true,
+          isPublic: dto.isPublic ?? false,
           usageCount: 0,
           userId,
         },

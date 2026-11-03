@@ -19,7 +19,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
-import { ARTIFACT_STORAGE } from '../artifacts/artifact.module';
+import { ARTIFACT_STORAGE } from '../artifacts/artifact.constants';
 import type { ArtifactStorage } from '../artifacts/artifact-storage.service';
 import {
   hasOrganizationResourceAccess,
@@ -42,6 +42,10 @@ export class DraftsService {
     @Inject(ARTIFACT_STORAGE) private readonly artifactStorage: ArtifactStorage,
     @Inject(OfficialDocumentExportService) private readonly officialExportService: OfficialDocumentExportService,
   ) {}
+
+  async assertAccessible(id: string, userId: string): Promise<void> {
+    await this.getAccessibleDraft(this.prisma, id, userId);
+  }
 
   private async getAccessibleDraft(
     prisma: Pick<Prisma.TransactionClient, 'draft' | 'member'>,

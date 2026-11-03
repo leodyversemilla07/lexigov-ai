@@ -9,6 +9,7 @@ export interface ArtifactStorage {
 }
 
 export interface ArtifactStorageEnv {
+  NODE_ENV?: string;
   S3_BUCKET?: string;
   S3_REGION?: string;
   S3_ACCESS_KEY_ID?: string;
@@ -184,6 +185,9 @@ export class S3ArtifactStorage implements ArtifactStorage {
 export function createArtifactStorage(env: ArtifactStorageEnv): ArtifactStorage {
   if (env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY) {
     return new S3ArtifactStorage(env);
+  }
+  if (env.NODE_ENV === 'production') {
+    throw new Error('S3 artifact storage is required in production.');
   }
   return new InMemoryArtifactStorage();
 }

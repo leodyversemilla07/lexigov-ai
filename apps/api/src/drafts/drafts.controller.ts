@@ -51,18 +51,20 @@ export class DraftsController {
   @Post(':id/presence')
   @ApiOperation({ summary: 'Register presence heartbeat for the current user on a draft' })
   @ApiResponse({ status: 201, description: 'Presence registered' })
-  heartbeatPresence(
+  async heartbeatPresence(
     @Param('id') id: string,
     @Body() dto: PresenceHeartbeatDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.draftsService.assertAccessible(id, user.userId);
     return this.presenceService.heartbeat(id, user.userId, dto?.section);
   }
 
   @Get(':id/presence')
   @ApiOperation({ summary: 'List active editors for a draft' })
   @ApiResponse({ status: 200, description: 'Active editors' })
-  getActivePresence(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async getActivePresence(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.draftsService.assertAccessible(id, user.userId);
     return this.presenceService.getActiveEditors(id, user.userId);
   }
 

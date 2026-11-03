@@ -3,6 +3,10 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
+import type { AuthenticatedUser } from '../auth/auth.service';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { requireOrganizationMembership } from '../auth/organization-access';
+import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from './ai.service';
 import { AssistSectionDto } from './dto/assist-section.dto';
 import { CheckComplianceDto } from './dto/check-compliance.dto';
@@ -19,20 +23,29 @@ import { GenerateSummaryDto } from './dto/generate-summary.dto';
 @UseGuards(AuthGuard)
 @Throttle({ default: { limit: 10, ttl: 60_000 } })
 export class AiController {
-  constructor(@Inject(AiService) private readonly aiService: AiService) {}
+  constructor(
+    @Inject(AiService) private readonly aiService: AiService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+  ) {}
 
   @Post('generate-ordinance')
   @ApiOperation({ summary: 'Generate an ordinance draft using AI' })
   @ApiResponse({ status: 201, description: 'Ordinance generated' })
   @ApiResponse({ status: 503, description: 'AI service unavailable' })
-  generateOrdinance(@Body() dto: GenerateOrdinanceDto) {
+  async generateOrdinance(@Body() dto: GenerateOrdinanceDto, @CurrentUser() user: AuthenticatedUser) {
+    await this.auditRequest('GENERATE_ORDINANCE', user, dto.organizationId);
     return this.aiService.generateOrdinance(dto.prompt, dto.jurisdiction, dto.jurisdictionName, dto.documentType);
   }
 
   @Post('generate-ordinance/stream')
   @ApiOperation({ summary: 'Stream an ordinance draft generation using Server-Sent Events (SSE)' })
   @ApiResponse({ status: 200, description: 'SSE stream of generated tokens' })
-  async generateOrdinanceStream(@Body() dto: GenerateOrdinanceDto, @Res() res: Response) {
+  async generateOrdinanceStream(
+    @Body() dto: GenerateOrdinanceDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
+    await this.auditRequest('GENERATE_ORDINANCE_STREAM', user, dto.organizationId);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -58,7 +71,8 @@ export class AiController {
   @Post('assist-section')
   @ApiOperation({ summary: 'Generate section-level AI refinements' })
   @ApiResponse({ status: 201, description: 'Section content improved' })
-  assistSection(@Body() dto: AssistSectionDto) {
+  async assistSection(@Body() dto: AssistSectionDto, @CurrentUser() user: AuthenticatedUser) {
+    await this.auditRequest('ASSIST_SECTION', user, dto.organizationId);
     return this.aiService.assistSection(
       dto.sectionHeading,
       dto.sectionBody,
@@ -73,7 +87,8 @@ export class AiController {
   @ApiOperation({ summary: 'Check draft compliance against RA 7160' })
   @ApiResponse({ status: 201, description: 'Compliance analysis completed' })
   @ApiResponse({ status: 503, description: 'AI service unavailable' })
-  checkCompliance(@Body() dto: CheckComplianceDto) {
+  async checkCompliance(@Body() dto: CheckComplianceDto, @CurrentUser() user: AuthenticatedUser) {
+    await this.auditRequest('CHECK_COMPLIANCE', user, dto.organizationId);
     return this.aiService.checkCompliance(dto.content, dto.jurisdiction);
   }
 
@@ -81,7 +96,25 @@ export class AiController {
   @ApiOperation({ summary: 'Generate a summary for a draft' })
   @ApiResponse({ status: 201, description: 'Summary generated' })
   @ApiResponse({ status: 503, description: 'AI service unavailable' })
-  generateSummary(@Body() dto: GenerateSummaryDto) {
+  async generateSummary(@Body() dto: GenerateSummaryDto, @CurrentUser() user: AuthenticatedUser) {
+    await this.auditRequest('GENERATE_SUMMARY', user, dto.organizationId);
     return this.aiService.generateSummary(dto.content);
+  }
+
+  private async auditRequest(action: string, user: AuthenticatedUser, organizationId?: string): Promise<void> {
+    if (organizationId) {
+      await requireOrganizationMembership(this.prisma, organizationId, user.userId);
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        action,
+        entityType: 'ai_requests',
+        entityId: user.userId,
+        userId: user.userId,
+        organizationId: organizationId ?? null,
+        changes: { provider: this.aiService.getProvider().name },
+      },
+    });
   }
 }
